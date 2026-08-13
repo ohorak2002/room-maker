@@ -743,11 +743,5 @@ export function buildRoom(scene, config) {
   return { dispose, handles, group }
 }
 
-export const BACKDROPS = {
-  natural: 0xe9e7e1,
-  warm: 0xe8dccb,
-  cool: 0xe3e9ef,
-  moody: 0x1b1a20,
-  golden: 0xecdcc2,
-  overcast: 0xe6e9ec,
-}
+// Superseded by three/atmosphere.js, which paints a gradient sky plus fog and
+// exterior ground instead of a flat fill.

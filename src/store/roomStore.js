@@ -20,7 +20,6 @@ const initial = {
   customDims: null, // legacy; ceiling height override lives here as { h }
   planImage: null, // dataUrl of an uploaded floorplan, kept as a reference image
   windows: true,
-  temperature: 72,
   wallOverride: null,
   floorOverride: null,
 

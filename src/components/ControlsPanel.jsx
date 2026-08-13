@@ -125,24 +125,6 @@ export default function ControlsPanel() {
         <IncludedChat />
       </Section>
 
-      <Section title="Thermostat" summary={`${store.temperature}°F`}>
-        <div className="slider-row">
-          <input
-            type="range"
-            min="60"
-            max="85"
-            value={store.temperature}
-            onChange={(e) => store.set('temperature', Number(e.target.value))}
-            className="slider"
-            aria-label="Room temperature in Fahrenheit"
-          />
-          <span className="readout mono">{store.temperature}°F</span>
-        </div>
-        <p className="note">
-          Comfort setting saved with the design — it doesn't change the 3D view.
-        </p>
-      </Section>
-
       <section className="ctl-section reset-row">
         <button className="link-btn danger" onClick={store.reset}>
           Reset everything

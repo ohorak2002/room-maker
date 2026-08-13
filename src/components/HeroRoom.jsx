@@ -29,16 +29,38 @@ export default function HeroRoom({ palette = 'clay' }) {
       Promise.all([
         import('three'),
         import('three/examples/jsm/environments/RoomEnvironment.js'),
+        import('three/examples/jsm/postprocessing/EffectComposer.js'),
+        import('three/examples/jsm/postprocessing/RenderPass.js'),
+        import('three/examples/jsm/postprocessing/UnrealBloomPass.js'),
+        import('three/examples/jsm/postprocessing/OutputPass.js'),
         import('../three/buildRoom'),
+        import('../three/atmosphere'),
         import('../three/layout'),
         import('../data/presets'),
         import('../data/catalog'),
-      ]).then(([THREE, { RoomEnvironment }, { buildRoom }, { autoArrange, instanceKey }, presets, catalog]) => {
+      ]).then(
+        ([
+          THREE,
+          { RoomEnvironment },
+          { EffectComposer },
+          { RenderPass },
+          { UnrealBloomPass },
+          { OutputPass },
+          { buildRoom },
+          { buildAtmosphere },
+          { autoArrange, instanceKey },
+          presets,
+          catalog,
+        ]) => {
         if (disposed || !mountRef.current) return
 
         const scene = new THREE.Scene()
         const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100)
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+        // No alpha here: a transparent renderer with a gradient sky would just
+        // punch a rectangle of sky color over the page. The atmosphere module
+        // paints the sky itself, so the canvas can be opaque; the CSS mask on
+        // .hero-room is what feathers it into the surrounding page.
+        const renderer = new THREE.WebGLRenderer({ antialias: true })
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         renderer.outputColorSpace = THREE.SRGBColorSpace
         renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -51,9 +73,19 @@ export default function HeroRoom({ palette = 'clay' }) {
         const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04)
         scene.environment = envRT.texture
 
+        const composer = new EffectComposer(renderer)
+        composer.addPass(new RenderPass(scene, camera))
+        composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.4, 0.82))
+        composer.addPass(new OutputPass())
+
         const shape = { ...presets.getShape('living'), h: 2.9 }
         const p = presets.getPalette(palette)
         const room = presets.shapeBounds(shape)
+        const disposeAtmosphere = buildAtmosphere(scene, {
+          lighting: 'golden',
+          roomSpan: Math.max(room.w, room.d),
+          floorY: 0,
+        })
 
         const picks = ['sofa', 'coffee-table', 'rug', 'fiddle-fig', 'floor-lamp', 'bookshelf', 'canvas-art', 'monstera']
         const entries = picks
@@ -77,6 +109,8 @@ export default function HeroRoom({ palette = 'clay' }) {
           camera.aspect = w / h
           camera.updateProjectionMatrix()
           renderer.setSize(w, h, false)
+          composer.setSize(w, h)
+          composer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         }
         const ro = new ResizeObserver(resize)
         ro.observe(mount)
@@ -93,7 +127,7 @@ export default function HeroRoom({ palette = 'clay' }) {
           t = now * 0.00004
           camera.position.set(Math.sin(t) * dist * 0.62, eye, Math.cos(t * 0.7) * dist * 0.5 + dist * 0.55)
           camera.lookAt(0, room.h * 0.36, -room.d * 0.08)
-          renderer.render(scene, camera)
+          composer.render()
         }
         frame = requestAnimationFrame(tick)
 
@@ -103,12 +137,15 @@ export default function HeroRoom({ palette = 'clay' }) {
           cancelAnimationFrame(frame)
           ro.disconnect()
           built.dispose()
+          disposeAtmosphere()
+          composer.dispose()
           envRT.dispose()
           pmrem.dispose()
           renderer.dispose()
           if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
         }
-      })
+      }
+      )
 
     const idle = window.requestIdleCallback
       ? window.requestIdleCallback(start, { timeout: 1200 })

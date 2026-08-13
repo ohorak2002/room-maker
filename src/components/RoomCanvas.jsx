@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { useRoomStore } from '../store/roomStore'
 import { byId, starterFor, resolveItem } from '../data/catalog'
-import { buildRoom, BACKDROPS } from '../three/buildRoom'
+import { buildRoom } from '../three/buildRoom'
+import { buildAtmosphere } from '../three/atmosphere'
 import { autoArrange, instanceKey } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
 import PieceMenu from './PieceMenu'
@@ -55,6 +60,15 @@ export default function RoomCanvas() {
     const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04)
     scene.environment = envRT.texture
 
+    // Bloom on emissive geometry only (lamps, LED strips, screens, the window
+    // pane). Threshold is high and strength is low on purpose — this is meant
+    // to read as "that lamp is genuinely lit," not a hazy glow over everything.
+    const composer = new EffectComposer(renderer)
+    composer.addPass(new RenderPass(scene, camera))
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.82)
+    composer.addPass(bloom)
+    composer.addPass(new OutputPass())
+
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.08
@@ -82,6 +96,8 @@ export default function RoomCanvas() {
       camera.aspect = w / h
       camera.updateProjectionMatrix()
       renderer.setSize(w, h, false)
+      composer.setSize(w, h)
+      composer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     }
     const ro = new ResizeObserver(resize)
     ro.observe(mount)
@@ -132,11 +148,11 @@ export default function RoomCanvas() {
 
       controls.update()
       if (outline.visible) outline.update()
-      renderer.render(scene, camera)
+      composer.render()
     }
     frame = requestAnimationFrame(tick)
 
-    engineRef.current = { scene, camera, renderer, controls, outline, ghost, room: null, mount }
+    engineRef.current = { scene, camera, renderer, composer, controls, outline, ghost, room: null, atmosphere: null, mount }
 
     return () => {
       cancelAnimationFrame(frame)
@@ -146,7 +162,9 @@ export default function RoomCanvas() {
       }
       window.removeEventListener('keydown', noteInput)
       engineRef.current?.room?.dispose()
+      engineRef.current?.atmosphere?.()
       controls.dispose()
+      composer.dispose()
       envRT.dispose()
       pmrem.dispose()
       renderer.dispose()
@@ -186,7 +204,12 @@ export default function RoomCanvas() {
       placements[key] = { ...auto[key], ...(store.placements[key] || {}) }
     }
 
-    scene.background = new THREE.Color(BACKDROPS[lighting] ?? BACKDROPS.natural)
+    engine.atmosphere?.()
+    engine.atmosphere = buildAtmosphere(scene, {
+      lighting,
+      roomSpan: Math.max(room.w, room.d),
+      floorY: 0,
+    })
 
     engine.room = buildRoom(scene, {
       shape,

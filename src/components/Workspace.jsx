@@ -55,7 +55,6 @@ export default function Workspace() {
       lighting: store.lighting,
       floorplan: store.floorplan,
       windows: store.windows,
-      temperature: store.temperature,
       items: store.items.map((i) => {
         const item = resolveItem(i.id, store.synthetics)
         return {
