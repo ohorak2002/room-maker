@@ -201,3 +201,33 @@
     font-size: 0.84rem;
   }
 }
+
+/* --- 3D chunk loading --------------------------------------------------- */
+
+.stage-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  background: var(--ground);
+}
+
+.stage-spinner {
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  /* Fast on purpose — a quicker spinner makes the load read as shorter even
+     when the elapsed time is identical. */
+  animation: spin 620ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

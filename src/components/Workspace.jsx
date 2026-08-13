@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { byId, formatUSD } from '../data/catalog'
 import ControlsPanel from './ControlsPanel'
 import ShopPanel from './ShopPanel'
 import PhotoImport from './PhotoImport'
-import RoomCanvas from './RoomCanvas'
 import './Workspace.css'
+
+// Three.js only loads when the 3D view actually mounts, so the survey and the
+// shell paint without waiting on it.
+const RoomCanvas = lazy(() => import('./RoomCanvas'))
 
 const TABS = [
   { id: 'design', label: 'Design' },
@@ -112,7 +115,16 @@ export default function Workspace() {
         )}
 
         <main className="stage">
-          <RoomCanvas />
+          <Suspense
+            fallback={
+              <div className="stage-loading">
+                <span className="stage-spinner" aria-hidden="true" />
+                <span>Building your room…</span>
+              </div>
+            }
+          >
+            <RoomCanvas />
+          </Suspense>
         </main>
       </div>
     </div>

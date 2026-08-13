@@ -73,7 +73,7 @@
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  transition: all 0.16s ease;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
 .tool-btn:hover {

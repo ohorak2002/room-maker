@@ -299,7 +299,7 @@
   background: var(--surface);
   font-size: 0.88rem;
   cursor: pointer;
-  transition: all 0.16s ease;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
 .prefurn-item:hover {

@@ -25,15 +25,37 @@
     Arial, sans-serif;
   --font-mono: 'Cascadia Mono', 'SF Mono', Consolas, 'Roboto Mono', Menlo, monospace;
 
-  /* Motion tokens — one rhythm for the whole product. Entering decelerates and
-     settles; exiting accelerates away and is deliberately shorter, so the UI
-     never feels like it's arguing with you. */
-  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+  /* Motion tokens — one rhythm for the whole product. The built-in CSS easings
+     are too weak to read as intentional; these are the stronger variants.
+     ease-in is never used on entrances: it delays the first movement, which is
+     exactly the moment the eye is watching. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-mid: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-fast: 140ms;
-  --dur-base: 240ms;
-  --dur-slow: 340ms;
+  --ease-mid: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 120ms;
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-slow: 280ms;
+}
+
+/* Press feedback on everything pressable. Instant confirmation that the
+   interface heard you — the single cheapest thing that makes UI feel alive. */
+button:active:not(:disabled),
+.option-card:active,
+.prefurn-item:active {
+  transform: scale(0.97);
+}
+
+button {
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+/* Hover only where a real pointer exists. On touch, :hover sticks after a tap
+   and leaves elements looking permanently highlighted. */
+@media (hover: none) {
+  *:hover {
+    transform: none !important;
+  }
 }
 
 /* One global escape hatch. Motion sickness from a web page is a real harm, and
