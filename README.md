@@ -1,66 +1,87 @@
-# Room Maker - 3D Room Generator
+# Room Maker
 
-Generate your dream room by describing what you like! Input your preferences (colors, patterns, architecture, furniture, lighting) and the app will create a 3D visualization of your personalized room.
+Describe what you like — colors, feeling, light, size — and get a 3D room built from
+your answers. Then furnish it from a shoppable catalog and see each piece appear in
+the model.
+
+![status](https://img.shields.io/badge/status-prototype-blue)
+
+## How it works
+
+1. **Four questions.** A short onboarding flow asks about palette, feel, light, and
+   room size. Every answer maps to real values — the palette carries the actual hexes
+   painted onto the walls and floor, the light choice swaps the whole lighting rig.
+2. **The room builds itself.** Walls, floor, ceiling, baseboards, and a cut window
+   are generated from the floorplan you picked.
+3. **Shop it.** Add furniture, greenery, lighting, decor, and tech. Each item is
+   built as a real 3D object and placed in the room automatically.
+4. **Export.** Download the design as JSON, including the shopping list with links.
 
 ## Features
 
-- **Room Preferences**: Set colors, patterns, and architectural styles
-- **Settings**: Configure temperature, lighting, windows, and floorplan
-- **Objects & Furniture**: Add paintings, LED lights, computers, desks, chairs, and more
-- **3D Visualization**: Real-time 3D model of your room
-- **Future**: Shopping integration for furniture items
+- Animated multi-step onboarding with progress, back/next, and a skip
+- Six palettes plus per-surface wall/floor color overrides
+- Four lighting rigs (Daylight / Warm / Cool / Moody) that change ambient, key light,
+  shadow, and background together
+- Four floorplans, from a 4×4 studio to a 9×7 loft
+- 35-item catalog across six categories, heavy on greenery
+- Live 3D: every change rebuilds the scene, orbit + zoom controls
+- Design persists to `localStorage`; JSON export with a linked shopping list
+- Light and dark themes, responsive down to mobile widths
+
+## A note on prices
+
+**Prices in the catalog are estimates, not live retail data.** There is no pricing
+API wired up. What is real is the retailer and the search link, which opens that
+store's own search for the item so you can check the current price yourself. The
+data layer is shaped so a real price feed can replace the static numbers without
+touching the UI — see `src/data/catalog.js`.
 
 ## Tech Stack
 
-- **Frontend**: React + Three.js + Vite
-- **State Management**: Zustand
-- **Hosting**: Vercel/Netlify (planned)
+- **React 18** + **Vite** — UI and build
+- **Three.js** — 3D scene, procedural geometry, lighting, shadows
+- **Zustand** (with `persist`) — state, saved to localStorage
 
 ## Getting Started
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-
-### Installation
-
 ```bash
 npm install
-```
-
-### Development
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-### Build
+Then open http://localhost:5173.
 
 ```bash
-npm run build
+npm run build     # production build to dist/
+npm run preview   # serve the production build
 ```
 
 ## Project Structure
 
 ```
-room-maker/
-├── src/
-│   ├── components/      # React components
-│   ├── stores/          # Zustand stores
-│   ├── three/           # Three.js scene setup
-│   ├── App.jsx
-│   └── main.jsx
-├── public/
-├── index.html
-├── vite.config.js
-└── package.json
+src/
+├── components/
+│   ├── Onboarding.jsx      # the four-question intro flow
+│   ├── Workspace.jsx       # top bar + panel + stage shell
+│   ├── ControlsPanel.jsx   # palette, feel, light, floorplan, thermostat
+│   ├── ShopPanel.jsx       # catalog, search, cart
+│   └── RoomCanvas.jsx      # Three.js mount, camera framing, rebuild-on-change
+├── three/
+│   └── buildRoom.js        # room shell, lighting rigs, object builders, placement
+├── data/
+│   ├── presets.js          # palettes, moods, lighting, floorplans
+│   └── catalog.js          # shoppable items + retailer search links
+└── store/
+    └── roomStore.js        # zustand store, persisted
 ```
 
-## Contributing
+## Roadmap
 
-Feel free to submit issues and enhancement requests!
+- Drag furniture to reposition instead of automatic placement
+- Real price lookups via a retail API
+- Shareable room links
+- Mobile app wrapper
 
 ## License
 

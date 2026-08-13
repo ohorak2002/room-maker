@@ -1,20 +1,9 @@
-import { useState } from 'react'
+import { useRoomStore } from './store/roomStore'
+import Onboarding from './components/Onboarding'
+import Workspace from './components/Workspace'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <h1>Room Maker - 3D Room Generator</h1>
-        <p>Coming soon! Build your dream room.</p>
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-      </div>
-    </>
-  )
+export default function App() {
+  const onboarded = useRoomStore((s) => s.onboarded)
+  return onboarded ? <Workspace /> : <Onboarding />
 }
-
-export default App

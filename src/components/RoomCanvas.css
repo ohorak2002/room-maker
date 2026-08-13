@@ -1,0 +1,41 @@
+.canvas-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.canvas-mount {
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-mount canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-hud {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.hud-hint,
+.hud-empty {
+  align-self: flex-start;
+  padding: 6px 11px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  background: rgba(20, 21, 24, 0.68);
+  color: #f0efec;
+  backdrop-filter: blur(6px);
+}
+
+.hud-empty {
+  background: rgba(46, 107, 94, 0.9);
+}
