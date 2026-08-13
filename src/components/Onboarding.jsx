@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import PillowMark from './PillowMark'
+import HeroRoom from './HeroRoom'
 import { PALETTES, MOODS, LIGHTING, ROOM_SHAPES, CELL } from '../data/presets'
 import './Onboarding.css'
 
@@ -90,6 +91,7 @@ export default function Onboarding() {
     return (
       <div className="onboard">
         <HouseMark />
+        <HeroRoom palette={store.palette} />
         <div className={`onboard-stage welcome ${leaving ? 'is-leaving' : 'is-entering'}`}>
           <p className="eyebrow">
             <PillowMark size={20} className="eyebrow-mark" />

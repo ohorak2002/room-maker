@@ -7,6 +7,7 @@ import { byId, starterFor, resolveItem } from '../data/catalog'
 import { buildRoom, BACKDROPS } from '../three/buildRoom'
 import { autoArrange, instanceKey } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
+import PieceMenu from './PieceMenu'
 import './RoomCanvas.css'
 
 export default function RoomCanvas() {
@@ -15,6 +16,7 @@ export default function RoomCanvas() {
   const [selected, setSelected] = useState(null) // { key, name }
   const [dragging, setDragging] = useState(false)
   const [warnDismissed, setWarnDismissed] = useState(false)
+  const [menu, setMenu] = useState(null) // { key, name, x, y }
 
   const palette = useRoomStore((s) => s.palette)
   const lighting = useRoomStore((s) => s.lighting)
@@ -85,20 +87,64 @@ export default function RoomCanvas() {
     ro.observe(mount)
     resize()
 
+    // --- ambient drift ----------------------------------------------------
+    // A still render reads as a screenshot. After a few seconds of no input the
+    // camera starts a very slow orbit, so the room breathes and you can see the
+    // light move across surfaces. Any interaction cancels it instantly and the
+    // idle timer restarts — it must never fight the user for control.
+    const IDLE_MS = 4000
+    const DRIFT_SPEED = 0.000045
+    let lastInput = performance.now()
+    let driftPhase = 0
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    const noteInput = () => {
+      lastInput = performance.now()
+    }
+    for (const evt of ['pointerdown', 'pointermove', 'wheel', 'keydown']) {
+      renderer.domElement.addEventListener(evt, noteInput, { passive: true })
+    }
+    window.addEventListener('keydown', noteInput)
+
     let frame
-    const tick = () => {
+    let prev = performance.now()
+    const tick = (now) => {
       frame = requestAnimationFrame(tick)
+      const dt = Math.min(now - prev, 64)
+      prev = now
+
+      const idle = now - lastInput > IDLE_MS
+      // controls.enabled goes false while a piece is being dragged.
+      if (idle && controls.enabled && !reduceMotion.matches) {
+        // Ease the drift in rather than snapping to full speed at 4.000s.
+        driftPhase = Math.min(driftPhase + dt / 2200, 1)
+        const eased = driftPhase * driftPhase * (3 - 2 * driftPhase)
+        const angle = DRIFT_SPEED * dt * eased
+        const { x, z } = camera.position
+        const target = controls.target
+        const dx = x - target.x
+        const dz = z - target.z
+        camera.position.x = target.x + dx * Math.cos(angle) - dz * Math.sin(angle)
+        camera.position.z = target.z + dx * Math.sin(angle) + dz * Math.cos(angle)
+      } else {
+        driftPhase = 0
+      }
+
       controls.update()
       if (outline.visible) outline.update()
       renderer.render(scene, camera)
     }
-    tick()
+    frame = requestAnimationFrame(tick)
 
     engineRef.current = { scene, camera, renderer, controls, outline, ghost, room: null, mount }
 
     return () => {
       cancelAnimationFrame(frame)
       ro.disconnect()
+      for (const evt of ['pointerdown', 'pointermove', 'wheel', 'keydown']) {
+        renderer.domElement.removeEventListener(evt, noteInput)
+      }
+      window.removeEventListener('keydown', noteInput)
       engineRef.current?.room?.dispose()
       controls.dispose()
       envRT.dispose()
@@ -315,8 +361,10 @@ export default function RoomCanvas() {
       downAt = null
     }
 
-    // Keyboard: nudge and rotate whichever piece is currently selected.
+    // Shared between the keyboard, pointer and context-menu handlers.
     let outlineTarget = null
+
+    // Keyboard: nudge and rotate whichever piece is currently selected.
     const onKeyDown = (e) => {
       // Never steal keys while someone is typing in the panel.
       const tag = document.activeElement?.tagName
@@ -373,6 +421,23 @@ export default function RoomCanvas() {
       outlineTarget = hit ? hit.node : null
     }
 
+    const onContext = (e) => {
+      const hit = pick(e)
+      if (!hit) return
+      e.preventDefault()
+      outline.setFromObject(hit.node)
+      outline.visible = true
+      outlineTarget = hit.node
+      setSelected({ key: hit.node.userData.key, name: hit.node.userData.name })
+      setMenu({
+        key: hit.node.userData.key,
+        name: hit.node.userData.name,
+        x: e.clientX,
+        y: e.clientY,
+      })
+    }
+
+    el.addEventListener('contextmenu', onContext)
     el.addEventListener('pointerdown', onDown)
     el.addEventListener('pointerdown', syncTarget)
     el.addEventListener('pointermove', onMove)
@@ -381,6 +446,7 @@ export default function RoomCanvas() {
     window.addEventListener('keydown', onKeyDown)
 
     return () => {
+      el.removeEventListener('contextmenu', onContext)
       el.removeEventListener('pointerdown', onDown)
       el.removeEventListener('pointerdown', syncTarget)
       el.removeEventListener('pointermove', onMove)
@@ -392,6 +458,41 @@ export default function RoomCanvas() {
 
   const store = useRoomStore()
   const count = items.reduce((n, i) => n + i.qty, 0)
+
+  const runMenuAction = (action, ctx) => {
+    const engine = engineRef.current
+    const node = engine?.room?.handles.find((h) => h.userData.key === ctx.key)
+    if (!node) return
+
+    if (action === 'remove') {
+      store.removeInstance(ctx.key)
+      engine.outline.visible = false
+      setSelected(null)
+      return
+    }
+    if (action === 'duplicate') {
+      const [id] = ctx.key.split('#')
+      const synth = store.synthetics[id]
+      if (synth) store.addSynthetic(synth)
+      else store.addItem(id)
+      return
+    }
+
+    store.pushHistory()
+    if (action === 'rotate') node.rotation.y += Math.PI / 4
+    if (action === 'center') {
+      node.position.x = 0
+      node.position.z = 0
+    }
+    engine.outline.setFromObject(node)
+    store.setPlacement(ctx.key, {
+      x: node.position.x,
+      y: node.position.y,
+      z: node.position.z,
+      ry: node.rotation.y,
+      zone: node.userData.zone,
+    })
+  }
   const hasCustom = Object.keys(store.placements).length > 0
   const historyDepth = store._past.length
 
@@ -408,6 +509,8 @@ export default function RoomCanvas() {
   return (
     <div className="canvas-root">
       <div ref={mountRef} className="canvas-mount" />
+
+      <PieceMenu menu={menu} onAction={runMenuAction} onClose={() => setMenu(null)} />
 
       <div className="canvas-tools">
         <button

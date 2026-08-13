@@ -1,0 +1,46 @@
+/* Sits behind the welcome copy, right of centre so the text stays readable.
+   Opacity and transform are driven inline by the component; everything else
+   lives here. */
+.hero-room {
+  position: absolute;
+  right: -6%;
+  bottom: -4%;
+  width: min(58vw, 760px);
+  height: min(72vh, 620px);
+  /* Zero, not -1. `.onboard` paints an opaque background, so a negative
+     z-index child renders behind it and is never seen. */
+  z-index: 0;
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+  pointer-events: none;
+  /* Feather the edges so it reads as part of the page, not a pasted rectangle. */
+  mask-image: radial-gradient(ellipse 76% 76% at 60% 55%, #000 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 76% 76% at 60% 55%, #000 40%, transparent 80%);
+}
+
+.hero-room canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The copy has to win against the render behind it. */
+.onboard-stage,
+.onboard-top,
+.onboard-nav {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 900px) {
+  .hero-room {
+    width: 118vw;
+    right: -26%;
+    bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-room {
+    display: none;
+  }
+}
