@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
+import PillowMark from './PillowMark'
 import { PALETTES, MOODS, LIGHTING, ROOM_SHAPES, CELL } from '../data/presets'
 import './Onboarding.css'
 
@@ -90,7 +91,10 @@ export default function Onboarding() {
       <div className="onboard">
         <HouseMark />
         <div className={`onboard-stage welcome ${leaving ? 'is-leaving' : 'is-entering'}`}>
-          <p className="eyebrow">Room Maker</p>
+          <p className="eyebrow">
+            <PillowMark size={20} className="eyebrow-mark" />
+            Room Maker
+          </p>
           <h1>You don't have to picture it.</h1>
           <p className="lede">
             Answer five questions about your space and what you like. We'll build the room from your
@@ -116,6 +120,7 @@ export default function Onboarding() {
     <div className="onboard">
       <HouseMark />
       <div className="onboard-top">
+        <PillowMark size={18} className="progress-mark" />
         <div className="progress" role="group" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
           {STEPS.map((_, i) => (
             <span key={i} className={`tick ${i <= step ? 'done' : ''}`} />

@@ -113,8 +113,8 @@
   right: 16px;
   max-width: 300px;
   padding: 11px 14px;
-  border-radius: 4px;
-  border-left: 3px solid #C2703D;
+  border-radius: 6px;
+  border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-soft);
   font-size: 0.78rem;
@@ -124,7 +124,7 @@
 }
 
 .crowd-warning strong {
-  color: var(--ink);
+  color: var(--money);
   display: block;
   margin-bottom: 3px;
 }

@@ -9,10 +9,10 @@
   font-size: 0.74rem;
   line-height: 1.5;
   color: var(--ink-muted);
-  padding: 9px 11px;
-  border-left: 2px solid var(--money);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
   background: var(--surface-sunk);
-  border-radius: 0 3px 3px 0;
+  border-radius: 4px;
 }
 
 .shop-search {
@@ -353,4 +353,34 @@
 /* The total is the one number people watch — flash it when it changes. */
 .basket-row.total .basket-price {
   transition: color var(--dur-base) var(--ease-out);
+}
+
+/* ---------------------------------------------------------------------------
+   Wide panels get two columns. At 440px+ a single column leaves most of each
+   row empty, and you scroll twice as far for the same catalog.
+--------------------------------------------------------------------------- */
+
+@media (min-width: 1600px) {
+  .item-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 10px;
+  }
+
+  .item {
+    border-bottom: none;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px;
+    align-items: flex-start;
+  }
+
+  .item.in-room {
+    margin: 0;
+    border-color: var(--accent);
+  }
+
+  .basket {
+    grid-column: 1 / -1;
+  }
 }

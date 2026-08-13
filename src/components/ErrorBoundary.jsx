@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import PillowMark from './PillowMark'
 import './ErrorBoundary.css'
 
 /**
@@ -27,7 +28,10 @@ export default class ErrorBoundary extends Component {
     return (
       <div className="crash">
         <div className="crash-card">
-          <p className="crash-eyebrow">Room Maker</p>
+          <p className="crash-eyebrow">
+            <PillowMark size={20} className="eyebrow-mark" />
+            Room Maker
+          </p>
           {webglMissing ? (
             <>
               <h1>This browser can't render 3D.</h1>

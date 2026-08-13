@@ -5,6 +5,7 @@ import ControlsPanel from './ControlsPanel'
 import ShopPanel from './ShopPanel'
 import PhotoImport from './PhotoImport'
 import Shortcuts from './Shortcuts'
+import PillowMark from './PillowMark'
 import './Workspace.css'
 
 // Three.js only loads when the 3D view actually mounts, so the survey and the
@@ -79,13 +80,13 @@ export default function Workspace() {
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true" />
+          <PillowMark size={24} />
           <span className="brand-name">Room Maker</span>
         </div>
 
         <div className="topbar-actions">
           <span className="basket-readout">
-            <span className="basket-count">{count}</span> items ·{' '}
+            <span className="basket-count">{count}</span> {count === 1 ? 'item' : 'items'} ·{' '}
             <span className="basket-total">{formatUSD(total)}</span> est.
           </span>
           <button

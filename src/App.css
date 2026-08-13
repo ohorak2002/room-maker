@@ -163,3 +163,47 @@ button {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* --- pillow mark -------------------------------------------------------- */
+
+:root {
+  --pillow-fill: #F6F1E8;
+  --pillow-line: #C0B2A0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --pillow-fill: #EFE9DE;
+    --pillow-line: #9A8E7C;
+  }
+}
+
+:root[data-theme='dark'] {
+  --pillow-fill: #EFE9DE;
+  --pillow-line: #9A8E7C;
+}
+
+.pillow-mark {
+  flex-shrink: 0;
+  display: block;
+}
+
+/* It squishes when you press it, because it's a pillow. */
+.brand:active .pillow-mark {
+  transform: scale(0.94) scaleY(0.88);
+}
+
+.brand .pillow-mark {
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.eyebrow-mark,
+.progress-mark {
+  display: inline-block;
+  vertical-align: -4px;
+  margin-right: 8px;
+}
+
+.progress-mark {
+  margin-right: 4px;
+}

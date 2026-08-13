@@ -25,23 +25,6 @@
   gap: 10px;
 }
 
-.brand-mark {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--accent);
-  border-radius: 1px;
-  position: relative;
-}
-
-.brand-mark::after {
-  content: '';
-  position: absolute;
-  inset: 3px 3px auto auto;
-  width: 4px;
-  height: 4px;
-  background: var(--accent);
-}
-
 .brand-name {
   font-family: var(--font-display);
   font-weight: 650;
