@@ -78,6 +78,51 @@ const PLASTIC = (c) => mat(c, 0.42, 0.0, 0.7)
 const CERAMIC = (c) => mat(c, 0.22, 0.0, 0.95)
 const FOLIAGE = (c) => mat(c, 0.72, 0.0, 0.2)
 const PAPERY = (c) => mat(c, 0.88, 0.0, 0.2)
+// Shower screens and appliance doors. Transparency alone reads as a hole in the
+// wall; it's the near-zero roughness plus a strong env response that makes it
+// register as glass.
+const GLASS = (c = '#DCE6EA') =>
+  new THREE.MeshStandardMaterial({
+    color: new THREE.Color(c),
+    roughness: 0.06,
+    metalness: 0.0,
+    envMapIntensity: 1.4,
+    transparent: true,
+    opacity: 0.24,
+  })
+const STONE = (c = '#3C3F44') => mat(c, 0.28, 0.1, 0.8)
+const ENAMEL = (c) => mat(c, 0.15, 0.25, 1.1)
+
+/**
+ * Washer and dryer are the same machine with a different door tint, so they
+ * share a builder rather than duplicating twenty lines for a colour change.
+ */
+const frontLoader = (it, doorTint) => {
+  const g = new THREE.Group()
+  const body = box(0.6, it.h, 0.6, mat('#E8EAEC', 0.35, 0.1, 0.7))
+  body.position.y = it.h / 2
+  g.add(body)
+
+  const port = cyl(0.19, 0.19, 0.05, GLASS(doorTint), 24)
+  port.rotation.x = Math.PI / 2
+  port.position.set(0, it.h * 0.5, 0.3)
+  g.add(port)
+
+  const ring = cyl(0.22, 0.22, 0.035, METAL('#AEB3B8'), 24)
+  ring.rotation.x = Math.PI / 2
+  ring.position.set(0, it.h * 0.5, 0.285)
+  g.add(ring)
+
+  const panel = box(0.56, 0.1, 0.02, mat('#2A2D31', 0.3, 0.2, 0.8))
+  panel.position.set(0, it.h * 0.87, 0.31)
+  g.add(panel)
+
+  const dial = cyl(0.035, 0.035, 0.02, METAL('#C9CDD2'), 16)
+  dial.rotation.x = Math.PI / 2
+  dial.position.set(-0.19, it.h * 0.87, 0.32)
+  g.add(dial)
+  return g
+}
 
 export const builders = {
   plant: (it) => {
@@ -497,6 +542,297 @@ export const builders = {
     }
     return g
   },
+
+  // --- bathroom -----------------------------------------------------------
+  // Porcelain is the whole material story here: low roughness, no metalness,
+  // and a high env response, which is what separates a sanitary fixture from a
+  // white-painted box.
+
+  toilet: (it) => {
+    const g = new THREE.Group()
+    const porcelain = CERAMIC('#F6F6F4')
+
+    const pedestal = box(0.3, 0.36, 0.42, porcelain, 0.07)
+    pedestal.position.set(0, 0.18, 0.04)
+    g.add(pedestal)
+
+    const bowl = cyl(0.19, 0.15, 0.15, porcelain, 22)
+    bowl.scale.z = 1.2
+    bowl.position.set(0, 0.42, 0.09)
+    g.add(bowl)
+
+    const seat = cyl(0.2, 0.2, 0.03, PLASTIC('#FCFCFB'), 22)
+    seat.scale.z = 1.2
+    seat.position.set(0, 0.51, 0.09)
+    g.add(seat)
+
+    const tank = box(0.4, 0.36, 0.16, porcelain, 0.03)
+    tank.position.set(0, 0.55, -0.18)
+    g.add(tank)
+
+    const lid = box(0.42, 0.03, 0.18, porcelain, 0.012)
+    lid.position.set(0, 0.745, -0.18)
+    g.add(lid)
+
+    const flush = cyl(0.026, 0.026, 0.018, METAL('#C9CDD2'), 12)
+    flush.position.set(0.12, 0.765, -0.18)
+    g.add(flush)
+    return g
+  },
+
+  vanity: (it) => {
+    const g = new THREE.Group()
+    const cab = box(0.9, it.h - 0.06, 0.48, WOODEN(it.color))
+    cab.position.y = (it.h - 0.06) / 2
+    g.add(cab)
+
+    const top = box(0.96, 0.06, 0.52, STONE('#EDEAE4'))
+    top.position.y = it.h - 0.03
+    g.add(top)
+
+    const basin = cyl(0.17, 0.13, 0.11, CERAMIC('#FFFFFF'), 24)
+    basin.position.set(0, it.h + 0.045, 0.02)
+    g.add(basin)
+
+    // A faucet is a riser plus a spout reaching back over the basin.
+    const riser = cyl(0.018, 0.018, 0.2, METAL('#C9CDD2'), 12)
+    riser.position.set(0, it.h + 0.1, -0.17)
+    g.add(riser)
+    const spout = box(0.022, 0.022, 0.15, METAL('#C9CDD2'))
+    spout.position.set(0, it.h + 0.19, -0.11)
+    g.add(spout)
+
+    for (const s of [-1, 1]) {
+      const pull = box(0.16, 0.02, 0.02, METAL('#C9CDD2'))
+      pull.position.set(s * 0.22, it.h * 0.52, 0.25)
+      g.add(pull)
+    }
+    return g
+  },
+
+  bathtub: (it) => {
+    const g = new THREE.Group()
+    const porcelain = CERAMIC('#F7F7F5')
+
+    const shell = box(1.65, it.h, 0.75, porcelain, 0.07)
+    shell.position.y = it.h / 2
+    g.add(shell)
+
+    // Sinking a slightly darker, glossier well just under the rim reads as
+    // depth far more cheaply than actually hollowing the geometry would.
+    const well = box(1.48, 0.1, 0.58, ENAMEL('#E4EBEE'), 0.05)
+    well.position.y = it.h - 0.04
+    g.add(well)
+
+    const spout = cyl(0.021, 0.021, 0.13, METAL('#C9CDD2'), 12)
+    spout.rotation.z = Math.PI / 2
+    spout.position.set(-0.72, it.h + 0.07, 0)
+    g.add(spout)
+    return g
+  },
+
+  shower: (it) => {
+    const g = new THREE.Group()
+
+    const tray = box(0.92, 0.09, 0.92, CERAMIC('#F4F4F2'), 0.03)
+    tray.position.y = 0.045
+    g.add(tray)
+
+    // Two panels meeting at a corner — enough to read as an enclosure without
+    // boxing the piece in from every side.
+    const front = box(0.92, it.h - 0.12, 0.018, GLASS())
+    front.position.set(0, (it.h - 0.12) / 2 + 0.09, 0.45)
+    g.add(front)
+    const side = box(0.92, it.h - 0.12, 0.018, GLASS())
+    side.rotation.y = Math.PI / 2
+    side.position.set(0.45, (it.h - 0.12) / 2 + 0.09, 0)
+    g.add(side)
+
+    const riser = cyl(0.016, 0.016, it.h * 0.45, METAL('#C9CDD2'), 10)
+    riser.position.set(-0.36, it.h * 0.62, -0.36)
+    g.add(riser)
+
+    const head = cyl(0.095, 0.095, 0.025, METAL('#C9CDD2'), 18)
+    head.position.set(-0.3, it.h * 0.86, -0.3)
+    g.add(head)
+    return g
+  },
+
+  towelrack: (it) => {
+    const g = new THREE.Group()
+    const chrome = METAL('#C9CDD2')
+
+    const bar = cyl(0.014, 0.014, 0.62, chrome, 10)
+    bar.rotation.z = Math.PI / 2
+    g.add(bar)
+
+    for (const s of [-1, 1]) {
+      const arm = box(0.02, 0.02, 0.07, chrome)
+      arm.position.set(s * 0.3, 0, -0.04)
+      g.add(arm)
+
+      const towel = box(0.24, 0.44, 0.045, FABRIC(it.color))
+      towel.position.set(s * 0.15, -0.22, 0.03)
+      g.add(towel)
+    }
+    return g
+  },
+
+  // --- kitchen ------------------------------------------------------------
+
+  counter: (it) => {
+    const g = new THREE.Group()
+    const w = 1.8
+
+    const carcass = box(w, it.h - 0.05, 0.62, WOODEN(it.color))
+    carcass.position.y = (it.h - 0.05) / 2
+    g.add(carcass)
+
+    const top = box(w + 0.04, 0.05, 0.66, STONE())
+    top.position.y = it.h - 0.025
+    g.add(top)
+
+    // Proud door fronts with a pull each. The gap between doors is what stops a
+    // cabinet run from reading as one long slab.
+    for (let i = 0; i < 3; i++) {
+      const x = -w / 2 + (i + 0.5) * (w / 3)
+      const door = box(w / 3 - 0.035, it.h - 0.2, 0.022, WOODEN(it.color))
+      door.position.set(x, (it.h - 0.05) / 2, 0.32)
+      g.add(door)
+
+      const pull = box(w / 3 - 0.22, 0.018, 0.018, METAL('#C9CDD2'))
+      pull.position.set(x, it.h - 0.19, 0.345)
+      g.add(pull)
+    }
+    return g
+  },
+
+  kitchensink: (it) => {
+    const g = new THREE.Group()
+    const w = 1.2
+
+    const carcass = box(w, it.h - 0.05, 0.62, WOODEN(it.color))
+    carcass.position.y = (it.h - 0.05) / 2
+    g.add(carcass)
+
+    const top = box(w + 0.04, 0.05, 0.66, STONE())
+    top.position.y = it.h - 0.025
+    g.add(top)
+
+    // An inset steel basin, dropped just below the counter line.
+    const basin = box(0.62, 0.14, 0.42, METAL('#AEB3B8'), 0.02)
+    basin.position.set(0, it.h - 0.075, 0.02)
+    g.add(basin)
+
+    const riser = cyl(0.02, 0.02, 0.26, METAL('#C9CDD2'), 12)
+    riser.position.set(0, it.h + 0.13, -0.22)
+    g.add(riser)
+    const neck = box(0.026, 0.026, 0.2, METAL('#C9CDD2'))
+    neck.position.set(0, it.h + 0.25, -0.13)
+    g.add(neck)
+
+    const door = box(w - 0.06, it.h - 0.34, 0.022, WOODEN(it.color))
+    door.position.set(0, (it.h - 0.2) / 2, 0.32)
+    g.add(door)
+    return g
+  },
+
+  island: (it) => {
+    const g = new THREE.Group()
+
+    const carcass = box(1.5, it.h - 0.05, 0.9, WOODEN(it.color))
+    carcass.position.y = (it.h - 0.05) / 2
+    g.add(carcass)
+
+    // The overhang on one side is what makes an island an island rather than a
+    // free-standing cabinet — it's where stools go.
+    const top = box(1.62, 0.06, 1.06, STONE())
+    top.position.set(0, it.h - 0.03, 0.06)
+    g.add(top)
+
+    for (let i = 0; i < 2; i++) {
+      const x = -0.36 + i * 0.72
+      const door = box(0.66, it.h - 0.22, 0.022, WOODEN(it.color))
+      door.position.set(x, (it.h - 0.05) / 2, -0.46)
+      g.add(door)
+    }
+    return g
+  },
+
+  range: (it) => {
+    const g = new THREE.Group()
+    const steel = METAL('#B9BDC2')
+
+    const body = box(0.76, it.h - 0.04, 0.62, steel)
+    body.position.y = (it.h - 0.04) / 2
+    g.add(body)
+
+    const cooktop = box(0.78, 0.03, 0.64, ENAMEL('#17191C'))
+    cooktop.position.y = it.h - 0.02
+    g.add(cooktop)
+
+    for (const [x, z] of [[-0.18, -0.14], [0.18, -0.14], [-0.18, 0.16], [0.18, 0.16]]) {
+      const burner = cyl(0.082, 0.082, 0.01, mat('#0E1013', 0.35, 0.4, 0.9), 20)
+      burner.position.set(x, it.h + 0.001, z)
+      g.add(burner)
+    }
+
+    const oven = box(0.68, 0.42, 0.022, ENAMEL('#1B1D21'))
+    oven.position.set(0, it.h * 0.4, 0.32)
+    g.add(oven)
+
+    const handle = cyl(0.018, 0.018, 0.66, steel, 10)
+    handle.rotation.z = Math.PI / 2
+    handle.position.set(0, it.h * 0.68, 0.35)
+    g.add(handle)
+    return g
+  },
+
+  fridge: (it) => {
+    const g = new THREE.Group()
+    const steel = METAL('#C2C6CB')
+
+    const body = box(0.9, it.h, 0.72, steel)
+    body.position.y = it.h / 2
+    g.add(body)
+
+    // Freezer-over-fridge. The door split and two offset handles carry the read;
+    // without them it's a filing cabinet.
+    const split = box(0.9, 0.014, 0.02, mat('#8E9297', 0.4, 0.6, 0.8))
+    split.position.set(0, it.h * 0.68, 0.36)
+    g.add(split)
+
+    for (const [y, len] of [[it.h * 0.79, 0.2], [it.h * 0.45, 0.46]]) {
+      const handle = cyl(0.016, 0.016, len, METAL('#8E9297'), 10)
+      handle.position.set(0.31, y, 0.375)
+      g.add(handle)
+    }
+    return g
+  },
+
+  dishwasher: (it) => {
+    const g = new THREE.Group()
+    const steel = METAL('#B9BDC2')
+
+    const body = box(0.6, it.h, 0.6, steel)
+    body.position.y = it.h / 2
+    g.add(body)
+
+    const panel = box(0.56, it.h * 0.78, 0.022, ENAMEL('#1B1D21'))
+    panel.position.set(0, it.h * 0.44, 0.31)
+    g.add(panel)
+
+    const handle = cyl(0.015, 0.015, 0.5, steel, 10)
+    handle.rotation.z = Math.PI / 2
+    handle.position.set(0, it.h * 0.9, 0.33)
+    g.add(handle)
+    return g
+  },
+
+  // --- laundry ------------------------------------------------------------
+
+  washer: (it) => frontLoader(it, '#9FB3BD'),
+  dryer: (it) => frontLoader(it, '#C7BFB2'),
 }
 
 // ---------------------------------------------------------------------------

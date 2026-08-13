@@ -30,6 +30,8 @@ export const CATEGORIES = [
   { id: 'lighting', name: 'Lighting' },
   { id: 'decor', name: 'Decor' },
   { id: 'tech', name: 'Tech' },
+  { id: 'bath', name: 'Bath' },
+  { id: 'kitchen', name: 'Kitchen' },
 ]
 
 const raw = [
@@ -90,6 +92,30 @@ const raw = [
   { id: 'pc-tower', name: 'Desktop PC Tower', cat: 'tech', retailer: 'amazon', price: 899, color: '#26282D', model: 'tower', h: 0.5, fp: 0.28, group: 'tower', vibes: ['modern', 'cool', 'bold'] },
   { id: 'tv', name: '65" 4K Smart TV', cat: 'tech', retailer: 'target', price: 549, color: '#141518', model: 'tv', h: 0.85, fp: 0.75, group: 'tv', vibes: ['modern', 'cool', 'bold'] },
   { id: 'speaker', name: 'Floorstanding Speaker', cat: 'tech', retailer: 'amazon', price: 229, color: '#33363C', model: 'speaker', h: 1.0, fp: 0.25, group: 'speaker', vibes: ['bold', 'modern', 'warm'] },
+
+  // ---- Bath ---------------------------------------------------------------
+  // `rooms` is what keeps a toilet out of the living-room feed. Pieces without
+  // it are general-purpose and show up anywhere, which is the old behaviour.
+  { id: 'toilet', name: 'Two-Piece Elongated Toilet', cat: 'bath', retailer: 'homedepot', price: 189, color: '#F6F6F4', model: 'toilet', h: 0.78, fp: 0.38, area: 0.28, group: 'toilet', rooms: ['bath', 'primaryBath'], vibes: ['modern', 'minimal', 'cool'] },
+  { id: 'toilet-budget', name: 'Round-Front Toilet (Value)', cat: 'bath', retailer: 'lowes', price: 109, color: '#FBFBFA', model: 'toilet', h: 0.74, fp: 0.36, area: 0.26, group: 'toilet', rooms: ['bath', 'primaryBath'], vibes: ['modern', 'minimal'] },
+  { id: 'vanity', name: '36" Single-Sink Vanity', cat: 'bath', retailer: 'homedepot', price: 449, color: '#6B5340', model: 'vanity', h: 0.85, fp: 0.5, area: 0.5, group: 'vanity', rooms: ['bath', 'primaryBath'], vibes: ['warm', 'modern', 'natural'] },
+  { id: 'vanity-budget', name: '30" Vanity with Top (Value)', cat: 'bath', retailer: 'walmart', price: 229, color: '#8A7A66', model: 'vanity', h: 0.82, fp: 0.46, area: 0.44, group: 'vanity', rooms: ['bath', 'primaryBath'], vibes: ['warm', 'minimal'] },
+  { id: 'bathtub', name: 'Alcove Soaking Tub, 60"', cat: 'bath', retailer: 'lowes', price: 529, color: '#F7F7F5', model: 'bathtub', h: 0.55, fp: 0.9, area: 1.24, group: 'tub', rooms: ['bath', 'primaryBath'], vibes: ['cozy', 'warm', 'minimal'] },
+  { id: 'shower', name: 'Corner Shower Enclosure', cat: 'bath', retailer: 'homedepot', price: 679, color: '#DCE6EA', model: 'shower', h: 2.0, fp: 0.62, area: 0.85, group: 'shower', rooms: ['bath', 'primaryBath'], vibes: ['modern', 'cool', 'minimal'] },
+  { id: 'towel-rack', name: 'Wall Towel Bar with Towels', cat: 'bath', retailer: 'target', price: 34, color: '#DDD6CA', model: 'towelrack', h: 0.5, fp: 0.3, group: 'towel', rooms: ['bath', 'primaryBath', 'laundry'], vibes: ['warm', 'cozy', 'minimal'] },
+
+  // ---- Kitchen ------------------------------------------------------------
+  { id: 'counter-run', name: 'Base Cabinet Run, 6 ft', cat: 'kitchen', retailer: 'ikea', price: 890, color: '#7A6A55', model: 'counter', h: 0.92, fp: 0.95, area: 1.21, group: 'counter', rooms: ['kitchen'], vibes: ['modern', 'warm', 'natural'] },
+  { id: 'counter-budget', name: 'Base Cabinets, 6 ft (Value)', cat: 'kitchen', retailer: 'lowes', price: 540, color: '#8C8072', model: 'counter', h: 0.9, fp: 0.95, area: 1.21, group: 'counter', rooms: ['kitchen'], vibes: ['modern', 'minimal'] },
+  { id: 'kitchen-sink', name: 'Undermount Sink Cabinet', cat: 'kitchen', retailer: 'homedepot', price: 420, color: '#7A6A55', model: 'kitchensink', h: 0.92, fp: 0.68, area: 0.82, group: 'kitchen-sink', rooms: ['kitchen'], vibes: ['modern', 'natural', 'warm'] },
+  { id: 'island', name: 'Kitchen Island with Storage', cat: 'kitchen', retailer: 'wayfair', price: 749, color: '#6E5C48', model: 'island', h: 0.94, fp: 0.85, area: 1.72, group: 'island', rooms: ['kitchen'], vibes: ['warm', 'modern', 'bold'] },
+  { id: 'range', name: '30" Freestanding Gas Range', cat: 'kitchen', retailer: 'lowes', price: 799, color: '#B9BDC2', model: 'range', h: 0.92, fp: 0.45, area: 0.5, group: 'range', rooms: ['kitchen'], vibes: ['modern', 'industrial', 'cool'] },
+  { id: 'range-budget', name: '30" Electric Range (Value)', cat: 'kitchen', retailer: 'walmart', price: 469, color: '#C4C8CC', model: 'range', h: 0.9, fp: 0.44, area: 0.5, group: 'range', rooms: ['kitchen'], vibes: ['modern', 'minimal'] },
+  { id: 'fridge', name: 'French-Door Refrigerator', cat: 'kitchen', retailer: 'homedepot', price: 1499, color: '#C2C6CB', model: 'fridge', h: 1.78, fp: 0.52, area: 0.66, group: 'fridge', rooms: ['kitchen'], vibes: ['modern', 'cool', 'industrial'] },
+  { id: 'fridge-budget', name: 'Top-Freezer Fridge (Value)', cat: 'kitchen', retailer: 'walmart', price: 599, color: '#CDD1D5', model: 'fridge', h: 1.65, fp: 0.5, area: 0.62, group: 'fridge', rooms: ['kitchen'], vibes: ['modern', 'minimal'] },
+  { id: 'dishwasher', name: 'Built-In Dishwasher', cat: 'kitchen', retailer: 'lowes', price: 649, color: '#B9BDC2', model: 'dishwasher', h: 0.86, fp: 0.36, area: 0.37, group: 'dishwasher', rooms: ['kitchen'], vibes: ['modern', 'cool'] },
+  { id: 'washer', name: 'Front-Load Washer', cat: 'kitchen', retailer: 'homedepot', price: 749, color: '#E8EAEC', model: 'washer', h: 0.97, fp: 0.36, area: 0.36, group: 'washer', rooms: ['laundry'], vibes: ['modern', 'cool', 'minimal'] },
+  { id: 'dryer', name: 'Front-Load Electric Dryer', cat: 'kitchen', retailer: 'homedepot', price: 699, color: '#E8EAEC', model: 'dryer', h: 0.97, fp: 0.36, area: 0.36, group: 'dryer', rooms: ['laundry'], vibes: ['modern', 'cool', 'minimal'] },
 ]
 
 export const CATALOG = raw.map((item) => {
@@ -113,24 +139,67 @@ export const cheapestSubstitute = (id) => {
   return best && best.id !== id ? best : null
 }
 
+/**
+ * Floor area a piece actually occupies, in m².
+ *
+ * `fp` is a clamp radius for dragging and collision, and treating it as a disc
+ * badly overstates anything long and wall-hugging — a 1.65 x 0.75 m bathtub
+ * really covers 1.24 m² but reads as 2.5 m² as a circle. That was enough to
+ * make the app warn "this room is packed" about an ordinary bathroom. Fixtures
+ * therefore carry a measured `area`; everything else keeps the disc estimate,
+ * which is fair for chairs, plants and lamps.
+ */
+export const footprintArea = (item) =>
+  item.area ?? Math.PI * (item.fp || 0.35) ** 2
+
 export const formatUSD = (n) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+
+// Rooms whose contents are decided by plumbing and gas lines rather than taste.
+// A bathroom doesn't want a "cozy" sofa recommendation, it wants a toilet.
+const FIXTURE_ROOMS = new Set(['bath', 'primaryBath', 'kitchen', 'laundry'])
+
+// The general-purpose categories that still make sense in one of those rooms.
+// A plant or a light belongs in a bathroom; a bed does not.
+const UNIVERSAL_CATS = new Set(['greenery', 'decor', 'lighting'])
+
+/**
+ * Is this piece plausible in this kind of room?
+ *
+ * Items carrying a `rooms` list are fixtures and only belong where they're
+ * listed. Items without one are general furniture: fine anywhere normally, but
+ * excluded from bathrooms and kitchens unless they're decor, greenery or light.
+ * With no room kind at all — single-room scope, where every room is a bedroom
+ * or a living room — fixtures are held back entirely.
+ */
+function suitsRoom(item, roomKind) {
+  if (!roomKind) return !item.rooms
+  if (item.rooms) return item.rooms.includes(roomKind)
+  if (FIXTURE_ROOMS.has(roomKind)) return UNIVERSAL_CATS.has(item.cat)
+  return true
+}
 
 /**
  * Rank the catalog for a given room mood. Vibe match dominates; a mild bias
  * toward color similarity lets an imported photo's palette steer the feed.
+ *
+ * `roomKind` narrows the feed to what belongs in that room. Fixtures get a
+ * standing bonus there, because a toilet has to appear in a bathroom whether or
+ * not its vibes happen to match the mood the user picked for the whole home.
  */
-export function recommend(mood, paletteHexes = [], limit = 12) {
+export function recommend(mood, paletteHexes = [], limit = 12, roomKind = null) {
   const targets = paletteHexes.map(hexToRgb).filter(Boolean)
-  return CATALOG.map((item) => {
-    let score = item.vibes?.includes(mood) ? 100 : 0
-    if (targets.length) {
-      const c = hexToRgb(item.color)
-      const nearest = Math.min(...targets.map((t) => rgbDist(c, t)))
-      score += Math.max(0, 60 - nearest / 4)
-    }
-    return { item, score }
-  })
+  return CATALOG.filter((item) => suitsRoom(item, roomKind))
+    .map((item) => {
+      let score = item.vibes?.includes(mood) ? 100 : 0
+      if (roomKind && item.rooms?.includes(roomKind)) score += 80
+      if (targets.length) {
+        const c = hexToRgb(item.color)
+        const nearest = Math.min(...targets.map((t) => rgbDist(c, t)))
+        score += Math.max(0, 60 - nearest / 4)
+      }
+      return { item, score }
+    })
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
@@ -151,6 +220,20 @@ export const STARTER_PACKS = {
 }
 
 export const starterFor = (mood) => STARTER_PACKS[mood] || STARTER_PACKS.cozy
+
+/**
+ * Fixture rooms get furnished by what they are, not by the mood chosen for the
+ * home — offering to fill a bathroom with a "Cozy bedroom" pack was the old
+ * behaviour and it put a bed in the bathroom.
+ */
+export const ROOM_PACKS = {
+  bath: { name: 'Full bathroom', items: ['toilet', 'vanity', 'bathtub', 'towel-rack'] },
+  primaryBath: { name: 'Primary bathroom', items: ['toilet', 'vanity', 'shower', 'bathtub', 'towel-rack'] },
+  kitchen: { name: 'Working kitchen', items: ['counter-run', 'kitchen-sink', 'range', 'fridge', 'dishwasher'] },
+  laundry: { name: 'Laundry pair', items: ['washer', 'dryer', 'towel-rack'] },
+}
+
+export const starterForRoom = (kind, mood) => ROOM_PACKS[kind] || starterFor(mood)
 
 function hexToRgb(hex) {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '')

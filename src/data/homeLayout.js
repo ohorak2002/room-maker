@@ -47,8 +47,17 @@ const LABEL = {
   entry: 'Entry',
 }
 
-/** Rooms people furnish, versus circulation/utility they mostly don't. */
-export const FURNISHABLE = new Set(['living', 'kitchen', 'dining', 'primary', 'bedroom'])
+/**
+ * Rooms people furnish, versus circulation they mostly don't.
+ *
+ * Bathrooms and laundry are in here because they hold fixtures — a toilet and a
+ * washer are things you buy and place. Halls and entries stay out: there's
+ * nothing to put in them beyond what the shell already draws.
+ */
+export const FURNISHABLE = new Set([
+  'living', 'kitchen', 'dining', 'primary', 'bedroom',
+  'bath', 'primaryBath', 'laundry',
+])
 
 /**
  * Decide which rooms exist, before any geometry. Bathrooms may be fractional

@@ -22,6 +22,21 @@ export const ZONES = {
   pendant: 'ceiling',
   hanging: 'ceiling',
   monitor: 'ondesk',
+  towelrack: 'wall',
+}
+
+/**
+ * How much back wall each plumbed or plugged-in piece occupies, in metres.
+ * These run along a wall in a line rather than being scattered like loose
+ * furniture, so they need a real width to advance the cursor by — a footprint
+ * radius doesn't describe a 1.8m cabinet run.
+ */
+const RUN_WIDTH = {
+  counter: 1.84,
+  kitchensink: 1.24,
+  range: 0.78,
+  dishwasher: 0.62,
+  fridge: 0.92,
 }
 
 export const zoneOf = (model) => ZONES[model] || 'floor'
@@ -69,6 +84,17 @@ export function autoArrange(entries, room) {
   let ceilSlot = 0
   let deskAnchor = null
   let bedAnchor = null
+
+  // Kitchen pieces consume a shared cursor along the back wall, so a counter, a
+  // range and a fridge end up in one continuous run the way a real kitchen is
+  // laid out, instead of each finding its own corner.
+  let runX = null
+  const nextRun = (width) => {
+    if (runX === null) runX = leftX + 0.1
+    const x = runX + width / 2
+    runX += width
+    return x
+  }
 
   // --- pass 1: anchor everything -----------------------------------------
   const ordered = [...entries].sort((a, b) => rank(a.item.model) - rank(b.item.model))
@@ -172,6 +198,45 @@ export function autoArrange(entries, room) {
       case 'mirror':
         p = { x: rightX - 0.3, z: d * 0.15, ry: -Math.PI / 2 }
         break
+
+      // --- kitchen: one continuous run along the back wall ------------------
+      case 'counter':
+      case 'kitchensink':
+      case 'range':
+      case 'dishwasher':
+      case 'fridge':
+        p = { x: nextRun(RUN_WIDTH[item.model] ?? 0.8), z: backZ + 0.36, ry: 0 }
+        break
+
+      case 'island':
+        p = { x: 0, z: d * 0.14, ry: 0 }
+        break
+
+      // --- bathroom: fixtures are plumbed to walls, not floated -------------
+      // Toilet and vanity share the back wall on opposite sides; the tub takes
+      // the long front wall and the shower the far corner, which is how a small
+      // bathroom actually resolves.
+      case 'toilet':
+        p = { x: rightX - 0.42, z: backZ + 0.4, ry: 0 }
+        break
+
+      case 'vanity':
+        p = { x: leftX + 0.55, z: backZ + 0.32, ry: 0 }
+        break
+
+      case 'bathtub':
+        p = { x: 0, z: frontZ - 0.45, ry: 0 }
+        break
+
+      case 'shower':
+        p = { x: rightX - 0.55, z: frontZ - 0.55, ry: 0 }
+        break
+
+      // --- laundry: side by side, as they're plumbed --------------------------
+      case 'washer':
+      case 'dryer':
+        p = { x: (item.model === 'washer' ? -1 : 1) * 0.33, z: backZ + 0.36, ry: 0 }
+        break
       case 'tower':
         p = deskAnchor ? { x: deskAnchor.x + 0.1, z: deskAnchor.z - 0.8, ry: 0 } : { x: leftX + 0.5, z: 0, ry: 0 }
         break
@@ -247,10 +312,24 @@ export function autoArrange(entries, room) {
   return out
 }
 
-const PINNED = new Set(['bed', 'desk', 'sofa', 'shelf'])
+// Anything plumbed, vented or built in holds its spot outright — a fridge does
+// not get nudged aside by a plant. The relax pass moves the loose piece instead.
+const PINNED = new Set([
+  'bed', 'desk', 'sofa', 'shelf',
+  'toilet', 'vanity', 'bathtub', 'shower',
+  'counter', 'kitchensink', 'range', 'dishwasher', 'fridge', 'island',
+  'washer', 'dryer',
+])
 
-// Larger, more anchored pieces claim their spot first.
-const ORDER = ['rug', 'bed', 'sofa', 'desk', 'shelf', 'nightstand', 'chair', 'monitor', 'tower', 'desklamp']
+// Larger, more anchored pieces claim their spot first. Fixtures lead, because
+// everything else in a bathroom or kitchen arranges around where they can go.
+const ORDER = [
+  'rug',
+  'counter', 'kitchensink', 'range', 'dishwasher', 'fridge', 'island',
+  'bathtub', 'shower', 'toilet', 'vanity',
+  'washer', 'dryer',
+  'bed', 'sofa', 'desk', 'shelf', 'nightstand', 'chair', 'monitor', 'tower', 'desklamp',
+]
 const rank = (model) => {
   const i = ORDER.indexOf(model)
   return i === -1 ? ORDER.length : i

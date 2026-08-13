@@ -12,7 +12,9 @@ export default function ShopPanel() {
   // In whole-home scope this is the focused room's list, not the global one.
   const activeItems = store.activeItems()
   const photoPalette = store.photo?.palette || []
-  const recs = recommend(store.mood, photoPalette, 40)
+  // The focused room's kind steers the feed, so a bathroom recommends fixtures
+  // rather than whatever the home's overall mood would have suggested.
+  const recs = recommend(store.mood, photoPalette, 40, store.activeRoom()?.kind || null)
 
   const q = query.trim().toLowerCase()
   const base = cat === 'for-you' ? recs : CATALOG.filter((i) => cat === 'all' || i.cat === cat)

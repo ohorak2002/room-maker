@@ -254,13 +254,17 @@ export const useRoomStore = create(
       /**
        * How full the room is: summed footprint area against floor area. Above
        * ~55% a room stops being walkable, which is when we warn.
+       *
+       * Takes areas in m², already filtered to floor-standing pieces by the
+       * caller — see footprintArea() in the catalog for why a radius isn't
+       * good enough for long fixtures like a bathtub or a cabinet run.
        */
-      crowding: (footprints) => {
+      crowding: (areas) => {
         const shape = get().shape()
         // Area of the actual footprint, not the bounding box — an L-shaped room
         // has far less usable floor than its width times its depth.
         const area = shape.cells.length * 0.25
-        const used = footprints.reduce((sum, r) => sum + Math.PI * r * r, 0)
+        const used = areas.reduce((sum, a) => sum + a, 0)
         return area > 0 ? used / area : 0
       },
 

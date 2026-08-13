@@ -8,11 +8,11 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { useRoomStore } from '../store/roomStore'
-import { byId, starterFor, resolveItem } from '../data/catalog'
+import { byId, starterForRoom, ROOM_PACKS, resolveItem, footprintArea } from '../data/catalog'
 import { buildRoom } from '../three/buildRoom'
 import { buildHome, buildHomeLights } from '../three/buildHome'
 import { buildAtmosphere } from '../three/atmosphere'
-import { autoArrange, instanceKey } from '../three/layout'
+import { autoArrange, instanceKey, zoneOf } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
 import PieceMenu from './PieceMenu'
 import './RoomCanvas.css'
@@ -634,14 +634,25 @@ export default function RoomCanvas() {
   const historyDepth = store._past.length
 
   // Crowding: summed footprint vs floor area. Past ~55% you can't walk through it.
+  // Crowding is about floor you can still walk on, so only floor-standing
+  // pieces count. Wall art, pendants, curtains and a towel bar take up none of
+  // it, and counting them was making rooms read as packed when they weren't.
   const fill = store.crowding(
     activeItems.flatMap((entry) => {
       const item = resolveItem(entry.id, store.synthetics)
-      return item ? Array(entry.qty).fill(item.fp || 0.35) : []
+      if (!item) return []
+      const zone = zoneOf(item.model)
+      if (zone !== 'floor' && zone !== 'center') return []
+      return Array(entry.qty).fill(footprintArea(item))
     })
   )
   const dims = store.dims()
-  const packName = starterFor(store.mood).name
+  // A fixture room gets a pack matched to what it is; everything else falls
+  // back to the mood-based pack. Its copy differs too — a bathroom isn't
+  // furnished to a vibe, it's furnished to what has to be plumbed in.
+  const pack = starterForRoom(activeRoom?.kind, store.mood)
+  const packName = pack.name
+  const isFixtureRoom = Boolean(activeRoom?.kind && ROOM_PACKS[activeRoom.kind])
 
   // --- whole-home overview: a different set of controls entirely -----------
   if (inOverview) {
@@ -725,12 +736,13 @@ export default function RoomCanvas() {
           <div className="empty-card">
             <p className="empty-title">Your room is empty</p>
             <p className="empty-sub">
-              Start with a set picked for your {store.mood} vibe, then swap out whatever you don't
-              want.
+              {isFixtureRoom
+                ? "Start with the fixtures this room needs, then swap out whatever you don't want."
+                : `Start with a set picked for your ${store.mood} vibe, then swap out whatever you don't want.`}
             </p>
             <button
               className="btn-primary"
-              onClick={() => store.addMany(starterFor(store.mood).items)}
+              onClick={() => store.addMany(pack.items)}
             >
               Add the {packName.toLowerCase()}
             </button>
