@@ -2,7 +2,12 @@ import { useRef, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import PillowMark from './PillowMark'
 import HeroRoom from './HeroRoom'
-import { PALETTES, MOODS, LIGHTING, ROOM_SHAPES, CELL } from '../data/presets'
+import AddressField from './AddressField'
+import MoodPreview from './MoodPreview'
+import LightPreview from './LightPreview'
+import { PALETTES, MOODS, LIGHTING, ROOM_TYPES, rectShapeFromFeet, mToFt } from '../data/presets'
+import { parsePrefurnished } from '../data/prefurnishedParser'
+import { byId } from '../data/catalog'
 import './Onboarding.css'
 
 const PREFURNISHED = [
@@ -11,11 +16,22 @@ const PREFURNISHED = [
   { id: 'desk-chair', label: 'Desk chair' },
   { id: 'sofa', label: 'Couch' },
   { id: 'bookshelf', label: 'Shelving' },
+  { id: 'nightstand', label: 'Nightstand' },
+  { id: 'coffee-table', label: 'Coffee table' },
+  { id: 'rug', label: 'Rug or carpet' },
   { id: 'curtains', label: 'Blinds or curtains' },
+  { id: 'floor-lamp', label: 'Floor lamp' },
+  { id: 'floor-mirror', label: 'Mirror' },
+  { id: 'tv', label: 'TV' },
 ]
 
 const STEPS = [
-  { key: 'residence', type: 'residence', question: 'Where are you living?', hint: 'Optional — this only shapes the starting dimensions.' },
+  {
+    key: 'residence',
+    type: 'residence',
+    question: 'Where are you living?',
+    hint: 'Optional — helps us personalize the starting size on the last step.',
+  },
   {
     key: 'palette',
     question: 'What colors do you want to live in?',
@@ -23,8 +39,8 @@ const STEPS = [
     options: PALETTES,
     render: (p) => (
       <div className="swatch-row">
-        {[p.wall, p.floor, p.trim, p.accent].map((c) => (
-          <span key={c} className="swatch" style={{ background: c }} />
+        {[p.wall, p.floor, p.trim, p.accent, p.secondary].map((c, i) => (
+          <span key={i} className="swatch" style={{ background: c }} />
         ))}
       </div>
     ),
@@ -32,42 +48,19 @@ const STEPS = [
   {
     key: 'mood',
     question: 'How should the room feel?',
-    hint: 'This drives which pieces get recommended to you.',
+    hint: 'A picture of the feeling, not just the word for it.',
     options: MOODS,
+    render: (m) => <MoodPreview moodId={m.id} />,
   },
   {
     key: 'lighting',
     question: 'What kind of light?',
     hint: 'Light changes a room more than paint does.',
     options: LIGHTING,
-    render: (l) => (
-      <div className="kelvin-bar">
-        <span className="kelvin-dot" style={{ background: kelvinToHex(l.kelvin) }} />
-        <span className="kelvin-label">{l.kelvin}K</span>
-      </div>
-    ),
+    render: (l) => <LightPreview kelvin={l.kelvin} id={l.id} />,
   },
-  {
-    key: 'floorplan',
-    type: 'floorplan',
-    question: 'How much room are we working with?',
-    hint: "Pick the closest shape — you can paint your exact footprint later.",
-    options: ROOM_SHAPES,
-    render: (f) => (
-      <div className="dims">
-        {(f.cols * CELL).toFixed(1)}m × {(f.rows * CELL).toFixed(1)}m
-      </div>
-    ),
-  },
+  { key: 'size', type: 'size', question: 'How big is the room?', hint: 'Start from a realistic size, then dial it in exactly.' },
 ]
-
-function kelvinToHex(k) {
-  if (k <= 2400) return '#FFB16B'
-  if (k <= 3000) return '#FFD1A3'
-  if (k <= 5000) return '#FFF1DE'
-  if (k <= 6000) return '#FFFFFF'
-  return '#DCE9FF'
-}
 
 export default function Onboarding() {
   const store = useRoomStore()
@@ -93,10 +86,8 @@ export default function Onboarding() {
         <HouseMark />
         <HeroRoom palette={store.palette} />
         <div className={`onboard-stage welcome ${leaving ? 'is-leaving' : 'is-entering'}`}>
-          <p className="eyebrow">
-            <PillowMark size={20} className="eyebrow-mark" />
-            Room Maker
-          </p>
+          <PillowMark size={132} className="hero-mark" />
+          <p className="eyebrow">Nested</p>
           <h1>You don't have to picture it.</h1>
           <p className="lede">
             Answer five questions about your space and what you like. We'll build the room from your
@@ -105,9 +96,6 @@ export default function Onboarding() {
           <div className="welcome-actions">
             <button className="btn-primary" onClick={() => go(0)}>
               Start
-            </button>
-            <button className="btn-quiet" onClick={finish}>
-              Skip to the editor
             </button>
           </div>
         </div>
@@ -122,7 +110,7 @@ export default function Onboarding() {
     <div className="onboard">
       <HouseMark />
       <div className="onboard-top">
-        <PillowMark size={18} className="progress-mark" />
+        <PillowMark size={20} className="progress-mark" />
         <div className="progress" role="group" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
           {STEPS.map((_, i) => (
             <span key={i} className={`tick ${i <= step ? 'done' : ''}`} />
@@ -137,29 +125,23 @@ export default function Onboarding() {
         <h2>{s.question}</h2>
         <p className="hint">{s.hint}</p>
 
-        {s.type === 'residence' ? (
-          <ResidenceStep store={store} />
-        ) : (
-          <>
-            <div className="option-grid">
-              {s.options.map((opt) => (
-                <button
-                  key={opt.id}
-                  className={`option-card ${store[s.key] === opt.id && !store.customDims ? 'selected' : ''}`}
-                  aria-pressed={store[s.key] === opt.id}
-                  onClick={() => {
-                    store.set(s.key, opt.id)
-                    if (s.type === 'floorplan') store.set('customDims', null)
-                  }}
-                >
-                  {s.render && s.render(opt)}
-                  <span className="option-name">{opt.name}</span>
-                  <span className="option-blurb">{opt.blurb}</span>
-                </button>
-              ))}
-            </div>
-            {s.type === 'floorplan' && <ExactDims store={store} />}
-          </>
+        {s.type === 'residence' && <ResidenceStep store={store} />}
+        {s.type === 'size' && <RoomSizeStep store={store} />}
+        {!s.type && (
+          <div className="option-grid">
+            {s.options.map((opt) => (
+              <button
+                key={opt.id}
+                className={`option-card ${store[s.key] === opt.id ? 'selected' : ''}`}
+                aria-pressed={store[s.key] === opt.id}
+                onClick={() => store.set(s.key, opt.id)}
+              >
+                {s.render && s.render(opt)}
+                <span className="option-name">{opt.name}</span>
+                <span className="option-blurb">{opt.blurb}</span>
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -168,10 +150,6 @@ export default function Onboarding() {
           {step === 0 ? 'Back' : 'Previous'}
         </button>
         <div className="nav-right">
-          {/* Every question has a sensible default, so nothing here is required. */}
-          <button className="btn-quiet" onClick={finish}>
-            Skip the rest
-          </button>
           <button className="btn-primary" onClick={() => (isLast ? finish() : go(step + 1))}>
             {isLast ? 'Build my room' : 'Next'}
           </button>
@@ -233,28 +211,43 @@ function HouseMark() {
 }
 
 function ResidenceStep({ store }) {
+  const [otherText, setOtherText] = useState('')
+  const [unmatched, setUnmatched] = useState([])
+
   const toggle = (id) => {
     const has = store.prefurnished.includes(id)
     store.set('prefurnished', has ? store.prefurnished.filter((p) => p !== id) : [...store.prefurnished, id])
   }
 
+  const addOther = (e) => {
+    e.preventDefault()
+    if (!otherText.trim()) return
+    const { found, leftovers } = parsePrefurnished(otherText)
+    if (found.length) {
+      store.set('prefurnished', [...new Set([...store.prefurnished, ...found])])
+    }
+    setUnmatched(found.length ? [] : leftovers.slice(0, 3))
+    setOtherText('')
+  }
+
   return (
     <div className="residence">
       <label className="field">
-        <span className="field-label">Building or complex</span>
-        <input
-          type="text"
-          placeholder="e.g. The Hub Athens"
+        <span className="field-label">Address, apartment complex, etc.</span>
+        <AddressField
           value={store.residence}
-          onChange={(e) => store.set('residence', e.target.value)}
+          onChange={(v) => store.set('residence', v)}
+          placeholder="Start typing an address or building name"
         />
       </label>
 
       <p className="privacy-note">
-        Stored in this browser only — never sent anywhere, and we don't ask for a unit number.
-        There's no public data feed for apartment floorplans, so this doesn't look anything up. Grab
-        the floorplan PDF your complex sent with your lease and type the dimensions in on the last
-        step — that's how you get an exact match.
+        As you type, we look up matching addresses through Photon, a free public map service — the
+        text you type is sent to their servers to generate suggestions, which is different from every
+        other field in this app. Nothing else about you is sent, and it's just for typing convenience:
+        there's still no data source that maps an address to a floorplan, so this can't look up your
+        unit's actual layout or size. You can also just type a name like "The Hub Athens" and skip the
+        suggestions entirely.
       </p>
 
       <fieldset className="prefurn">
@@ -274,19 +267,61 @@ function ResidenceStep({ store }) {
             </label>
           ))}
         </div>
+
+        <form className="prefurn-other" onSubmit={addOther}>
+          <input
+            type="text"
+            value={otherText}
+            onChange={(e) => setOtherText(e.target.value)}
+            placeholder="Other — describe it, e.g. &quot;a dresser and a ceiling fan&quot;"
+            aria-label="Other items that came with the place"
+          />
+          <button type="submit" className="btn-quiet bordered">
+            Add
+          </button>
+        </form>
+        {unmatched.length > 0 && (
+          <p className="unmatched">
+            Didn't recognize {unmatched.map((u) => `"${u}"`).join(', ')} — try naming it the way a
+            store would.
+          </p>
+        )}
+
+        {store.prefurnished.length > 0 && (
+          <ul className="prefurn-tags">
+            {store.prefurnished.map((id) => (
+              <li key={id}>
+                {byId(id)?.name || id}
+                <button type="button" onClick={() => toggle(id)} aria-label={`Remove ${id}`}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </fieldset>
     </div>
   )
 }
 
-function ExactDims({ store }) {
+function RoomSizeStep({ store }) {
   const fileRef = useRef(null)
-  const d = store.customDims || store.dims()
-  const on = !!store.customDims
+  const current = store.dims()
+  const [ft, setFt] = useState({
+    w: round1(mToFt(current.w)),
+    d: round1(mToFt(current.d)),
+    h: round1(mToFt(current.h)),
+  })
+  const [typeId, setTypeId] = useState(null)
 
-  const update = (k, v) => {
-    const next = { ...(store.customDims || store.dims()), [k]: Number(v) }
-    store.set('customDims', next)
+  const apply = (next) => {
+    setFt(next)
+    store.set('customShape', rectShapeFromFeet(next.w, next.d, next.h))
+  }
+
+  const pickType = (t) => {
+    setTypeId(t.id)
+    apply({ w: t.wFt, d: t.dFt, h: t.hFt })
   }
 
   const onPlan = (file) => {
@@ -297,34 +332,54 @@ function ExactDims({ store }) {
   }
 
   return (
-    <div className="exact-dims">
-      <div className="exact-head">
-        <h3 className="field-label">Exact dimensions</h3>
-        {on && (
-          <button className="link-btn" onClick={() => store.set('customDims', null)}>
-            Use a preset instead
+    <div className="room-size">
+      <p className="field-label">
+        {store.residence ? `Typical size, so you're not starting from nothing` : 'What kind of room is this?'}
+      </p>
+      <div className="type-grid">
+        {ROOM_TYPES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`type-card ${typeId === t.id ? 'selected' : ''}`}
+            onClick={() => pickType(t)}
+          >
+            <span className="type-name">{t.name}</span>
+            <span className="type-blurb">{t.blurb}</span>
           </button>
-        )}
-      </div>
-
-      <div className="dims-grid">
-        {[
-          ['w', 'Width'],
-          ['d', 'Depth'],
-          ['h', 'Ceiling'],
-        ].map(([k, label]) => (
-          <label key={k} className="field">
-            <span className="field-label">{label} (m)</span>
-            <input
-              type="number"
-              min="1.5"
-              max="20"
-              step="0.1"
-              value={d[k]}
-              onChange={(e) => update(k, e.target.value)}
-            />
-          </label>
         ))}
+      </div>
+      <p className="field-hint">
+        These are published U.S. averages for that kind of room — not your specific unit, since no
+        public source maps an address to a real floorplan. Use them as a realistic starting point,
+        then set your exact numbers below.
+      </p>
+
+      <div className="exact-dims">
+        <h3 className="field-label">Exact dimensions</h3>
+        <div className="dims-grid">
+          {[
+            ['w', 'Width'],
+            ['d', 'Depth'],
+            ['h', 'Ceiling'],
+          ].map(([k, label]) => (
+            <label key={k} className="field">
+              <span className="field-label">{label} (ft)</span>
+              <input
+                type="number"
+                min="5"
+                max="60"
+                step="0.5"
+                value={ft[k]}
+                onChange={(e) => apply({ ...ft, [k]: Number(e.target.value) })}
+              />
+            </label>
+          ))}
+        </div>
+        <p className="field-hint">
+          Rounds to the nearest half-meter for the 3D grid — close enough to plan a real layout
+          around.
+        </p>
       </div>
 
       <div className="plan-upload">
@@ -336,23 +391,20 @@ function ExactDims({ store }) {
             Remove
           </button>
         )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => onPlan(e.target.files?.[0])}
-        />
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onPlan(e.target.files?.[0])} />
       </div>
 
       {store.planImage && (
         <div className="plan-preview">
           <img src={store.planImage} alt="Your uploaded floorplan" />
           <p className="field-hint">
-            Reference only — read the dimensions off this and type them above.
+            Reference only — you can trace an exact non-rectangular shape from this later, in
+            Design → Room shape.
           </p>
         </div>
       )}
     </div>
   )
 }
+
+const round1 = (n) => Math.round(n * 10) / 10

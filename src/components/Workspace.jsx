@@ -81,8 +81,8 @@ export default function Workspace() {
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <header className="topbar">
         <div className="brand">
-          <PillowMark size={24} />
-          <span className="brand-name">Room Maker</span>
+          <PillowMark size={30} />
+          <span className="brand-name">Nested</span>
         </div>
 
         <div className="topbar-actions">

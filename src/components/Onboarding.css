@@ -433,3 +433,158 @@
     opacity: 0.05;
   }
 }
+
+/* --- big pillow on the welcome screen ------------------------------------ */
+
+.hero-mark {
+  display: block;
+  margin-bottom: 22px;
+  filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.16));
+  animation: pillow-drop 520ms var(--ease-out, cubic-bezier(0.2, 0.7, 0.3, 1)) both;
+}
+
+@keyframes pillow-drop {
+  from { opacity: 0; transform: translateY(-14px) scale(0.94); }
+}
+
+@media (max-width: 640px) {
+  .hero-mark {
+    width: 92px;
+    height: 92px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-mark { animation: none; }
+}
+
+/* --- mood / light picture previews --------------------------------------- */
+
+.mood-preview,
+.light-preview {
+  display: block;
+  width: 100%;
+  height: 76px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+/* --- "what came with it": other + tags ------------------------------------ */
+
+.prefurn-other {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.prefurn-other input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: 0.86rem;
+}
+
+.unmatched {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-sunk, var(--surface));
+  border-radius: 4px;
+}
+
+.prefurn-tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.prefurn-tags li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 11px;
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  background: var(--accent-wash);
+  font-size: 0.78rem;
+}
+
+.prefurn-tags button {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.prefurn-tags button:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+/* --- room size step -------------------------------------------------------- */
+
+.room-size {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 700px;
+}
+
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.type-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.type-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.type-card.selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--accent-wash);
+}
+
+.type-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.type-blurb {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}

@@ -1,0 +1,76 @@
+.address-field {
+  position: relative;
+}
+
+.address-field input {
+  width: 100%;
+  padding: 11px 36px 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: 0.95rem;
+}
+
+.address-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: addr-spin 620ms linear infinite;
+}
+
+@keyframes addr-spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+.address-suggestions {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 260px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  animation: addr-in 140ms var(--ease-out, ease-out) both;
+}
+
+@keyframes addr-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+.address-suggestions button {
+  display: block;
+  width: 100%;
+  padding: 10px 13px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+}
+
+.address-suggestions li:last-child button {
+  border-bottom: none;
+}
+
+.address-suggestions button:hover,
+.address-suggestions button.active {
+  background: var(--accent-wash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .address-suggestions { animation: none; }
+  .address-spinner { animation-duration: 1200ms; }
+}

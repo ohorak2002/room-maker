@@ -27,7 +27,10 @@ export default function ShapeEditor() {
   const rows = shape.rows
 
   const commit = (next) => {
-    store.set('customShape', { cols, rows, cells: [...next] })
+    // Preserve an exact height carried on the shape (e.g. set during onboarding's
+    // size step) — replacing the whole object without it would silently reset
+    // the ceiling to the fallback.
+    store.set('customShape', { cols, rows, cells: [...next], h: shape.h })
   }
 
   const apply = (c, r, mode) => {
@@ -63,7 +66,7 @@ export default function ShapeEditor() {
     // Growing: fill the new strip so the room actually gets bigger.
     if (dCols > 0) for (let r = 0; r < nr; r++) for (let c = cols; c < nc; c++) next.add(`${c},${r}`)
     if (dRows > 0) for (let r = rows; r < nr; r++) for (let c = 0; c < nc; c++) next.add(`${c},${r}`)
-    if (next.size) store.set('customShape', { cols: nc, rows: nr, cells: [...next] })
+    if (next.size) store.set('customShape', { cols: nc, rows: nr, cells: [...next], h: shape.h })
   }
 
   const area = (cells.size * CELL * CELL).toFixed(1)
@@ -152,7 +155,15 @@ export default function ShapeEditor() {
           max="6"
           step="0.1"
           value={shape.h}
-          onChange={(e) => store.set('customDims', { h: Number(e.target.value) })}
+          onChange={(e) => {
+            const h = Number(e.target.value)
+            // Once a custom mask carries its own height (e.g. from onboarding's
+            // exact-dimensions step), that value wins over customDims.h — so the
+            // ceiling field has to update it there directly, or this input would
+            // silently stop doing anything.
+            if (store.customShape) store.set('customShape', { ...store.customShape, h })
+            else store.set('customDims', { h })
+          }}
         />
       </label>
 

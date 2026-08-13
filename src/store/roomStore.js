@@ -181,13 +181,20 @@ export const useRoomStore = create(
         }
       },
 
-      /** The active room footprint: a hand-painted mask if there is one. */
+      /**
+       * The active room footprint: a hand-painted or exact-dimension mask if
+       * there is one. Height precedence: the shape's own `h` (set when a mask
+       * is generated from exact width/depth/ceiling, e.g. onboarding's size
+       * step) wins first, then the separate `customDims.h` ceiling override
+       * (set by the Design panel's shape editor, which doesn't touch the mask
+       * itself), then the preset's height.
+       */
       shape: () => {
         const custom = get().customShape
         const preset = getShape(get().floorplan)
-        const h = get().customDims?.h ?? preset.h
-        if (custom?.cells?.length) return { ...custom, h }
-        return { ...preset, h }
+        const fallbackH = get().customDims?.h ?? preset.h
+        if (custom?.cells?.length) return { ...custom, h: custom.h ?? fallbackH }
+        return { ...preset, h: fallbackH }
       },
 
       /** Metric bounds of the active shape, for camera framing and clamping. */

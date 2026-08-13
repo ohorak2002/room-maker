@@ -16,7 +16,7 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('Room Maker crashed:', error, info)
+    console.error('Nested crashed:', error, info)
   }
 
   render() {
@@ -30,13 +30,13 @@ export default class ErrorBoundary extends Component {
         <div className="crash-card">
           <p className="crash-eyebrow">
             <PillowMark size={20} className="eyebrow-mark" />
-            Room Maker
+            Nested
           </p>
           {webglMissing ? (
             <>
               <h1>This browser can't render 3D.</h1>
               <p>
-                Room Maker needs WebGL to draw your room. It's usually switched off rather than
+                Nested needs WebGL to draw your room. It's usually switched off rather than
                 missing — try turning on hardware acceleration in your browser settings, or open the
                 site in Chrome, Edge, Safari, or Firefox.
               </p>
