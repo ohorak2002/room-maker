@@ -5,6 +5,13 @@ import { getPalette, getShape, shapeBounds } from '../data/presets'
 const initial = {
   onboarded: false,
 
+  // 'room'  — design one room, the original behavior
+  // 'home'  — generate a whole floorplan, then focus one room at a time
+  scope: 'room',
+  home: null, // { beds, baths, sqft, rooms: [...], w, d, h } from generateHome()
+  focusedRoom: null, // room id being edited while in home scope
+
+
   // Where you live. Optional, free text, never leaves the browser — see the
   // note in the onboarding step. We store a building name only, never a unit.
   residence: '',
@@ -35,7 +42,7 @@ const initial = {
 
 // Fields worth restoring on undo. Deliberately excludes onboarding answers and
 // the photo — undo is for room edits, not for rewinding the whole session.
-const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customShape', 'customDims', 'windows', 'wallOverride', 'floorOverride']
+const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customShape', 'customDims', 'windows', 'wallOverride', 'floorOverride', 'home', 'scope', 'focusedRoom']
 
 const snapshot = (s) => Object.fromEntries(TRACKED.map((k) => [k, s[k]]))
 
@@ -65,97 +72,118 @@ export const useRoomStore = create(
       finishOnboarding: () => set({ onboarded: true }),
       restartOnboarding: () => set({ onboarded: false }),
 
+      /**
+       * Items live in one of two places depending on scope: the top-level
+       * `items` array in single-room mode, or the focused room's own `items`
+       * when editing inside a generated home. Every mutation routes through
+       * here so callers never have to care which.
+       */
+      _updateItems: (fn) =>
+        set((s) => {
+          if (s.scope === 'home' && s.focusedRoom && s.home) {
+            return {
+              home: {
+                ...s.home,
+                rooms: s.home.rooms.map((r) =>
+                  r.id === s.focusedRoom ? { ...r, items: fn(r.items || []) } : r
+                ),
+              },
+            }
+          }
+          return { items: fn(s.items) }
+        }),
+
+      /** The item list for whatever is currently being edited. */
+      activeItems: () => {
+        const focused = get().activeRoom()
+        return focused ? focused.items || [] : get().items
+      },
+
       addItem: (id) => {
         get().pushHistory()
-        set((s) => {
-          const found = s.items.find((i) => i.id === id)
-          if (found) return { items: s.items.map((i) => (i.id === id ? { ...i, qty: i.qty + 1 } : i)) }
-          return { items: [...s.items, { id, qty: 1 }] }
+        get()._updateItems((items) => {
+          const found = items.find((i) => i.id === id)
+          if (found) return items.map((i) => (i.id === id ? { ...i, qty: i.qty + 1 } : i))
+          return [...items, { id, qty: 1 }]
         })
       },
 
       /** Add a generated piece, keeping its full definition alongside the count. */
       addSynthetic: (item) => {
         get().pushHistory()
-        set((s) => {
-          const found = s.items.find((i) => i.id === item.id)
-          return {
-            synthetics: { ...s.synthetics, [item.id]: item },
-            items: found
-              ? s.items.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i))
-              : [...s.items, { id: item.id, qty: 1 }],
-            layoutRev: s.layoutRev + 1,
-          }
+        set((s) => ({ synthetics: { ...s.synthetics, [item.id]: item } }))
+        get()._updateItems((items) => {
+          const found = items.find((i) => i.id === item.id)
+          if (found) return items.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i))
+          return [...items, { id: item.id, qty: 1 }]
         })
+        set((s) => ({ layoutRev: s.layoutRev + 1 }))
       },
 
       addMany: (ids) => {
         get().pushHistory()
-        set((s) => {
-          const items = [...s.items]
+        get()._updateItems((prev) => {
+          const items = [...prev]
           for (const id of ids) {
             const at = items.findIndex((i) => i.id === id)
             if (at >= 0) items[at] = { ...items[at], qty: items[at].qty + 1 }
             else items.push({ id, qty: 1 })
           }
-          return { items, layoutRev: s.layoutRev + 1 }
+          return items
         })
+        set((s) => ({ layoutRev: s.layoutRev + 1 }))
       },
 
       /** Remove one specific physical copy, e.g. the one selected in the 3D view. */
       removeInstance: (key) => {
-        get().pushHistory()
-        set((s) => {
-          const [id] = key.split('#')
-          const found = s.items.find((i) => i.id === id)
-          if (!found) return s
-          const placements = { ...s.placements }
-          // Instance keys are positional, so drop the highest index and reindex.
-          delete placements[`${id}#${found.qty - 1}`]
-          const items =
-            found.qty > 1
-              ? s.items.map((i) => (i.id === id ? { ...i, qty: i.qty - 1 } : i))
-              : s.items.filter((i) => i.id !== id)
-          return { items, placements, layoutRev: s.layoutRev + 1 }
-        })
+        const [id] = key.split('#')
+        get().removeItem(id)
       },
 
       removeItem: (id) => {
         get().pushHistory()
+        const found = get().activeItems().find((i) => i.id === id)
+        if (!found) return
+        // Instance keys are positional, so drop the highest index.
         set((s) => {
-          const found = s.items.find((i) => i.id === id)
-          if (!found) return s
           const placements = { ...s.placements }
           delete placements[`${id}#${found.qty - 1}`]
-          if (found.qty > 1) {
-            return { items: s.items.map((i) => (i.id === id ? { ...i, qty: i.qty - 1 } : i)), placements }
-          }
-          return { items: s.items.filter((i) => i.id !== id), placements }
+          return { placements, layoutRev: s.layoutRev + 1 }
         })
+        get()._updateItems((items) =>
+          found.qty > 1
+            ? items.map((i) => (i.id === id ? { ...i, qty: i.qty - 1 } : i))
+            : items.filter((i) => i.id !== id)
+        )
       },
 
       /** Swap every unit of `fromId` for `toId`, e.g. taking the cheaper option. */
-      swapItem: (fromId, toId) =>
+      swapItem: (fromId, toId) => {
+        const from = get().activeItems().find((i) => i.id === fromId)
+        if (!from) return
         set((s) => {
-          const from = s.items.find((i) => i.id === fromId)
-          if (!from) return s
           const placements = { ...s.placements }
           for (const k of Object.keys(placements)) {
             if (k.startsWith(`${fromId}#`)) delete placements[k]
           }
-          const existing = s.items.find((i) => i.id === toId)
-          let items = s.items.filter((i) => i.id !== fromId)
-          if (existing) items = items.map((i) => (i.id === toId ? { ...i, qty: i.qty + from.qty } : i))
-          else items = [...items, { id: toId, qty: from.qty }]
-          return { items, placements, layoutRev: s.layoutRev + 1 }
-        }),
+          return { placements, layoutRev: s.layoutRev + 1 }
+        })
+        get()._updateItems((items) => {
+          const existing = items.find((i) => i.id === toId)
+          let next = items.filter((i) => i.id !== fromId)
+          if (existing) next = next.map((i) => (i.id === toId ? { ...i, qty: i.qty + from.qty } : i))
+          else next = [...next, { id: toId, qty: from.qty }]
+          return next
+        })
+      },
 
       clearAll: () => {
         get().pushHistory()
-        set((s) => ({ items: [], placements: {}, layoutRev: s.layoutRev + 1 }))
+        get()._updateItems(() => [])
+        set((s) => ({ placements: {}, layoutRev: s.layoutRev + 1 }))
       },
 
-      qtyOf: (id) => get().items.find((i) => i.id === id)?.qty || 0,
+      qtyOf: (id) => get().activeItems().find((i) => i.id === id)?.qty || 0,
 
       // --- placement ------------------------------------------------------
       // History is pushed by the drag layer on pointer-down, not here — this
@@ -181,15 +209,38 @@ export const useRoomStore = create(
         }
       },
 
+      // --- whole-home scope -------------------------------------------------
+      setHome: (home) => {
+        get().pushHistory()
+        set((s) => ({ home, scope: 'home', focusedRoom: null, layoutRev: s.layoutRev + 1 }))
+      },
+
+      focusRoom: (roomId) => set((s) => ({ focusedRoom: roomId, layoutRev: s.layoutRev + 1 })),
+
+      exitRoom: () => set((s) => ({ focusedRoom: null, layoutRev: s.layoutRev + 1 })),
+
+      setScope: (scope) => set((s) => ({ scope, focusedRoom: null, layoutRev: s.layoutRev + 1 })),
+
+      /** The room object currently being edited, or null in single-room scope. */
+      activeRoom: () => {
+        const s = get()
+        if (s.scope !== 'home' || !s.focusedRoom || !s.home) return null
+        return s.home.rooms.find((r) => r.id === s.focusedRoom) || null
+      },
+
       /**
-       * The active room footprint: a hand-painted or exact-dimension mask if
-       * there is one. Height precedence: the shape's own `h` (set when a mask
-       * is generated from exact width/depth/ceiling, e.g. onboarding's size
-       * step) wins first, then the separate `customDims.h` ceiling override
-       * (set by the Design panel's shape editor, which doesn't touch the mask
-       * itself), then the preset's height.
+       * The active room footprint. In home scope with a focused room, that
+       * room's own mask wins; otherwise it's the single-room shape.
+       *
+       * Height precedence for the single-room case: the shape's own `h` (set
+       * when a mask is generated from exact width/depth/ceiling, e.g.
+       * onboarding's size step) wins first, then the separate `customDims.h`
+       * ceiling override (set by the Design panel's shape editor, which
+       * doesn't touch the mask itself), then the preset's height.
        */
       shape: () => {
+        const focused = get().activeRoom()
+        if (focused) return { cols: focused.cols, rows: focused.rows, cells: focused.cells, h: focused.h }
         const custom = get().customShape
         const preset = getShape(get().floorplan)
         const fallbackH = get().customDims?.h ?? preset.h

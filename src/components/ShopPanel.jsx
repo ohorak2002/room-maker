@@ -9,6 +9,8 @@ export default function ShopPanel() {
   const [cat, setCat] = useState('for-you')
   const [query, setQuery] = useState('')
 
+  // In whole-home scope this is the focused room's list, not the global one.
+  const activeItems = store.activeItems()
   const photoPalette = store.photo?.palette || []
   const recs = recommend(store.mood, photoPalette, 40)
 
@@ -18,11 +20,11 @@ export default function ShopPanel() {
     (i) => !q || i.name.toLowerCase().includes(q) || i.retailerName.toLowerCase().includes(q)
   )
 
-  const total = store.items.reduce(
+  const total = activeItems.reduce(
     (sum, i) => sum + (resolveItem(i.id, store.synthetics)?.price || 0) * i.qty,
     0
   )
-  const savings = store.items.reduce((sum, entry) => {
+  const savings = activeItems.reduce((sum, entry) => {
     const item = byId(entry.id)
     const cheaper = cheapestSubstitute(entry.id)
     return cheaper ? sum + (item.price - cheaper.price) * entry.qty : sum
@@ -119,7 +121,7 @@ export default function ShopPanel() {
         {visible.length === 0 && <p className="empty">Nothing matches "{query}".</p>}
       </div>
 
-      {store.items.length > 0 && (
+      {activeItems.length > 0 && (
         <div className="basket">
           <div className="basket-head">
             <h4>In your room</h4>
@@ -127,7 +129,7 @@ export default function ShopPanel() {
               Clear
             </button>
           </div>
-          {store.items.map((entry) => {
+          {activeItems.map((entry) => {
             const item = resolveItem(entry.id, store.synthetics)
             if (!item) return null
             return (

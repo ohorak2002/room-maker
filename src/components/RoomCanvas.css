@@ -231,3 +231,31 @@
               background var(--dur-fast) var(--ease-mid),
               transform var(--dur-fast) var(--ease-mid);
 }
+
+/* --- focused-room banner (whole-home scope) ------------------------------ */
+
+.focus-banner {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.14);
+  animation: warn-in 240ms var(--ease-out) both;
+}
+
+.focus-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-banner { animation: none; }
+}

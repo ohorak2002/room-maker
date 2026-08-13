@@ -86,8 +86,10 @@ export default function Onboarding() {
         <HouseMark />
         <HeroRoom palette={store.palette} />
         <div className={`onboard-stage welcome ${leaving ? 'is-leaving' : 'is-entering'}`}>
-          <PillowMark size={132} className="hero-mark" />
-          <p className="eyebrow">Nested</p>
+          <div className="brand-lockup">
+            <PillowMark size={116} className="hero-mark" />
+            <p className="wordmark">Nested</p>
+          </div>
           <h1>You don't have to picture it.</h1>
           <p className="lede">
             Answer five questions about your space and what you like. We'll build the room from your

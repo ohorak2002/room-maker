@@ -9,6 +9,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { useRoomStore } from '../store/roomStore'
 import { byId, starterFor, resolveItem } from '../data/catalog'
 import { buildRoom } from '../three/buildRoom'
+import { buildHome, buildHomeLights } from '../three/buildHome'
 import { buildAtmosphere } from '../three/atmosphere'
 import { autoArrange, instanceKey } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
@@ -22,6 +23,7 @@ export default function RoomCanvas() {
   const [dragging, setDragging] = useState(false)
   const [warnDismissed, setWarnDismissed] = useState(false)
   const [menu, setMenu] = useState(null) // { key, name, x, y }
+  const [hoveredRoom, setHoveredRoom] = useState(null) // { name, sqft } in home overview
 
   const palette = useRoomStore((s) => s.palette)
   const lighting = useRoomStore((s) => s.lighting)
@@ -33,6 +35,9 @@ export default function RoomCanvas() {
   const floorOverride = useRoomStore((s) => s.floorOverride)
   const items = useRoomStore((s) => s.items)
   const layoutRev = useRoomStore((s) => s.layoutRev)
+  const scope = useRoomStore((s) => s.scope)
+  const home = useRoomStore((s) => s.home)
+  const focusedRoom = useRoomStore((s) => s.focusedRoom)
 
   // ---- engine (once) -----------------------------------------------------
   useEffect(() => {
@@ -185,13 +190,39 @@ export default function RoomCanvas() {
     setSelected(null)
 
     const store = useRoomStore.getState()
+    const colors = store.colors()
+
+    // --- whole-home overview: a different scene entirely -------------------
+    if (store.scope === 'home' && store.home && !store.focusedRoom) {
+      engine.homeLights?.()
+      const span = Math.max(store.home.w, store.home.d)
+      engine.atmosphere?.()
+      engine.atmosphere = buildAtmosphere(scene, {
+        lighting: 'overcast',
+        roomSpan: span * 1.2,
+        floorY: 0,
+      })
+      engine.homeLights = buildHomeLights(scene, { span })
+      engine.room = buildHome(scene, { home: store.home, palette: colors })
+
+      // Look down at the plan from a shallow angle — high enough to read the
+      // layout, low enough that the low walls still give it depth.
+      const dist = span * 1.25
+      camera.position.set(dist * 0.32, span * 0.95, dist * 0.78)
+      controls.target.set(0, 0, 0)
+      controls.update()
+      return
+    }
+
+    engine.homeLights?.()
+    engine.homeLights = null
+
     const shape = store.shape()
     const room = store.dims()
-    const colors = store.colors()
 
     // One entry per physical copy, with a stable key.
     const entries = []
-    for (const entry of store.items) {
+    for (const entry of store.activeItems()) {
       const item = resolveItem(entry.id, store.synthetics)
       if (!item) continue
       for (let n = 0; n < entry.qty; n++) entries.push({ key: instanceKey(entry.id, n), item })
@@ -233,12 +264,77 @@ export default function RoomCanvas() {
     camera.position.set(dist * 0.5, room.h * 0.78, dist * 0.86)
     controls.target.set(0, room.h * 0.4, -room.d * 0.1)
     controls.update()
-  }, [palette, lighting, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev])
+  }, [palette, lighting, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom])
+
+  // ---- home overview: hover + click a room to focus it --------------------
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    const inOverview = scope === 'home' && home && !focusedRoom
+    if (!inOverview) {
+      setHoveredRoom(null)
+      return
+    }
+
+    const { renderer, camera } = engine
+    const el = renderer.domElement
+    const ray = new THREE.Raycaster()
+    const ndc = new THREE.Vector2()
+    let current = null
+
+    const pickRoom = (e) => {
+      const r = el.getBoundingClientRect()
+      ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1
+      ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1
+      ray.setFromCamera(ndc, camera)
+      const hits = ray.intersectObjects(engine.room?.pickables || [], false)
+      return hits[0]?.object || null
+    }
+
+    const setHighlight = (obj, on) => {
+      const hl = obj?.userData?.highlight
+      if (hl) hl.material.opacity = on ? 0.22 : 0
+    }
+
+    const onMove = (e) => {
+      const obj = pickRoom(e)
+      if (obj === current) return
+      setHighlight(current, false)
+      current = obj
+      setHighlight(current, true)
+      el.style.cursor = obj ? 'pointer' : 'default'
+      setHoveredRoom(obj ? { name: obj.userData.roomName, sqft: obj.userData.sqft } : null)
+    }
+
+    const onClick = (e) => {
+      const obj = pickRoom(e)
+      if (obj) useRoomStore.getState().focusRoom(obj.userData.roomId)
+    }
+
+    const onLeave = () => {
+      setHighlight(current, false)
+      current = null
+      setHoveredRoom(null)
+    }
+
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('click', onClick)
+    el.addEventListener('pointerleave', onLeave)
+    return () => {
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('click', onClick)
+      el.removeEventListener('pointerleave', onLeave)
+      setHighlight(current, false)
+      el.style.cursor = 'default'
+    }
+  }, [scope, home, focusedRoom, layoutRev])
 
   // ---- pointer: select + drag --------------------------------------------
   useEffect(() => {
     const engine = engineRef.current
     if (!engine) return
+    // Dragging furniture is meaningless in the plan overview.
+    if (scope === 'home' && home && !focusedRoom) return
     const { renderer, camera, controls, outline, ghost, mount } = engine
     const el = renderer.domElement
 
@@ -477,10 +573,13 @@ export default function RoomCanvas() {
       el.removeEventListener('pointercancel', onUp)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [items, layoutRev, floorplan, customShape, customDims])
+  }, [items, layoutRev, floorplan, customShape, customDims, scope, home, focusedRoom])
 
   const store = useRoomStore()
-  const count = items.reduce((n, i) => n + i.qty, 0)
+  const activeItems = store.activeItems()
+  const activeRoom = store.activeRoom()
+  const inOverview = scope === 'home' && home && !focusedRoom
+  const count = activeItems.reduce((n, i) => n + i.qty, 0)
 
   const runMenuAction = (action, ctx) => {
     const engine = engineRef.current
@@ -521,7 +620,7 @@ export default function RoomCanvas() {
 
   // Crowding: summed footprint vs floor area. Past ~55% you can't walk through it.
   const fill = store.crowding(
-    items.flatMap((entry) => {
+    activeItems.flatMap((entry) => {
       const item = resolveItem(entry.id, store.synthetics)
       return item ? Array(entry.qty).fill(item.fp || 0.35) : []
     })
@@ -529,11 +628,48 @@ export default function RoomCanvas() {
   const dims = store.dims()
   const packName = starterFor(store.mood).name
 
+  // --- whole-home overview: a different set of controls entirely -----------
+  if (inOverview) {
+    const furnished = home.rooms.filter((r) => (r.items || []).length > 0).length
+    return (
+      <div className="canvas-root">
+        <div ref={mountRef} className="canvas-mount" />
+
+        <div className="canvas-tools">
+          <span className="tool-note">
+            {home.beds} bed · {home.baths} bath · {home.sqft.toLocaleString()} sq ft
+          </span>
+        </div>
+
+        <div className="canvas-hud">
+          {hoveredRoom ? (
+            <span className="hud-sel">
+              <strong>{hoveredRoom.name}</strong> — {hoveredRoom.sqft} sq ft · click to design it
+            </span>
+          ) : (
+            <span className="hud-hint">
+              Click any room to design it{furnished > 0 ? ` · ${furnished} furnished so far` : ''}
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="canvas-root">
       <div ref={mountRef} className="canvas-mount" />
 
       <PieceMenu menu={menu} onAction={runMenuAction} onClose={() => setMenu(null)} />
+
+      {activeRoom && (
+        <div className="focus-banner">
+          <button className="btn-quiet" onClick={() => store.exitRoom()}>
+            ← Whole place
+          </button>
+          <span className="focus-name">{activeRoom.name}</span>
+        </div>
+      )}
 
       <div className="canvas-tools">
         <button

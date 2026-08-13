@@ -25,20 +25,35 @@ export default function PillowMark({ size = 22, className = '' }) {
       />
       {/* seam */}
       <path
-        d="M18 25 Q32 21 46 25"
+        d="M18 24 Q32 20 46 24"
         stroke="var(--pillow-line, #C9BCA8)"
         strokeWidth="2"
         strokeLinecap="round"
-        opacity="0.8"
+        opacity="0.7"
       />
       {/* highlight, so it reads as soft rather than flat */}
       <path
-        d="M21 29 Q26 25.5 31 27.5"
+        d="M20 28 Q24 25 28 26.5"
         stroke="#FFFFFF"
-        strokeWidth="3"
+        strokeWidth="2.6"
         strokeLinecap="round"
-        opacity="0.9"
+        opacity="0.85"
       />
+
+      {/* Face. Kept small and centred low so it reads as a quiet smile rather
+          than a cartoon — the mark still has to work at 20px in the top bar. */}
+      <g fill="var(--pillow-face, #6E6255)">
+        <circle cx="26" cy="31" r="1.9" />
+        <circle cx="38" cy="31" r="1.9" />
+      </g>
+      <path
+        d="M27 36.5 Q32 40.5 37 36.5"
+        stroke="var(--pillow-face, #6E6255)"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        fill="none"
+      />
+
       {/* corner tufts */}
       <circle cx="14" cy="22" r="2.1" fill="var(--pillow-line, #C9BCA8)" />
       <circle cx="50" cy="22" r="2.1" fill="var(--pillow-line, #C9BCA8)" />

@@ -4,6 +4,7 @@ import { byId, formatUSD, resolveItem } from '../data/catalog'
 import ControlsPanel from './ControlsPanel'
 import ShopPanel from './ShopPanel'
 import SearchPanel from './SearchPanel'
+import HomePanel from './HomePanel'
 import PhotoImport from './PhotoImport'
 import Shortcuts from './Shortcuts'
 import PillowMark from './PillowMark'
@@ -14,6 +15,7 @@ import './Workspace.css'
 const RoomCanvas = lazy(() => import('./RoomCanvas'))
 
 const TABS = [
+  { id: 'place', label: 'Place' },
   { id: 'design', label: 'Design' },
   { id: 'shop', label: 'Shop' },
   { id: 'search', label: 'Search' },
@@ -41,11 +43,18 @@ export default function Workspace() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const total = store.items.reduce((sum, i) => {
+  // The top bar reports the whole project: in home scope that's every room's
+  // basket combined, not just whichever one is open.
+  const allItems =
+    store.scope === 'home' && store.home
+      ? store.home.rooms.flatMap((r) => r.items || [])
+      : store.items
+
+  const total = allItems.reduce((sum, i) => {
     const item = resolveItem(i.id, store.synthetics)
     return sum + (item ? item.price * i.qty : 0)
   }, 0)
-  const count = store.items.reduce((n, i) => n + i.qty, 0)
+  const count = allItems.reduce((n, i) => n + i.qty, 0)
 
   const exportDesign = () => {
     const payload = {
@@ -55,7 +64,11 @@ export default function Workspace() {
       lighting: store.lighting,
       floorplan: store.floorplan,
       windows: store.windows,
-      items: store.items.map((i) => {
+      scope: store.scope,
+      home: store.home
+        ? { beds: store.home.beds, baths: store.home.baths, sqft: store.home.sqft }
+        : null,
+      items: allItems.map((i) => {
         const item = resolveItem(i.id, store.synthetics)
         return {
           name: item?.name,
@@ -134,6 +147,7 @@ export default function Workspace() {
             </div>
 
             <div className="panel-scroll">
+              {tab === 'place' && <HomePanel />}
               {tab === 'design' && <ControlsPanel />}
               {tab === 'shop' && <ShopPanel />}
               {tab === 'search' && <SearchPanel />}
