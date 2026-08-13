@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { useRoomStore } from '../store/roomStore'
@@ -70,6 +71,20 @@ export default function RoomCanvas() {
     // to read as "that lamp is genuinely lit," not a hazy glow over everything.
     const composer = new EffectComposer(renderer)
     composer.addPass(new RenderPass(scene, camera))
+
+    // Ground-truth ambient occlusion. Without it every piece reads as floating
+    // slightly above the floor, because a shadow map alone can't darken the
+    // narrow contact seam where a leg meets the boards.
+    //
+    // Radius is in metres. Furniture-contact scale (~0.25) looks correct on
+    // paper but renders almost no occlusion here, because rooms are viewed from
+    // several metres back and that radius covers only a few pixels on screen.
+    // 1.0 is what actually reads at the distance this camera sits at.
+    const gtao = new GTAOPass(scene, camera, 1, 1)
+    gtao.blendIntensity = 0.85
+    gtao.updateGtaoMaterial({ radius: 1.0, distanceExponent: 1, thickness: 1, scale: 1, samples: 16 })
+    composer.addPass(gtao)
+
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.82)
     composer.addPass(bloom)
     composer.addPass(new OutputPass())
