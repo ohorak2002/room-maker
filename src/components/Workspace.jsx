@@ -1,9 +1,10 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { byId, formatUSD } from '../data/catalog'
 import ControlsPanel from './ControlsPanel'
 import ShopPanel from './ShopPanel'
 import PhotoImport from './PhotoImport'
+import Shortcuts from './Shortcuts'
 import './Workspace.css'
 
 // Three.js only loads when the 3D view actually mounts, so the survey and the
@@ -20,6 +21,22 @@ export default function Workspace() {
   const store = useRoomStore()
   const [tab, setTab] = useState('design')
   const [panelOpen, setPanelOpen] = useState(true)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  // "?" opens the shortcuts sheet, the convention on every desktop app that
+  // has one. Ignored while typing so it doesn't hijack the search field.
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === '?') {
+        e.preventDefault()
+        setShortcutsOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const total = store.items.reduce((sum, i) => {
     const item = byId(i.id)
@@ -59,6 +76,7 @@ export default function Workspace() {
 
   return (
     <div className="workspace">
+      <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
@@ -70,6 +88,13 @@ export default function Workspace() {
             <span className="basket-count">{count}</span> items ·{' '}
             <span className="basket-total">{formatUSD(total)}</span> est.
           </span>
+          <button
+            className="kbd-hint"
+            onClick={() => setShortcutsOpen(true)}
+            title="Keyboard shortcuts"
+          >
+            <kbd>?</kbd> Shortcuts
+          </button>
           <button className="btn-quiet" onClick={exportDesign}>
             Export
           </button>
