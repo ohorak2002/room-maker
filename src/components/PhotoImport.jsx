@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import ItemThumb from './ItemThumb'
 import { useRoomStore } from '../store/roomStore'
 import { recommend, formatUSD, cheapestSubstitute } from '../data/catalog'
 import './PhotoImport.css'
@@ -105,7 +106,7 @@ export default function PhotoImport() {
               const cheaper = cheapestSubstitute(item.id)
               return (
                 <div key={item.id} className="match-row">
-                  <span className="match-swatch" style={{ background: item.color }} aria-hidden="true" />
+                  <ItemThumb item={item} size={40} />
                   <div className="match-body">
                     <p className="match-name">{item.name}</p>
                     <p className="match-meta">

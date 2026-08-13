@@ -137,6 +137,21 @@ export function recommend(mood, paletteHexes = [], limit = 12) {
     .map((r) => r.item)
 }
 
+/**
+ * A furnished room in one click, per vibe. An empty room is the worst first
+ * impression the app can make — this gives people something to react to.
+ */
+export const STARTER_PACKS = {
+  cozy: { name: 'Cozy bedroom', items: ['bed-budget', 'nightstand', 'rug-budget', 'lamp-budget', 'monstera', 'gallery-set'] },
+  modern: { name: 'Modern workspace', items: ['standing-desk', 'desk-chair', 'monitor', 'snake-plant', 'floor-mirror', 'canvas-art'] },
+  warm: { name: 'Warm living room', items: ['sofa', 'coffee-table', 'rug', 'floor-lamp', 'olive-tree', 'gallery-set'] },
+  cool: { name: 'Clean studio', items: ['bed', 'standing-desk', 'chair-budget', 'monitor', 'succulent-trio', 'mirror-budget'] },
+  natural: { name: 'Plant-filled room', items: ['fiddle-fig', 'monstera', 'palm', 'snake-plant', 'hanging-pothos', 'desk', 'pouf'] },
+  bold: { name: 'Statement room', items: ['beanbag', 'neon-sign', 'led-strip', 'tv', 'palm', 'rug'] },
+}
+
+export const starterFor = (mood) => STARTER_PACKS[mood] || STARTER_PACKS.cozy
+
 function hexToRgb(hex) {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '')
   return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null

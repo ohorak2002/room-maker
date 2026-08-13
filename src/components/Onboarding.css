@@ -10,6 +10,9 @@
   gap: 32px;
   padding: 40px 24px;
   overflow-y: auto;
+  /* The house drawing is deliberately bled past the right edge; without this it
+     drags a horizontal scrollbar onto the page. */
+  overflow-x: hidden;
 }
 
 /* --- progress ----------------------------------------------------------- */
@@ -362,4 +365,71 @@
   border: 1px solid var(--line);
   border-radius: 3px;
   background: #fff;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------------------------------------------------------------------------
+   Atmosphere.
+   House-themed, but drawn rather than photographed: a drafting grid, an
+   elevation of a pitched roof, and two light washes. All CSS/SVG, so it weighs
+   nothing, needs no licence, scales to any screen, and adapts to both themes
+   via currentColor rather than shipping two images.
+--------------------------------------------------------------------------- */
+
+.onboard {
+  isolation: isolate;
+}
+
+.onboard::before {
+  /* Drafting grid */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(to right, currentColor 1px, transparent 1px),
+    linear-gradient(to bottom, currentColor 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: 0.045;
+  mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 30%, transparent 78%);
+  pointer-events: none;
+}
+
+.onboard::after {
+  /* Warm light from the upper left, cool from the lower right — the two
+     lighting conditions the app itself is about. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 8%, rgba(193, 130, 70, 0.16), transparent 62%),
+    radial-gradient(ellipse 60% 50% at 92% 96%, rgba(46, 107, 94, 0.14), transparent 60%);
+  pointer-events: none;
+}
+
+.house-mark {
+  position: absolute;
+  right: -4%;
+  bottom: -6%;
+  width: min(62vw, 620px);
+  z-index: -1;
+  color: var(--ink);
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .house-mark {
+    width: 105vw;
+    right: -22%;
+    bottom: -3%;
+    opacity: 0.05;
+  }
 }

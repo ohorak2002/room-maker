@@ -88,6 +88,7 @@ export default function Onboarding() {
   if (step === -1) {
     return (
       <div className="onboard">
+        <HouseMark />
         <div className={`onboard-stage welcome ${leaving ? 'is-leaving' : 'is-entering'}`}>
           <p className="eyebrow">Room Maker</p>
           <h1>You don't have to picture it.</h1>
@@ -113,6 +114,7 @@ export default function Onboarding() {
 
   return (
     <div className="onboard">
+      <HouseMark />
       <div className="onboard-top">
         <div className="progress" role="group" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
           {STEPS.map((_, i) => (
@@ -158,15 +160,70 @@ export default function Onboarding() {
         <button className="btn-quiet" onClick={() => go(step - 1)}>
           {step === 0 ? 'Back' : 'Previous'}
         </button>
-        <button className="btn-primary" onClick={() => (isLast ? finish() : go(step + 1))}>
-          {isLast ? 'Build my room' : 'Next'}
-        </button>
+        <div className="nav-right">
+          {/* Every question has a sensible default, so nothing here is required. */}
+          <button className="btn-quiet" onClick={finish}>
+            Skip the rest
+          </button>
+          <button className="btn-primary" onClick={() => (isLast ? finish() : go(step + 1))}>
+            {isLast ? 'Build my room' : 'Next'}
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * A sectional drawing of a house — two floors, a pitched roof, and furnished
+ * rooms — sitting behind the questions at low opacity. It's the subject of the
+ * app rendered the way an architect would draw it, rather than a stock photo.
+ * Strokes use currentColor so it reads correctly in both themes.
+ */
+function HouseMark() {
+  return (
+    <svg className="house-mark" viewBox="0 0 520 360" fill="none" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+        {/* roof */}
+        <path d="M40 150 L260 24 L480 150" />
+        <path d="M40 150 L480 150" />
+        {/* outer walls */}
+        <path d="M70 150 L70 336 L450 336 L450 150" />
+        {/* floor slab */}
+        <path d="M70 244 L450 244" />
+        {/* interior partitions */}
+        <path d="M215 244 L215 336" />
+        <path d="M320 150 L320 244" />
+        <path d="M20 336 L500 336" strokeWidth="3" />
+      </g>
+
+      <g stroke="currentColor" strokeWidth="1.6">
+        {/* upper left: bed + nightstand */}
+        <rect x="100" y="196" width="70" height="44" rx="3" />
+        <path d="M100 210 L170 210" />
+        <rect x="176" y="222" width="18" height="18" rx="2" />
+        {/* upper right: desk + chair */}
+        <rect x="346" y="182" width="76" height="20" rx="2" />
+        <circle cx="384" cy="220" r="13" />
+        {/* lower left: sofa + table */}
+        <rect x="96" y="286" width="88" height="34" rx="4" />
+        <path d="M96 298 L184 298" />
+        <circle cx="140" cy="266" r="14" />
+        {/* lower right: shelving + plant */}
+        <rect x="360" y="272" width="60" height="60" rx="2" />
+        <path d="M360 292 L420 292 M360 312 L420 312" />
+        <path d="M262 332 L262 300" />
+        <path d="M262 300 q-16 -4 -14 -20 q16 2 14 20" />
+        <path d="M262 306 q16 -4 14 -22 q-16 4 -14 22" />
+        {/* windows in the roof gable */}
+        <rect x="238" y="86" width="44" height="34" rx="2" />
+        <path d="M260 86 L260 120 M238 103 L282 103" />
+      </g>
+    </svg>
+  )
+}
 
 function ResidenceStep({ store }) {
   const toggle = (id) => {

@@ -1,4 +1,5 @@
 import { useRoomStore } from '../store/roomStore'
+import Section from './Section'
 import { PALETTES, MOODS, LIGHTING, FLOORPLANS } from '../data/presets'
 import './ControlsPanel.css'
 
@@ -10,8 +11,7 @@ export default function ControlsPanel() {
 
   return (
     <div className="controls">
-      <section className="ctl-section">
-        <h3>Palette</h3>
+      <Section title="Palette" summary={PALETTES.find((p) => p.id === store.palette)?.name} defaultOpen>
         <div className="palette-list">
           {PALETTES.map((p) => (
             <button
@@ -59,10 +59,9 @@ export default function ControlsPanel() {
             Reset to palette colors
           </button>
         )}
-      </section>
+      </Section>
 
-      <section className="ctl-section">
-        <h3>Feel</h3>
+      <Section title="Feel" summary={MOODS.find((m) => m.id === store.mood)?.name}>
         <div className="chip-grid">
           {MOODS.map((m) => (
             <button
@@ -75,10 +74,9 @@ export default function ControlsPanel() {
             </button>
           ))}
         </div>
-      </section>
+      </Section>
 
-      <section className="ctl-section">
-        <h3>Light</h3>
+      <Section title="Light" summary={LIGHTING.find((l) => l.id === store.lighting)?.name}>
         <div className="chip-grid">
           {LIGHTING.map((l) => (
             <button
@@ -100,10 +98,9 @@ export default function ControlsPanel() {
           />
           <span>Window on the back wall</span>
         </label>
-      </section>
+      </Section>
 
-      <section className="ctl-section">
-        <h3>Layout</h3>
+      <Section title="Layout" summary={placed === 0 ? "Auto" : `${placed} moved`} defaultOpen>
         <p className="note">
           Click any piece in the room to select it, then drag to move it. Arrow keys nudge,
           <strong> R</strong> rotates. Auto-arrange re-runs the solver on everything.
@@ -116,10 +113,9 @@ export default function ControlsPanel() {
             {placed === 0 ? 'All auto-placed' : `${placed} moved by hand`}
           </span>
         </div>
-      </section>
+      </Section>
 
-      <section className="ctl-section">
-        <h3>Floorplan</h3>
+      <Section title="Floorplan" summary={`${dims.w} × ${dims.d} m`}>
         <div className="chip-grid">
           {FLOORPLANS.map((f) => (
             <button
@@ -168,10 +164,9 @@ export default function ControlsPanel() {
             <img src={store.planImage} alt="Your uploaded floorplan" />
           </details>
         )}
-      </section>
+      </Section>
 
-      <section className="ctl-section">
-        <h3>Thermostat</h3>
+      <Section title="Thermostat" summary={`${store.temperature}°F`}>
         <div className="slider-row">
           <input
             type="range"
@@ -187,9 +182,9 @@ export default function ControlsPanel() {
         <p className="note">
           Comfort setting saved with the design — it doesn't change the 3D view.
         </p>
-      </section>
+      </Section>
 
-      <section className="ctl-section">
+      <section className="ctl-section reset-row">
         <button className="link-btn danger" onClick={store.reset}>
           Reset everything
         </button>

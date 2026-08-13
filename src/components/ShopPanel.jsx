@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ItemThumb from './ItemThumb'
 import { useRoomStore } from '../store/roomStore'
 import { CATALOG, CATEGORIES, byId, formatUSD, recommend, cheapestSubstitute } from '../data/catalog'
 import './ShopPanel.css'
@@ -68,7 +69,7 @@ export default function ShopPanel() {
           const owned = store.prefurnished.includes(item.id)
           return (
             <div key={item.id} className={`item ${qty ? 'in-room' : ''}`}>
-              <span className="item-swatch" style={{ background: item.color }} aria-hidden="true" />
+              <ItemThumb item={item} size={46} />
 
               <div className="item-body">
                 <p className="item-name">

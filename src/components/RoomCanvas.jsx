@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { useRoomStore } from '../store/roomStore'
-import { byId } from '../data/catalog'
+import { byId, starterFor } from '../data/catalog'
 import { buildRoom, BACKDROPS } from '../three/buildRoom'
 import { autoArrange, instanceKey } from '../three/layout'
 import './RoomCanvas.css'
@@ -30,14 +31,24 @@ export default function RoomCanvas() {
 
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 200)
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+    })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    // VSM gives genuinely soft shadow edges rather than PCF's speckled fringe.
+    renderer.shadowMap.type = THREE.VSMShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.05
+    renderer.toneMappingExposure = 1.1
     mount.appendChild(renderer.domElement)
+
+    // A generated interior environment: every PBR surface now has something real
+    // to reflect. Without this, metal reads as flat grey and gloss does nothing.
+    const pmrem = new THREE.PMREMGenerator(renderer)
+    const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04)
+    scene.environment = envRT.texture
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
@@ -87,6 +98,8 @@ export default function RoomCanvas() {
       ro.disconnect()
       engineRef.current?.room?.dispose()
       controls.dispose()
+      envRT.dispose()
+      pmrem.dispose()
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
       engineRef.current = null
@@ -134,13 +147,14 @@ export default function RoomCanvas() {
       placements,
     })
 
-    const vFov = (camera.fov * Math.PI) / 180
-    const fitHeight = room.h / (2 * Math.tan(vFov / 2))
-    const fitWidth = room.w / (2 * Math.tan(vFov / 2) * Math.max(camera.aspect, 0.5))
-    // Portrait viewports are already tight horizontally, so the generous
-    // desktop padding leaves the room looking tiny on a phone.
-    const pad = camera.aspect < 1 ? 1.2 : 1.6
-    const dist = Math.max(fitHeight, fitWidth, room.d * 0.6) * pad
+    // Fit the room's bounding sphere against whichever field of view is tighter.
+    // Fitting width and height separately broke on short-wide canvases (panel
+    // open on a laptop): the horizontal fit went small and the camera ended up
+    // inside the furniture.
+    const vHalf = (camera.fov * Math.PI) / 360
+    const hHalf = Math.atan(Math.tan(vHalf) * Math.max(camera.aspect, 0.35))
+    const radius = Math.hypot(room.w / 2, room.d / 2, room.h / 2)
+    const dist = (radius / Math.sin(Math.min(vHalf, hHalf))) * 0.7
 
     camera.position.set(dist * 0.5, room.h * 0.78, dist * 0.86)
     controls.target.set(0, room.h * 0.4, -room.d * 0.1)
@@ -207,6 +221,8 @@ export default function RoomCanvas() {
       const hit = pick(e)
       downAt = { x: e.clientX, y: e.clientY }
       didMove = false
+      // One history entry per drag gesture, taken before anything moves.
+      if (hit) useRoomStore.getState().pushHistory()
 
       if (!hit) {
         outline.visible = false
@@ -289,10 +305,32 @@ export default function RoomCanvas() {
     // Keyboard: nudge and rotate whichever piece is currently selected.
     let outlineTarget = null
     const onKeyDown = (e) => {
+      // Never steal keys while someone is typing in the panel.
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      const store = useRoomStore.getState()
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        store.undo()
+        return
+      }
+
       if (!outlineTarget) return
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        store.removeInstance(outlineTarget.userData.key)
+        outlineTarget = null
+        outline.visible = false
+        setSelected(null)
+        return
+      }
+
       const step = e.shiftKey ? 0.4 : 0.1
       const p = outlineTarget.position
-      const room = useRoomStore.getState().dims()
+      const room = store.dims()
       const r = outlineTarget.userData.radius
       let handled = true
       switch (e.key) {
@@ -336,8 +374,20 @@ export default function RoomCanvas() {
     }
   }, [items, layoutRev, floorplan, customDims])
 
+  const store = useRoomStore()
   const count = items.reduce((n, i) => n + i.qty, 0)
-  const hasCustom = Object.keys(useRoomStore((s) => s.placements)).length > 0
+  const hasCustom = Object.keys(store.placements).length > 0
+  const historyDepth = store._past.length
+
+  // Crowding: summed footprint vs floor area. Past ~55% you can't walk through it.
+  const fill = store.crowding(
+    items.flatMap((entry) => {
+      const item = byId(entry.id)
+      return item ? Array(entry.qty).fill(item.fp || 0.35) : []
+    })
+  )
+  const dims = store.dims()
+  const packName = starterFor(store.mood).name
 
   return (
     <div className="canvas-root">
@@ -345,8 +395,16 @@ export default function RoomCanvas() {
 
       <div className="canvas-tools">
         <button
+          className="tool-btn"
+          onClick={() => store.undo()}
+          disabled={historyDepth === 0}
+          title="Undo the last change (Ctrl+Z)"
+        >
+          Undo
+        </button>
+        <button
           className="tool-btn primary"
-          onClick={() => useRoomStore.getState().clearPlacements()}
+          onClick={() => store.clearPlacements()}
           title="Re-run the layout solver on every piece"
         >
           Auto-arrange
@@ -354,15 +412,42 @@ export default function RoomCanvas() {
         {hasCustom && <span className="tool-note">Custom layout</span>}
       </div>
 
+      {fill > 0.55 && (
+        <div className="crowd-warning" role="status">
+          <strong>This room is packed.</strong> Your pieces cover about{' '}
+          {Math.round(fill * 100)}% of a {dims.w}×{dims.d}m floor — there won't be much room to
+          walk. Try a bigger floorplan or fewer large pieces.
+        </div>
+      )}
+
+      {count === 0 && (
+        <div className="empty-room">
+          <div className="empty-card">
+            <p className="empty-title">Your room is empty</p>
+            <p className="empty-sub">
+              Start with a set picked for your {store.mood} vibe, then swap out whatever you don't
+              want.
+            </p>
+            <button
+              className="btn-primary"
+              onClick={() => store.addMany(starterFor(store.mood).items)}
+            >
+              Add the {packName.toLowerCase()}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="canvas-hud">
         {selected ? (
           <span className="hud-sel">
-            <strong>{selected.name}</strong> — drag to move · arrows nudge · R rotates
+            <strong>{selected.name}</strong> — drag to move · arrows nudge · R rotates · Delete
+            removes
           </span>
         ) : (
-          <span className="hud-hint">
-            {count === 0 ? 'Add pieces from the Shop tab' : 'Click a piece to move it · drag empty space to orbit'}
-          </span>
+          count > 0 && (
+            <span className="hud-hint">Click a piece to move it · drag empty space to orbit</span>
+          )
         )}
       </div>
     </div>
