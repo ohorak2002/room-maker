@@ -1,0 +1,298 @@
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-field input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  font-size: 1rem;
+  font-family: var(--font-body);
+}
+
+.search-field input:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.examples-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-right: 2px;
+}
+
+/* --- dials -------------------------------------------------------------- */
+
+.dials {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface-sunk);
+}
+
+.dial {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dial-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dial-value {
+  font-size: 0.82rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.dial-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+}
+
+/* --- generated spec ----------------------------------------------------- */
+
+.spec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+  animation: spec-in var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes spec-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+.spec-top {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.spec-head {
+  flex: 1;
+  min-width: 0;
+}
+
+.spec-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.spec-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.spec-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--money);
+}
+
+.spec-tier {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+
+.spec-note {
+  margin-top: 5px;
+  font-size: 0.74rem;
+  color: var(--money);
+}
+
+.spec-attrs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.spec-attrs > div {
+  padding: 7px 9px;
+  border-radius: 4px;
+  background: var(--surface-sunk);
+}
+
+.spec-attrs dt {
+  font-size: 0.66rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.spec-attrs dd {
+  font-size: 0.84rem;
+  color: var(--ink);
+  margin-top: 2px;
+  text-transform: capitalize;
+}
+
+.spec-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spec-actions .btn-primary,
+.spec-actions .btn-quiet {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.spec-disclaimer {
+  font-size: 0.73rem;
+  line-height: 1.55;
+  color: var(--ink-muted);
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* --- price ladder ------------------------------------------------------- */
+
+.ladder h4,
+.already h4 {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+
+.ladder-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 4px;
+  color: var(--ink-soft);
+  font-size: 0.83rem;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.ladder-row:hover {
+  background: var(--surface-sunk);
+  text-decoration: none;
+}
+
+.ladder-row.current {
+  background: var(--accent-wash);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ladder-store {
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+.ladder-price {
+  color: var(--money);
+  font-weight: 600;
+}
+
+/* --- no match ----------------------------------------------------------- */
+
+.search-miss {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface-sunk);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.search-miss-hint {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+/* --- catalog matches ---------------------------------------------------- */
+
+.already {
+  padding-top: 4px;
+}
+
+.already-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.already-row:last-child {
+  border-bottom: none;
+}
+
+.already-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.already-name {
+  font-size: 0.84rem;
+  line-height: 1.3;
+}
+
+.already-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 0.75rem;
+}

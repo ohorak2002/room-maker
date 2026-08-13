@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { useRoomStore } from '../store/roomStore'
-import { byId, starterFor } from '../data/catalog'
+import { byId, starterFor, resolveItem } from '../data/catalog'
 import { buildRoom, BACKDROPS } from '../three/buildRoom'
 import { autoArrange, instanceKey } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
@@ -128,7 +128,7 @@ export default function RoomCanvas() {
     // One entry per physical copy, with a stable key.
     const entries = []
     for (const entry of store.items) {
-      const item = byId(entry.id)
+      const item = resolveItem(entry.id, store.synthetics)
       if (!item) continue
       for (let n = 0; n < entry.qty; n++) entries.push({ key: instanceKey(entry.id, n), item })
     }
@@ -398,7 +398,7 @@ export default function RoomCanvas() {
   // Crowding: summed footprint vs floor area. Past ~55% you can't walk through it.
   const fill = store.crowding(
     items.flatMap((entry) => {
-      const item = byId(entry.id)
+      const item = resolveItem(entry.id, store.synthetics)
       return item ? Array(entry.qty).fill(item.fp || 0.35) : []
     })
   )

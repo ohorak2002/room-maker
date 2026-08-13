@@ -161,3 +161,12 @@ function rgbDist(a, b) {
   if (!a || !b) return 999
   return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
 }
+
+/**
+ * Look up an item by id, falling back to the generated pieces held in the store.
+ * Everything that renders or prices a room goes through here, so a synthesized
+ * sofa behaves exactly like a catalog one.
+ */
+export function resolveItem(id, synthetics = {}) {
+  return byId(id) || synthetics[id] || null
+}

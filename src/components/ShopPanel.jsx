@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import ItemThumb from './ItemThumb'
 import { useRoomStore } from '../store/roomStore'
-import { CATALOG, CATEGORIES, byId, formatUSD, recommend, cheapestSubstitute } from '../data/catalog'
+import { CATALOG, CATEGORIES, byId, formatUSD, recommend, cheapestSubstitute, resolveItem } from '../data/catalog'
 import './ShopPanel.css'
 
 export default function ShopPanel() {
@@ -18,7 +18,10 @@ export default function ShopPanel() {
     (i) => !q || i.name.toLowerCase().includes(q) || i.retailerName.toLowerCase().includes(q)
   )
 
-  const total = store.items.reduce((sum, i) => sum + (byId(i.id)?.price || 0) * i.qty, 0)
+  const total = store.items.reduce(
+    (sum, i) => sum + (resolveItem(i.id, store.synthetics)?.price || 0) * i.qty,
+    0
+  )
   const savings = store.items.reduce((sum, entry) => {
     const item = byId(entry.id)
     const cheaper = cheapestSubstitute(entry.id)
@@ -125,7 +128,7 @@ export default function ShopPanel() {
             </button>
           </div>
           {store.items.map((entry) => {
-            const item = byId(entry.id)
+            const item = resolveItem(entry.id, store.synthetics)
             if (!item) return null
             return (
               <div key={entry.id} className="basket-row">

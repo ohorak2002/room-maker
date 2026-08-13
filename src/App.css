@@ -19,10 +19,12 @@
   --money: #9a5518;
   --danger: #A33A2A;
 
-  --font-display: 'Segoe UI Variable Display', 'Segoe UI', -apple-system,
-    BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-  --font-body: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
-    Arial, sans-serif;
+  /* Lora carries the warmth — it's a serif with organic curves that still holds
+     up at small sizes, which most display serifs don't. Inter does the dense
+     panel work, where neutrality and legibility beat character. */
+  --font-display: 'Lora Variable', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'Cascadia Mono', 'SF Mono', Consolas, 'Roboto Mono', Menlo, monospace;
 
   /* Motion tokens — one rhythm for the whole product. The built-in CSS easings

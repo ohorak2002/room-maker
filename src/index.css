@@ -29,9 +29,30 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
-  font-weight: 650;
-  line-height: 1.15;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
   text-wrap: balance;
+}
+
+/* Panel section labels and small uppercase headings stay on the sans — a serif
+   at 0.72rem in all-caps is unreadable. */
+.ctl-title,
+.shortcuts-group h3,
+.basket-head h4,
+.extracted h4,
+.matches h4,
+.field-label,
+.resize-label {
+  font-family: var(--font-body);
+}
+
+/* Inter's default figures are proportional; tabular keeps price columns and
+   dimension readouts from jittering as digits change. */
+.mono,
+kbd,
+input[type='number'] {
+  font-variant-numeric: tabular-nums;
 }
 
 button,

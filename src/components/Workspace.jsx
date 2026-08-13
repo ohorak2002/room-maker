@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
-import { byId, formatUSD } from '../data/catalog'
+import { byId, formatUSD, resolveItem } from '../data/catalog'
 import ControlsPanel from './ControlsPanel'
 import ShopPanel from './ShopPanel'
+import SearchPanel from './SearchPanel'
 import PhotoImport from './PhotoImport'
 import Shortcuts from './Shortcuts'
 import PillowMark from './PillowMark'
@@ -15,6 +16,7 @@ const RoomCanvas = lazy(() => import('./RoomCanvas'))
 const TABS = [
   { id: 'design', label: 'Design' },
   { id: 'shop', label: 'Shop' },
+  { id: 'search', label: 'Search' },
   { id: 'photo', label: 'Photo' },
 ]
 
@@ -40,7 +42,7 @@ export default function Workspace() {
   }, [])
 
   const total = store.items.reduce((sum, i) => {
-    const item = byId(i.id)
+    const item = resolveItem(i.id, store.synthetics)
     return sum + (item ? item.price * i.qty : 0)
   }, 0)
   const count = store.items.reduce((n, i) => n + i.qty, 0)
@@ -55,7 +57,7 @@ export default function Workspace() {
       windows: store.windows,
       temperature: store.temperature,
       items: store.items.map((i) => {
-        const item = byId(i.id)
+        const item = resolveItem(i.id, store.synthetics)
         return {
           name: item?.name,
           qty: i.qty,
@@ -135,6 +137,7 @@ export default function Workspace() {
             <div className="panel-scroll">
               {tab === 'design' && <ControlsPanel />}
               {tab === 'shop' && <ShopPanel />}
+              {tab === 'search' && <SearchPanel />}
               {tab === 'photo' && <PhotoImport />}
             </div>
           </aside>

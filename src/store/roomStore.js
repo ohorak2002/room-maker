@@ -25,6 +25,9 @@ const initial = {
   floorOverride: null,
 
   items: [], // [{ id, qty }]
+  // Pieces generated from a search query rather than picked from the catalog.
+  // Stored whole, since there's no catalog entry to look them up in later.
+  synthetics: {}, // { [id]: item }
   placements: {}, // { [instanceKey]: { x, y, z, ry, zone } } — user-dragged only
   layoutRev: 0, // bumped to force a scene rebuild after auto-arrange
 
@@ -69,6 +72,21 @@ export const useRoomStore = create(
           const found = s.items.find((i) => i.id === id)
           if (found) return { items: s.items.map((i) => (i.id === id ? { ...i, qty: i.qty + 1 } : i)) }
           return { items: [...s.items, { id, qty: 1 }] }
+        })
+      },
+
+      /** Add a generated piece, keeping its full definition alongside the count. */
+      addSynthetic: (item) => {
+        get().pushHistory()
+        set((s) => {
+          const found = s.items.find((i) => i.id === item.id)
+          return {
+            synthetics: { ...s.synthetics, [item.id]: item },
+            items: found
+              ? s.items.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i))
+              : [...s.items, { id: item.id, qty: 1 }],
+            layoutRev: s.layoutRev + 1,
+          }
         })
       },
 
