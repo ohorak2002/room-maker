@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { zoneOf } from './layout'
+import { floorRuns, wallRuns, windowWall } from './shapeGeom'
+import { shapeBounds } from '../data/presets'
 
 // ---------------------------------------------------------------------------
 // Materials
@@ -501,7 +503,7 @@ export const builders = {
 // Room shell
 // ---------------------------------------------------------------------------
 
-function buildShell({ w, d, h, colors, windows }) {
+function buildShell({ shape, h, colors, windows }) {
   // Architecture wants crisp corners — a bevelled wall reads as a mistake, and
   // rounding the shell would also leave visible seams where planes meet.
   const box = hardBox
@@ -511,100 +513,120 @@ function buildShell({ w, d, h, colors, windows }) {
   const wallMat = mat(colors.wall, 0.96, 0.0, 0.12)
   const floorMat = mat(colors.floor, 0.72, 0.0, 0.3)
   const trimMat = mat(colors.trim, 0.7, 0.0, 0.18)
+  const ceilMat = mat(colors.trim, 0.98, 0.0, 0.1)
   const t = 0.12
 
-  const floor = box(w, t, d, floorMat)
-  floor.position.y = -t / 2
-  floor.receiveShadow = true
-  g.add(floor)
+  // --- floor and ceiling, from merged cell runs --------------------------
+  for (const run of floorRuns(shape)) {
+    const slab = box(run.w, t, run.d, floorMat)
+    slab.position.set(run.x, -t / 2, run.z)
+    slab.receiveShadow = true
+    slab.castShadow = false
+    g.add(slab)
 
-  const ceiling = box(w, t, d, mat(colors.trim, 0.98, 0.0, 0.1))
-  ceiling.position.y = h + t / 2
-  g.add(ceiling)
-
-  // Left / right / front walls (front is +z, left open to the camera side).
-  const right = box(t, h, d, wallMat)
-  right.position.set(w / 2, h / 2, 0)
-  g.add(right)
-
-  const left = box(t, h, d, wallMat)
-  left.position.set(-w / 2, h / 2, 0)
-  g.add(left)
-
-  // Back wall (-z), optionally with a window cut out of it.
-  if (!windows) {
-    const back = box(w, h, t, wallMat)
-    back.position.set(0, h / 2, -d / 2)
-    g.add(back)
-  } else {
-    const ww = Math.min(2.4, w * 0.5)
-    const sill = 0.9
-    const top = h - 0.45
-    const side = (w - ww) / 2
-
-    const below = box(w, sill, t, wallMat)
-    below.position.set(0, sill / 2, -d / 2)
-    g.add(below)
-
-    const above = box(w, h - top, t, wallMat)
-    above.position.set(0, top + (h - top) / 2, -d / 2)
-    g.add(above)
-
-    for (const s of [-1, 1]) {
-      const pier = box(side, top - sill, t, wallMat)
-      pier.position.set(s * (ww / 2 + side / 2), sill + (top - sill) / 2, -d / 2)
-      g.add(pier)
-    }
-
-    const frame = box(ww + 0.1, top - sill + 0.1, t * 0.6, trimMat)
-    frame.position.set(0, sill + (top - sill) / 2, -d / 2 + 0.02)
-    g.add(frame)
-
-    const pane = new THREE.Mesh(
-      new THREE.BoxGeometry(ww - 0.06, top - sill - 0.06, 0.02),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xdcecf7,
-        transmission: 0.85,
-        transparent: true,
-        opacity: 0.35,
-        roughness: 0.05,
-        metalness: 0,
-      })
-    )
-    pane.position.set(0, sill + (top - sill) / 2, -d / 2)
-    g.add(pane)
-
-    // Sky card behind the glass so the opening reads as "outside". Sized to the
-    // opening so it never peeks above the roofline from an exterior angle.
-    const sky = new THREE.Mesh(
-      new THREE.PlaneGeometry(ww - 0.02, top - sill - 0.02),
-      new THREE.MeshBasicMaterial({ color: 0xbdd9ec })
-    )
-    sky.position.set(0, sill + (top - sill) / 2, -d / 2 - 0.12)
-    g.add(sky)
+    const cap = box(run.w, t, run.d, ceilMat)
+    cap.position.set(run.x, h + t / 2, run.z)
+    g.add(cap)
   }
 
-  // Baseboard
-  for (const [px, pz, bw, rot] of [
-    [0, -d / 2 + t / 2, w, 0],
-    [-w / 2 + t / 2, 0, d, Math.PI / 2],
-    [w / 2 - t / 2, 0, d, Math.PI / 2],
-  ]) {
-    const bb = box(bw, 0.09, 0.04, trimMat)
-    bb.position.set(px, 0.045, pz)
-    bb.rotation.y = rot
+  // --- walls on every inside/outside boundary -----------------------------
+  // The near wall (facing the camera) is left off so the room reads as a
+  // dollhouse cutaway rather than a sealed box.
+  const win = windows ? windowWall(shape) : null
+  const bounds = shapeBounds(shape)
+  const nearZ = bounds.d / 2
+
+  for (const seg of wallRuns(shape)) {
+    // Skip walls on the near edge — those are the ones we'd be looking through.
+    if (seg.axis === 'x' && seg.facing === -1 && Math.abs(seg.z - nearZ) < 0.01) continue
+
+    const isWindowWall =
+      win && seg.axis === 'x' && Math.abs(seg.z - win.z) < 0.01 && Math.abs(seg.x - win.x) < 0.01
+
+    const along = seg.axis === 'x' ? [seg.len, h, t] : [t, h, seg.len]
+
+    if (!isWindowWall) {
+      const wall = box(...along, wallMat)
+      wall.position.set(seg.x, h / 2, seg.z)
+      g.add(wall)
+    } else {
+      addWindowedWall(g, seg, h, t, { wallMat, trimMat })
+    }
+
+    // Baseboard hugging the inside face of every wall.
+    const bbLen = seg.len
+    const bb =
+      seg.axis === 'x' ? box(bbLen, 0.09, 0.035, trimMat) : box(0.035, 0.09, bbLen, trimMat)
+    bb.position.set(
+      seg.x + (seg.axis === 'z' ? seg.facing * (t / 2 + 0.018) : 0),
+      0.045,
+      seg.z + (seg.axis === 'x' ? seg.facing * (t / 2 + 0.018) : 0)
+    )
     g.add(bb)
   }
 
-  floor.castShadow = false
   return g
+}
+
+/** A wall run with a window opening cut into it, plus frame, glass and sky. */
+function addWindowedWall(g, seg, h, t, { wallMat, trimMat }) {
+  const box = hardBox
+  const ww = Math.min(2.4, seg.len * 0.62)
+  const sill = 0.9
+  const top = Math.min(h - 0.45, sill + 1.6)
+  const side = (seg.len - ww) / 2
+
+  const below = box(seg.len, sill, t, wallMat)
+  below.position.set(seg.x, sill / 2, seg.z)
+  g.add(below)
+
+  const above = box(seg.len, h - top, t, wallMat)
+  above.position.set(seg.x, top + (h - top) / 2, seg.z)
+  g.add(above)
+
+  for (const s of [-1, 1]) {
+    if (side <= 0.01) continue
+    const pier = box(side, top - sill, t, wallMat)
+    pier.position.set(seg.x + s * (ww / 2 + side / 2), sill + (top - sill) / 2, seg.z)
+    g.add(pier)
+  }
+
+  const midY = sill + (top - sill) / 2
+  const frame = box(ww + 0.1, top - sill + 0.1, t * 0.6, trimMat)
+  frame.position.set(seg.x, midY, seg.z + seg.facing * 0.02)
+  g.add(frame)
+
+  const pane = new THREE.Mesh(
+    new THREE.BoxGeometry(ww - 0.06, top - sill - 0.06, 0.02),
+    new THREE.MeshPhysicalMaterial({
+      color: 0xdcecf7,
+      transmission: 0.85,
+      transparent: true,
+      opacity: 0.32,
+      roughness: 0.05,
+      metalness: 0,
+    })
+  )
+  pane.position.set(seg.x, midY, seg.z)
+  g.add(pane)
+
+  // Sky card behind the glass, sized to the opening so it never peeks past the
+  // wall from an exterior camera angle.
+  const sky = new THREE.Mesh(
+    new THREE.PlaneGeometry(ww - 0.02, top - sill - 0.02),
+    new THREE.MeshBasicMaterial({ color: 0xbdd9ec })
+  )
+  sky.position.set(seg.x, midY, seg.z - seg.facing * 0.12)
+  sky.rotation.y = seg.facing > 0 ? 0 : Math.PI
+  g.add(sky)
 }
 
 // ---------------------------------------------------------------------------
 // Lighting
 // ---------------------------------------------------------------------------
 
-function buildLights(scene, { w, d, h, lighting, windows }) {
+function buildLights(scene, { shape, h, lighting, windows }) {
+  const { w, d } = shapeBounds(shape)
   const added = []
   const add = (l) => {
     scene.add(l)
@@ -620,6 +642,8 @@ function buildLights(scene, { w, d, h, lighting, windows }) {
     warm: { amb: 0.2, ambColor: 0xffd9a8, sun: 1.1, sunColor: 0xffb865, fill: 0.42 },
     cool: { amb: 0.3, ambColor: 0xe4edf7, sun: 1.7, sunColor: 0xd2e4ff, fill: 0.2 },
     moody: { amb: 0.06, ambColor: 0x5b5266, sun: 0.5, sunColor: 0xffa055, fill: 0.55 },
+    golden: { amb: 0.18, ambColor: 0xffd9a0, sun: 2.4, sunColor: 0xffb95e, fill: 0.3 },
+    overcast: { amb: 0.42, ambColor: 0xe8ebee, sun: 0.7, sunColor: 0xdfe6ec, fill: 0.15 },
   }
   const rig = rigs[lighting] || rigs.natural
 
@@ -724,4 +748,6 @@ export const BACKDROPS = {
   warm: 0xe8dccb,
   cool: 0xe3e9ef,
   moody: 0x1b1a20,
+  golden: 0xecdcc2,
+  overcast: 0xe6e9ec,
 }

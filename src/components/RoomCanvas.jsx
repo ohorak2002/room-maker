@@ -6,6 +6,7 @@ import { useRoomStore } from '../store/roomStore'
 import { byId, starterFor } from '../data/catalog'
 import { buildRoom, BACKDROPS } from '../three/buildRoom'
 import { autoArrange, instanceKey } from '../three/layout'
+import { clampToShape } from '../three/shapeGeom'
 import './RoomCanvas.css'
 
 export default function RoomCanvas() {
@@ -13,10 +14,12 @@ export default function RoomCanvas() {
   const engineRef = useRef(null)
   const [selected, setSelected] = useState(null) // { key, name }
   const [dragging, setDragging] = useState(false)
+  const [warnDismissed, setWarnDismissed] = useState(false)
 
   const palette = useRoomStore((s) => s.palette)
   const lighting = useRoomStore((s) => s.lighting)
   const floorplan = useRoomStore((s) => s.floorplan)
+  const customShape = useRoomStore((s) => s.customShape)
   const customDims = useRoomStore((s) => s.customDims)
   const windows = useRoomStore((s) => s.windows)
   const wallOverride = useRoomStore((s) => s.wallOverride)
@@ -118,6 +121,7 @@ export default function RoomCanvas() {
     setSelected(null)
 
     const store = useRoomStore.getState()
+    const shape = store.shape()
     const room = store.dims()
     const colors = store.colors()
 
@@ -130,7 +134,7 @@ export default function RoomCanvas() {
     }
 
     // Solver first, then any position the user dragged wins.
-    const auto = autoArrange(entries, room)
+    const auto = autoArrange(entries, { ...room, shape })
     const placements = {}
     for (const { key } of entries) {
       placements[key] = { ...auto[key], ...(store.placements[key] || {}) }
@@ -139,6 +143,7 @@ export default function RoomCanvas() {
     scene.background = new THREE.Color(BACKDROPS[lighting] ?? BACKDROPS.natural)
 
     engine.room = buildRoom(scene, {
+      shape,
       ...room,
       colors,
       lighting,
@@ -159,7 +164,7 @@ export default function RoomCanvas() {
     camera.position.set(dist * 0.5, room.h * 0.78, dist * 0.86)
     controls.target.set(0, room.h * 0.4, -room.d * 0.1)
     controls.update()
-  }, [palette, lighting, floorplan, customDims, windows, wallOverride, floorOverride, items, layoutRev])
+  }, [palette, lighting, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev])
 
   // ---- pointer: select + drag --------------------------------------------
   useEffect(() => {
@@ -269,8 +274,16 @@ export default function RoomCanvas() {
         active.node.position.x = clamp(next.x, -room.w / 2 + 0.6, room.w / 2 - 0.6)
         active.node.position.y = clamp(next.y, 0.4, room.h - 0.3)
       } else {
-        active.node.position.x = clamp(next.x, -room.w / 2 + r, room.w / 2 - r)
-        active.node.position.z = clamp(next.z, -room.d / 2 + r, room.d / 2 - r)
+        // Bounding-box clamp first, then pull back onto the actual footprint —
+        // an L-shaped room has space inside its bounds that isn't floor.
+        const shape = useRoomStore.getState().shape()
+        const snapped = clampToShape(
+          shape,
+          clamp(next.x, -room.w / 2 + r, room.w / 2 - r),
+          clamp(next.z, -room.d / 2 + r, room.d / 2 - r)
+        )
+        active.node.position.x = snapped.x
+        active.node.position.z = snapped.z
       }
 
       ghost.position.set(active.node.position.x, 0.02, active.node.position.z)
@@ -343,6 +356,9 @@ export default function RoomCanvas() {
       }
       if (!handled) return
       e.preventDefault()
+      const snap = clampToShape(store.shape(), p.x, p.z)
+      p.x = snap.x
+      p.z = snap.z
       outline.setFromObject(outlineTarget)
       useRoomStore.getState().setPlacement(outlineTarget.userData.key, {
         x: p.x, y: p.y, z: p.z,
@@ -372,7 +388,7 @@ export default function RoomCanvas() {
       el.removeEventListener('pointercancel', onUp)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [items, layoutRev, floorplan, customDims])
+  }, [items, layoutRev, floorplan, customShape, customDims])
 
   const store = useRoomStore()
   const count = items.reduce((n, i) => n + i.qty, 0)
@@ -412,11 +428,18 @@ export default function RoomCanvas() {
         {hasCustom && <span className="tool-note">Custom layout</span>}
       </div>
 
-      {fill > 0.55 && (
+      {fill > 0.55 && !warnDismissed && (
         <div className="crowd-warning" role="status">
+          <button
+            className="crowd-close"
+            onClick={() => setWarnDismissed(true)}
+            aria-label="Dismiss crowding warning"
+          >
+            ×
+          </button>
           <strong>This room is packed.</strong> Your pieces cover about{' '}
-          {Math.round(fill * 100)}% of a {dims.w}×{dims.d}m floor — there won't be much room to
-          walk. Try a bigger floorplan or fewer large pieces.
+          {Math.round(fill * 100)}% of the {(store.shape().cells.length * 0.25).toFixed(1)} m² of floor you
+          actually have — there won't be much room to walk. Try a bigger floorplan or fewer large pieces.
         </div>
       )}
 

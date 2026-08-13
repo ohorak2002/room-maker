@@ -324,3 +324,33 @@
   height: 100%;
   object-fit: contain;
 }
+
+/* Rows arrive staggered rather than all at once — the list reads as arriving
+   instead of flashing. Capped so the fortieth item doesn't wait two seconds. */
+.item {
+  animation: item-in var(--dur-base) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 10) * 32ms);
+}
+
+@keyframes item-in {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.add-btn:active,
+.qty button:active {
+  transform: scale(0.94);
+}
+
+.add-btn,
+.qty button {
+  transition: background var(--dur-fast) var(--ease-mid),
+              border-color var(--dur-fast) var(--ease-mid),
+              color var(--dur-fast) var(--ease-mid),
+              transform var(--dur-fast) var(--ease-mid);
+}
+
+/* The total is the one number people watch — flash it when it changes. */
+.basket-row.total .basket-price {
+  transition: color var(--dur-base) var(--ease-out);
+}

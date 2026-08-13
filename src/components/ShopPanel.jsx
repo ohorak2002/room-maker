@@ -63,12 +63,12 @@ export default function ShopPanel() {
       )}
 
       <div className="item-list">
-        {visible.map((item) => {
+        {visible.map((item, i) => {
           const qty = store.qtyOf(item.id)
           const cheaper = cheapestSubstitute(item.id)
           const owned = store.prefurnished.includes(item.id)
           return (
-            <div key={item.id} className={`item ${qty ? 'in-room' : ''}`}>
+            <div key={item.id} className={`item ${qty ? 'in-room' : ''}`} style={{ '--i': i }}>
               <ItemThumb item={item} size={46} />
 
               <div className="item-body">

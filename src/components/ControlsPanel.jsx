@@ -1,6 +1,8 @@
 import { useRoomStore } from '../store/roomStore'
 import Section from './Section'
-import { PALETTES, MOODS, LIGHTING, FLOORPLANS } from '../data/presets'
+import ShapeEditor from './ShapeEditor'
+import IncludedChat from './IncludedChat'
+import { PALETTES, MOODS, LIGHTING } from '../data/presets'
 import './ControlsPanel.css'
 
 export default function ControlsPanel() {
@@ -115,55 +117,12 @@ export default function ControlsPanel() {
         </div>
       </Section>
 
-      <Section title="Floorplan" summary={`${dims.w} × ${dims.d} m`}>
-        <div className="chip-grid">
-          {FLOORPLANS.map((f) => (
-            <button
-              key={f.id}
-              className={`chip ${store.floorplan === f.id && !store.customDims ? 'active' : ''}`}
-              aria-pressed={store.floorplan === f.id && !store.customDims}
-              onClick={() => {
-                store.set('floorplan', f.id)
-                store.set('customDims', null)
-              }}
-            >
-              {f.name}
-            </button>
-          ))}
-        </div>
+      <Section title="Room shape" summary={`${dims.w.toFixed(1)} × ${dims.d.toFixed(1)} m`}>
+        <ShapeEditor />
+      </Section>
 
-        <div className="dims-grid">
-          {[
-            ['w', 'Width'],
-            ['d', 'Depth'],
-            ['h', 'Ceiling'],
-          ].map(([k, label]) => (
-            <label key={k} className="override">
-              <span>{label} (m)</span>
-              <input
-                type="number"
-                min="1.5"
-                max="20"
-                step="0.1"
-                value={dims[k]}
-                onChange={(e) => store.set('customDims', { ...dims, [k]: Number(e.target.value) })}
-              />
-            </label>
-          ))}
-        </div>
-
-        {store.customDims && (
-          <button className="link-btn" onClick={() => store.set('customDims', null)}>
-            Back to the {store.floorplan} preset
-          </button>
-        )}
-
-        {store.planImage && (
-          <details className="plan-ref">
-            <summary>Your floorplan</summary>
-            <img src={store.planImage} alt="Your uploaded floorplan" />
-          </details>
-        )}
+      <Section title="What's included" summary={`${store.prefurnished.length || 'none'}`}>
+        <IncludedChat />
       </Section>
 
       <Section title="Thermostat" summary={`${store.temperature}°F`}>

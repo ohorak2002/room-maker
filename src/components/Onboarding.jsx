@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
-import { PALETTES, MOODS, LIGHTING, FLOORPLANS } from '../data/presets'
+import { PALETTES, MOODS, LIGHTING, ROOM_SHAPES, CELL } from '../data/presets'
 import './Onboarding.css'
 
 const PREFURNISHED = [
@@ -49,11 +49,11 @@ const STEPS = [
     key: 'floorplan',
     type: 'floorplan',
     question: 'How much room are we working with?',
-    hint: 'Pick a close preset, or enter your exact dimensions.',
-    options: FLOORPLANS,
+    hint: "Pick the closest shape — you can paint your exact footprint later.",
+    options: ROOM_SHAPES,
     render: (f) => (
       <div className="dims">
-        {f.w}m × {f.d}m
+        {(f.cols * CELL).toFixed(1)}m × {(f.rows * CELL).toFixed(1)}m
       </div>
     ),
   },

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { getPalette, getFloorplan } from '../data/presets'
+import { getPalette, getShape, shapeBounds } from '../data/presets'
 
 const initial = {
   onboarded: false,
@@ -14,7 +14,10 @@ const initial = {
   mood: 'cozy',
   lighting: 'natural',
   floorplan: 'bedroom',
-  customDims: null, // { w, d, h } overrides the floorplan preset
+  // A hand-edited cell mask, when the user has painted their own footprint.
+  // Null means "use the preset named by floorplan".
+  customShape: null,
+  customDims: null, // legacy; ceiling height override lives here as { h }
   planImage: null, // dataUrl of an uploaded floorplan, kept as a reference image
   windows: true,
   temperature: 72,
@@ -30,7 +33,7 @@ const initial = {
 
 // Fields worth restoring on undo. Deliberately excludes onboarding answers and
 // the photo — undo is for room edits, not for rewinding the whole session.
-const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customDims', 'windows', 'wallOverride', 'floorOverride']
+const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customShape', 'customDims', 'windows', 'wallOverride', 'floorOverride']
 
 const snapshot = (s) => Object.fromEntries(TRACKED.map((k) => [k, s[k]]))
 
@@ -161,21 +164,29 @@ export const useRoomStore = create(
         }
       },
 
-      dims: () => {
-        const c = get().customDims
-        if (c && c.w && c.d && c.h) return c
-        const p = getFloorplan(get().floorplan)
-        return { w: p.w, d: p.d, h: p.h }
+      /** The active room footprint: a hand-painted mask if there is one. */
+      shape: () => {
+        const custom = get().customShape
+        const preset = getShape(get().floorplan)
+        const h = get().customDims?.h ?? preset.h
+        if (custom?.cells?.length) return { ...custom, h }
+        return { ...preset, h }
       },
+
+      /** Metric bounds of the active shape, for camera framing and clamping. */
+      dims: () => shapeBounds(get().shape()),
 
       /**
        * How full the room is: summed footprint area against floor area. Above
        * ~55% a room stops being walkable, which is when we warn.
        */
       crowding: (footprints) => {
-        const { w, d } = get().dims()
+        const shape = get().shape()
+        // Area of the actual footprint, not the bounding box — an L-shaped room
+        // has far less usable floor than its width times its depth.
+        const area = shape.cells.length * 0.25
         const used = footprints.reduce((sum, r) => sum + Math.PI * r * r, 0)
-        return used / (w * d)
+        return area > 0 ? used / area : 0
       },
 
       reset: () => set({ ...initial, _past: [] }),

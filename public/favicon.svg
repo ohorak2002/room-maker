@@ -1,5 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#2E6B5E"/>
-  <rect x="7.5" y="9.5" width="17" height="14" fill="none" stroke="#F4F3F0" stroke-width="2.5"/>
-  <rect x="17" y="13" width="5" height="4" fill="#F4F3F0"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#2E6B5E"/>
+  <!-- a soft pillow: puffed sides, pinched corners, a seam and a highlight -->
+  <path d="M14 22 Q32 16 50 22 Q56 32 50 42 Q32 48 14 42 Q8 32 14 22 Z"
+        fill="#F6F1E8" stroke="#D6C9B6" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M18 25 Q32 21 46 25" fill="none" stroke="#D6C9B6" stroke-width="1.4" stroke-linecap="round" opacity="0.85"/>
+  <path d="M21 28 Q26 25 31 27" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" opacity="0.9"/>
+  <circle cx="14" cy="22" r="1.9" fill="#D6C9B6"/>
+  <circle cx="50" cy="22" r="1.9" fill="#D6C9B6"/>
+  <circle cx="14" cy="42" r="1.9" fill="#D6C9B6"/>
+  <circle cx="50" cy="42" r="1.9" fill="#D6C9B6"/>
 </svg>

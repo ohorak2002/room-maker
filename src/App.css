@@ -24,6 +24,29 @@
   --font-body: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
     Arial, sans-serif;
   --font-mono: 'Cascadia Mono', 'SF Mono', Consolas, 'Roboto Mono', Menlo, monospace;
+
+  /* Motion tokens — one rhythm for the whole product. Entering decelerates and
+     settles; exiting accelerates away and is deliberately shorter, so the UI
+     never feels like it's arguing with you. */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-mid: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 340ms;
+}
+
+/* One global escape hatch. Motion sickness from a web page is a real harm, and
+   every animation in this app is decorative enough to drop safely. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

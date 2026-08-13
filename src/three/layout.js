@@ -9,6 +9,8 @@
 // interior-design rules (bed against the long wall, nightstand beside the bed,
 // monitor on the desk, plants in the corners) and then resolves collisions.
 
+import { clampToShape } from './shapeGeom'
+
 export const ZONES = {
   rug: 'center',
   table: 'center',
@@ -38,8 +40,12 @@ export const instanceKey = (itemId, n) => `${itemId}#${n}`
  * @returns       { [key]: { x, y, z, ry } }
  */
 export function autoArrange(entries, room) {
-  const { w, d, h } = room
+  const { w, d, h, shape } = room
   const out = {}
+
+  // In an L-shape or an alcove the geometric centre can sit outside the room,
+  // so every anchor gets pulled back onto real floor at the end.
+  const fix = shape ? (p) => clampToShape(shape, p.x, p.z) : (p) => p
 
   const backZ = -d / 2
   const frontZ = d / 2
@@ -180,10 +186,15 @@ export function autoArrange(entries, room) {
       }
     }
 
-    out[key] = {
+    const snapped = fix({
       x: clamp(p.x, leftX + r, rightX - r),
-      y: p.y ?? 0,
       z: clamp(p.z, backZ + r, frontZ - r),
+    })
+
+    out[key] = {
+      x: snapped.x,
+      y: p.y ?? 0,
+      z: snapped.z,
       ry: p.ry ?? 0,
       zone: zone === 'center' ? 'floor' : zone,
     }
@@ -225,6 +236,10 @@ export function autoArrange(entries, room) {
       const p = out[m.key]
       p.x = clamp(p.x, leftX + m.r, rightX - m.r)
       p.z = clamp(p.z, backZ + m.r, frontZ - m.r)
+      // Relaxation can shove a piece into the cut-out part of an odd shape.
+      const back = fix(p)
+      p.x = back.x
+      p.z = back.z
     }
     if (!moved) break
   }
