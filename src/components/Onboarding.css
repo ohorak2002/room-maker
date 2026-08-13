@@ -224,3 +224,142 @@
   justify-content: space-between;
   gap: 12px;
 }
+
+/* --- residence step ----------------------------------------------------- */
+
+.residence {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 620px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.field-hint {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+
+.field input {
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: 0.95rem;
+}
+
+.privacy-note {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  padding: 12px 14px;
+  border-left: 2px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 3px 3px 0;
+}
+
+.prefurn {
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prefurn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.prefurn-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.prefurn-item:hover {
+  border-color: var(--accent);
+}
+
+.prefurn-item.on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.prefurn-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* --- exact dimensions --------------------------------------------------- */
+
+.exact-dims {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exact-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dims-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.plan-upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-quiet.bordered {
+  border-color: var(--line);
+}
+
+.plan-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plan-preview img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+}

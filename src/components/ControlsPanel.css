@@ -203,3 +203,40 @@
   color: var(--ink-muted);
   line-height: 1.5;
 }
+
+.layout-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ctl-section .dims-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ctl-section .override input[type='number'] {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-ref summary {
+  font-size: 0.8rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.plan-ref img {
+  margin-top: 8px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+}

@@ -1,21 +1,28 @@
 import { useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
-import { CATALOG, CATEGORIES, byId, formatUSD } from '../data/catalog'
+import { CATALOG, CATEGORIES, byId, formatUSD, recommend, cheapestSubstitute } from '../data/catalog'
 import './ShopPanel.css'
 
 export default function ShopPanel() {
   const store = useRoomStore()
-  const [cat, setCat] = useState('greenery')
+  const [cat, setCat] = useState('for-you')
   const [query, setQuery] = useState('')
 
-  const visible = CATALOG.filter((i) => {
-    const inCat = cat === 'all' || i.cat === cat
-    const q = query.trim().toLowerCase()
-    const matches = !q || i.name.toLowerCase().includes(q) || i.retailerName.toLowerCase().includes(q)
-    return inCat && matches
-  })
+  const photoPalette = store.photo?.palette || []
+  const recs = recommend(store.mood, photoPalette, 40)
+
+  const q = query.trim().toLowerCase()
+  const base = cat === 'for-you' ? recs : CATALOG.filter((i) => cat === 'all' || i.cat === cat)
+  const visible = base.filter(
+    (i) => !q || i.name.toLowerCase().includes(q) || i.retailerName.toLowerCase().includes(q)
+  )
 
   const total = store.items.reduce((sum, i) => sum + (byId(i.id)?.price || 0) * i.qty, 0)
+  const savings = store.items.reduce((sum, entry) => {
+    const item = byId(entry.id)
+    const cheaper = cheapestSubstitute(entry.id)
+    return cheaper ? sum + (item.price - cheaper.price) * entry.qty : sum
+  }, 0)
 
   return (
     <div className="shop">
@@ -34,29 +41,40 @@ export default function ShopPanel() {
       />
 
       <div className="cat-row">
+        <button className={`cat feature ${cat === 'for-you' ? 'active' : ''}`} onClick={() => setCat('for-you')}>
+          For your vibe
+        </button>
         <button className={`cat ${cat === 'all' ? 'active' : ''}`} onClick={() => setCat('all')}>
           All
         </button>
         {CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            className={`cat ${cat === c.id ? 'active' : ''}`}
-            onClick={() => setCat(c.id)}
-          >
+          <button key={c.id} className={`cat ${cat === c.id ? 'active' : ''}`} onClick={() => setCat(c.id)}>
             {c.name}
           </button>
         ))}
       </div>
 
+      {cat === 'for-you' && (
+        <p className="rec-note">
+          Ranked for your <strong>{store.mood}</strong> room
+          {photoPalette.length > 0 && <> and the colors from your photo</>}.
+        </p>
+      )}
+
       <div className="item-list">
         {visible.map((item) => {
           const qty = store.qtyOf(item.id)
+          const cheaper = cheapestSubstitute(item.id)
+          const owned = store.prefurnished.includes(item.id)
           return (
             <div key={item.id} className={`item ${qty ? 'in-room' : ''}`}>
               <span className="item-swatch" style={{ background: item.color }} aria-hidden="true" />
 
               <div className="item-body">
-                <p className="item-name">{item.name}</p>
+                <p className="item-name">
+                  {item.name}
+                  {owned && <span className="owned-tag">already have</span>}
+                </p>
                 <p className="item-meta">
                   <span className="item-price">{formatUSD(item.price)}</span>
                   <span className="item-sep">·</span>
@@ -64,6 +82,16 @@ export default function ShopPanel() {
                     {item.retailerName}
                   </a>
                 </p>
+                {cheaper && (
+                  <button
+                    className="cheaper-line"
+                    onClick={() => (qty ? store.swapItem(item.id, cheaper.id) : store.addItem(cheaper.id))}
+                    title={`${cheaper.name} at ${cheaper.retailerName}`}
+                  >
+                    Save {formatUSD(item.price - cheaper.price)} — {cheaper.retailerName} has a similar
+                    one for {formatUSD(cheaper.price)}
+                  </button>
+                )}
               </div>
 
               {qty === 0 ? (
@@ -112,6 +140,12 @@ export default function ShopPanel() {
             <span>Estimated total</span>
             <span className="basket-price">{formatUSD(total)}</span>
           </div>
+          {savings > 0 && (
+            <p className="savings-note">
+              Swapping every piece for its cheapest equivalent would save about{' '}
+              <strong>{formatUSD(savings)}</strong>.
+            </p>
+          )}
         </div>
       )}
     </div>

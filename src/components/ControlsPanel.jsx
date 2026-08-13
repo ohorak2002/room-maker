@@ -1,11 +1,12 @@
 import { useRoomStore } from '../store/roomStore'
-import { PALETTES, MOODS, LIGHTING, FLOORPLANS, getFloorplan } from '../data/presets'
+import { PALETTES, MOODS, LIGHTING, FLOORPLANS } from '../data/presets'
 import './ControlsPanel.css'
 
 export default function ControlsPanel() {
   const store = useRoomStore()
   const colors = store.colors()
-  const plan = getFloorplan(store.floorplan)
+  const dims = store.dims()
+  const placed = Object.keys(store.placements).length
 
   return (
     <div className="controls">
@@ -102,22 +103,71 @@ export default function ControlsPanel() {
       </section>
 
       <section className="ctl-section">
+        <h3>Layout</h3>
+        <p className="note">
+          Click any piece in the room to select it, then drag to move it. Arrow keys nudge,
+          <strong> R</strong> rotates. Auto-arrange re-runs the solver on everything.
+        </p>
+        <div className="layout-actions">
+          <button className="chip" onClick={store.clearPlacements}>
+            Auto-arrange all
+          </button>
+          <span className="readout">
+            {placed === 0 ? 'All auto-placed' : `${placed} moved by hand`}
+          </span>
+        </div>
+      </section>
+
+      <section className="ctl-section">
         <h3>Floorplan</h3>
         <div className="chip-grid">
           {FLOORPLANS.map((f) => (
             <button
               key={f.id}
-              className={`chip ${store.floorplan === f.id ? 'active' : ''}`}
-              aria-pressed={store.floorplan === f.id}
-              onClick={() => store.set('floorplan', f.id)}
+              className={`chip ${store.floorplan === f.id && !store.customDims ? 'active' : ''}`}
+              aria-pressed={store.floorplan === f.id && !store.customDims}
+              onClick={() => {
+                store.set('floorplan', f.id)
+                store.set('customDims', null)
+              }}
             >
               {f.name}
             </button>
           ))}
         </div>
-        <p className="readout">
-          {plan.w}m × {plan.d}m × {plan.h}m ceiling
-        </p>
+
+        <div className="dims-grid">
+          {[
+            ['w', 'Width'],
+            ['d', 'Depth'],
+            ['h', 'Ceiling'],
+          ].map(([k, label]) => (
+            <label key={k} className="override">
+              <span>{label} (m)</span>
+              <input
+                type="number"
+                min="1.5"
+                max="20"
+                step="0.1"
+                value={dims[k]}
+                onChange={(e) => store.set('customDims', { ...dims, [k]: Number(e.target.value) })}
+              />
+            </label>
+          ))}
+        </div>
+
+        {store.customDims && (
+          <button className="link-btn" onClick={() => store.set('customDims', null)}>
+            Back to the {store.floorplan} preset
+          </button>
+        )}
+
+        {store.planImage && (
+          <details className="plan-ref">
+            <summary>Your floorplan</summary>
+            <img src={store.planImage} alt="Your uploaded floorplan" />
+          </details>
+        )}
       </section>
 
       <section className="ctl-section">

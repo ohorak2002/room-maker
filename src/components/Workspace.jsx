@@ -3,8 +3,15 @@ import { useRoomStore } from '../store/roomStore'
 import { byId, formatUSD } from '../data/catalog'
 import ControlsPanel from './ControlsPanel'
 import ShopPanel from './ShopPanel'
+import PhotoImport from './PhotoImport'
 import RoomCanvas from './RoomCanvas'
 import './Workspace.css'
+
+const TABS = [
+  { id: 'design', label: 'Design' },
+  { id: 'shop', label: 'Shop' },
+  { id: 'photo', label: 'Photo' },
+]
 
 export default function Workspace() {
   const store = useRoomStore()
@@ -80,27 +87,24 @@ export default function Workspace() {
         {panelOpen && (
           <aside className="panel">
             <div className="tabs" role="tablist">
-              <button
-                role="tab"
-                aria-selected={tab === 'design'}
-                className={`tab ${tab === 'design' ? 'active' : ''}`}
-                onClick={() => setTab('design')}
-              >
-                Design
-              </button>
-              <button
-                role="tab"
-                aria-selected={tab === 'shop'}
-                className={`tab ${tab === 'shop' ? 'active' : ''}`}
-                onClick={() => setTab('shop')}
-              >
-                Shop
-                {count > 0 && <span className="tab-badge">{count}</span>}
-              </button>
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={tab === t.id}
+                  className={`tab ${tab === t.id ? 'active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                  {t.id === 'shop' && count > 0 && <span className="tab-badge">{count}</span>}
+                </button>
+              ))}
             </div>
 
             <div className="panel-scroll">
-              {tab === 'design' ? <ControlsPanel /> : <ShopPanel />}
+              {tab === 'design' && <ControlsPanel />}
+              {tab === 'shop' && <ShopPanel />}
+              {tab === 'photo' && <PhotoImport />}
             </div>
           </aside>
         )}

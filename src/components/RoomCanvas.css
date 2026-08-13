@@ -23,19 +23,67 @@
   flex-direction: column;
   gap: 6px;
   pointer-events: none;
+  max-width: calc(100% - 32px);
 }
 
 .hud-hint,
-.hud-empty {
+.hud-sel {
   align-self: flex-start;
   padding: 6px 11px;
   border-radius: 3px;
   font-size: 0.75rem;
-  background: rgba(20, 21, 24, 0.68);
+  background: rgba(20, 21, 24, 0.72);
   color: #f0efec;
   backdrop-filter: blur(6px);
 }
 
-.hud-empty {
-  background: rgba(46, 107, 94, 0.9);
+.hud-sel {
+  background: rgba(46, 107, 94, 0.92);
+}
+
+.hud-sel strong {
+  font-weight: 700;
+}
+
+/* --- floating tools ----------------------------------------------------- */
+
+.canvas-tools {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: all 0.16s ease;
+}
+
+.tool-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tool-btn.primary:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tool-note {
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  background: rgba(20, 21, 24, 0.72);
+  color: #f0efec;
+  backdrop-filter: blur(6px);
 }

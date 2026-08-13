@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { zoneOf } from './layout'
 
 // ---------------------------------------------------------------------------
 // Materials
@@ -427,24 +428,6 @@ const builders = {
   },
 }
 
-// Where each model type wants to live.
-const ZONES = {
-  rug: 'center',
-  table: 'center',
-  painting: 'wall',
-  wallpanel: 'wall',
-  tv: 'wall',
-  curtain: 'window',
-  ledstrip: 'ceilingEdge',
-  pendant: 'ceiling',
-  hanging: 'ceiling',
-  bed: 'backwall',
-  sofa: 'backwall',
-  shelf: 'backwall',
-  monitor: 'ondesk',
-}
-const zoneOf = (model) => ZONES[model] || 'perimeter'
-
 // ---------------------------------------------------------------------------
 // Room shell
 // ---------------------------------------------------------------------------
@@ -591,74 +574,38 @@ function buildLights(scene, { w, d, h, lighting, windows }) {
 // Placement
 // ---------------------------------------------------------------------------
 
-function perimeterSlots(w, d) {
-  const inset = 0.65
-  const slots = []
-  const along = (n, fn) => {
-    for (let i = 0; i < n; i++) slots.push(fn((i + 0.5) / n))
-  }
-  // back wall, then right, then left, then front
-  along(4, (t) => ({ x: -w / 2 + inset + t * (w - inset * 2), z: -d / 2 + inset, ry: 0 }))
-  along(3, (t) => ({ x: w / 2 - inset, z: -d / 2 + inset + t * (d - inset * 2), ry: -Math.PI / 2 }))
-  along(3, (t) => ({ x: -w / 2 + inset, z: -d / 2 + inset + t * (d - inset * 2), ry: Math.PI / 2 }))
-  along(3, (t) => ({ x: -w / 2 + inset + t * (w - inset * 2), z: d / 2 - inset, ry: Math.PI }))
-  return slots
-}
+/**
+ * Instantiate every entry at the coordinates the caller resolved. Each node is
+ * tagged with the data the drag layer needs to move it and write it back.
+ */
+function placeItems(group, entries, placements) {
+  const handles = []
 
-function placeItems(group, { w, d, h }, entries) {
-  const perim = perimeterSlots(w, d)
-  let pi = 0
-  let wallSlot = 0
-  let backSlot = 0
-  let centerSlot = 0
-  let ceilSlot = 0
-  let deskTop = null
-
-  // Desks first so a monitor has something to sit on.
-  const ordered = [...entries].sort((a, b) => (a.model === 'desk' ? -1 : b.model === 'desk' ? 1 : 0))
-
-  for (const it of ordered) {
-    const build = builders[it.model]
+  for (const { key, item } of entries) {
+    const build = builders[item.model]
     if (!build) continue
-    const zone = zoneOf(it.model)
-    const node = shadowed(build(it))
 
-    if (zone === 'wall') {
-      const span = w - 1.4
-      const x = -span / 2 + ((wallSlot + 0.5) / 3) * span
-      node.position.set(x, h * 0.55, -d / 2 + 0.12)
-      wallSlot = (wallSlot + 1) % 3
-    } else if (zone === 'window') {
-      node.position.set(0, 0, -d / 2 + 0.2)
-    } else if (zone === 'ceiling') {
-      node.position.set((ceilSlot % 2 ? 1 : -1) * w * 0.2, h - 0.25, (ceilSlot % 2 ? 1 : -1) * d * 0.15)
-      ceilSlot++
-    } else if (zone === 'ceilingEdge') {
-      node.position.set(0, h - 0.08, -d / 2 + 0.16)
-    } else if (zone === 'backwall') {
-      const x = backSlot === 0 ? 0 : (backSlot % 2 ? -1 : 1) * w * 0.28
-      node.position.set(x, 0, -d / 2 + 1.15)
-      backSlot++
-    } else if (zone === 'center') {
-      node.position.set(centerSlot * 0.5, 0, centerSlot * 0.4)
-      centerSlot++
-    } else if (zone === 'ondesk' && deskTop) {
-      node.position.set(deskTop.x, deskTop.y, deskTop.z)
-      node.rotation.y = deskTop.ry
-    } else {
-      const s = perim[pi % perim.length]
-      pi++
-      node.position.set(s.x, 0, s.z)
-      node.rotation.y = s.ry
-    }
+    const p = placements[key]
+    if (!p) continue
 
-    if (it.model === 'desk') {
-      const s = perim[(pi - 1 + perim.length) % perim.length]
-      deskTop = { x: node.position.x, y: it.h + 0.03, z: node.position.z, ry: s ? s.ry : 0 }
+    const node = shadowed(build(item))
+    node.position.set(p.x, p.y || 0, p.z)
+    node.rotation.y = p.ry || 0
+    node.userData = {
+      key,
+      itemId: item.id,
+      name: item.name,
+      model: item.model,
+      zone: p.zone || zoneOf(item.model),
+      radius: item.fp || 0.35,
+      draggable: true,
     }
 
     group.add(node)
+    handles.push(node)
   }
+
+  return handles
 }
 
 // ---------------------------------------------------------------------------
@@ -667,14 +614,16 @@ function placeItems(group, { w, d, h }, entries) {
 
 export function buildRoom(scene, config) {
   const group = new THREE.Group()
-  group.add(buildShell(config))
-  placeItems(group, config, config.entries)
-  shadowed(group)
+  const shell = buildShell(config)
+  shadowed(shell)
+  group.add(shell)
+
+  const handles = placeItems(group, config.entries, config.placements)
   scene.add(group)
 
   const disposeLights = buildLights(scene, config)
 
-  return () => {
+  const dispose = () => {
     disposeLights()
     scene.remove(group)
     group.traverse((o) => {
@@ -685,6 +634,8 @@ export function buildRoom(scene, config) {
       }
     })
   }
+
+  return { dispose, handles, group }
 }
 
 export const BACKDROPS = {
