@@ -71,14 +71,16 @@ export default function Workspace() {
             Export
           </button>
           <button className="btn-quiet" onClick={store.restartOnboarding}>
-            Retake quiz
+            <span className="label-long">Retake quiz</span>
+            <span className="label-short">Quiz</span>
           </button>
           <button
             className="btn-quiet panel-toggle"
             onClick={() => setPanelOpen((v) => !v)}
             aria-expanded={panelOpen}
           >
-            {panelOpen ? 'Hide panel' : 'Show panel'}
+            <span className="label-long">{panelOpen ? 'Hide panel' : 'Show panel'}</span>
+            <span className="label-short">{panelOpen ? 'Hide' : 'Show'}</span>
           </button>
         </div>
       </header>

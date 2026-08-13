@@ -159,3 +159,45 @@
     display: none;
   }
 }
+
+.label-short {
+  display: none;
+}
+
+/* Phones: keep the top bar on one line. At 375px the full-width labels wrap
+   the brand onto two lines and the bar grows to twice its height. */
+@media (max-width: 560px) {
+  .label-long {
+    display: none;
+  }
+
+  .label-short {
+    display: inline;
+  }
+
+  .topbar {
+    height: 48px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .brand-name {
+    white-space: nowrap;
+    font-size: 0.95rem;
+  }
+
+  .topbar-actions {
+    gap: 2px;
+  }
+
+  .topbar-actions .btn-quiet {
+    padding: 7px 8px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .tab {
+    padding: 11px 6px;
+    font-size: 0.84rem;
+  }
+}

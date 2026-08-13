@@ -13,6 +13,13 @@
   display: block;
   width: 100%;
   height: 100%;
+  /* Without this the browser claims touch gestures for scroll/pinch-zoom and
+     our pointer handlers never see the move — drag and orbit both die on
+     phones. Pointer events drive everything, so we take the gestures. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .canvas-hud {

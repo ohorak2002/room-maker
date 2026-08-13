@@ -137,7 +137,10 @@ export default function RoomCanvas() {
     const vFov = (camera.fov * Math.PI) / 180
     const fitHeight = room.h / (2 * Math.tan(vFov / 2))
     const fitWidth = room.w / (2 * Math.tan(vFov / 2) * Math.max(camera.aspect, 0.5))
-    const dist = Math.max(fitHeight, fitWidth, room.d * 0.6) * 1.6
+    // Portrait viewports are already tight horizontally, so the generous
+    // desktop padding leaves the room looking tiny on a phone.
+    const pad = camera.aspect < 1 ? 1.2 : 1.6
+    const dist = Math.max(fitHeight, fitWidth, room.d * 0.6) * pad
 
     camera.position.set(dist * 0.5, room.h * 0.78, dist * 0.86)
     controls.target.set(0, room.h * 0.4, -room.d * 0.1)
