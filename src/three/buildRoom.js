@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { zoneOf } from './layout'
 import { floorRuns, wallRuns, windowWall } from './shapeGeom'
 import { shapeBounds } from '../data/presets'
+import { applySurface } from './textures'
 
 // ---------------------------------------------------------------------------
 // Materials
@@ -13,13 +14,18 @@ import { shapeBounds } from '../data/presets'
 // fabric barely reflects, chrome reflects almost everything.
 // ---------------------------------------------------------------------------
 
-const mat = (color, roughness = 0.85, metalness = 0.0, envMapIntensity = 0.6) =>
-  new THREE.MeshStandardMaterial({
+const mat = (color, roughness = 0.85, metalness = 0.0, envMapIntensity = 0.6, surface = null, repeat) => {
+  const m = new THREE.MeshStandardMaterial({
     color: new THREE.Color(color),
     roughness,
     metalness,
     envMapIntensity,
   })
+  // `surface` attaches procedurally generated albedo/normal/roughness maps.
+  // The albedo is greyscale near white, so `color` above still decides the hue
+  // and every palette keeps working — see textures.js.
+  return surface ? applySurface(m, surface, repeat) : m
+}
 
 const glow = (color, intensity = 1.2) =>
   new THREE.MeshStandardMaterial({
@@ -71,13 +77,13 @@ const DARK = '#2B2D31'
 // a metal's reflectivity looks like a beanbag wrapped in foil, and wood with
 // fabric roughness goes dead flat under the key light.
 //                      roughness, metalness, envIntensity
-const FABRIC = (c) => mat(c, 0.95, 0.0, 0.12)
-const WOODEN = (c) => mat(c, 0.55, 0.0, 0.45)
-const METAL = (c) => mat(c, 0.32, 0.88, 1.1)
-const PLASTIC = (c) => mat(c, 0.42, 0.0, 0.7)
-const CERAMIC = (c) => mat(c, 0.22, 0.0, 0.95)
-const FOLIAGE = (c) => mat(c, 0.72, 0.0, 0.2)
-const PAPERY = (c) => mat(c, 0.88, 0.0, 0.2)
+const FABRIC = (c) => mat(c, 0.95, 0.0, 0.12, 'fabric')
+const WOODEN = (c) => mat(c, 0.55, 0.0, 0.45, 'wood')
+const METAL = (c) => mat(c, 0.32, 0.88, 1.1, 'brushed')
+const PLASTIC = (c) => mat(c, 0.42, 0.0, 0.7, 'plastic')
+const CERAMIC = (c) => mat(c, 0.22, 0.0, 0.95, 'porcelain')
+const FOLIAGE = (c) => mat(c, 0.72, 0.0, 0.2, 'leaf')
+const PAPERY = (c) => mat(c, 0.88, 0.0, 0.2, 'paper')
 // Shower screens and appliance doors. Transparency alone reads as a hole in the
 // wall; it's the near-zero roughness plus a strong env response that makes it
 // register as glass.
@@ -90,8 +96,8 @@ const GLASS = (c = '#DCE6EA') =>
     transparent: true,
     opacity: 0.24,
   })
-const STONE = (c = '#3C3F44') => mat(c, 0.28, 0.1, 0.8)
-const ENAMEL = (c) => mat(c, 0.15, 0.25, 1.1)
+const STONE = (c = '#3C3F44') => mat(c, 0.28, 0.1, 0.8, 'stone')
+const ENAMEL = (c) => mat(c, 0.15, 0.25, 1.1, 'porcelain')
 
 /**
  * Washer and dryer are the same machine with a different door tint, so they
@@ -846,10 +852,14 @@ function buildShell({ shape, h, colors, windows }) {
   const g = new THREE.Group()
   // Architectural surfaces barely reflect. Left at the default envMapIntensity
   // the environment map floods them and every palette washes out to white.
-  const wallMat = mat(colors.wall, 0.96, 0.0, 0.12)
-  const floorMat = mat(colors.floor, 0.72, 0.0, 0.3)
-  const trimMat = mat(colors.trim, 0.7, 0.0, 0.18)
-  const ceilMat = mat(colors.trim, 0.98, 0.0, 0.1)
+  //
+  // Box UVs run 0..1 per face, so `repeat` here is "tiles across this whole
+  // surface" rather than tiles per metre. Walls and floors are the largest
+  // things in the scene and need far more repeats than a nightstand does.
+  const wallMat = mat(colors.wall, 0.96, 0.0, 0.12, 'plaster', 5)
+  const floorMat = mat(colors.floor, 0.72, 0.0, 0.3, 'plank', 2)
+  const trimMat = mat(colors.trim, 0.7, 0.0, 0.18, 'plaster', 2)
+  const ceilMat = mat(colors.trim, 0.98, 0.0, 0.1, 'plaster', 5)
   const t = 0.12
 
   // --- floor and ceiling, from merged cell runs --------------------------
