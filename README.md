@@ -61,10 +61,28 @@ Unlike generated meshes this applies to *everything*. A bookcase keeps its
 procedural geometry — the builder draws a grid of boards correctly — and simply
 becomes 80cm wide because that is what it is.
 
-Three traps, all hit on real pages and all documented in
+Four traps, all hit on real pages and all documented in
 `api/_lib/dimensions.js`: IKEA's `measurementGroups` JSON is the flat-pack
-carton, its schema.org `width` is an image's pixel count, and `Length` means
-the long axis — which is the width of a coffee table but the depth of a bed.
+carton, its schema.org `width` is an image's pixel count, `Length` means the
+long axis — which is the width of a coffee table but the depth of a bed — and
+Article prints seat depth above overall size, so a 91-inch sofa parses cleanly
+as 64cm deep. That last one is why a missing width is treated as a failed read
+rather than a partial one: a wrong measurement is worse than no measurement,
+because the app draws it and the user believes it.
+
+**Will it fit?** Once a piece has a real size, `src/data/fit.js` checks it
+against the longest clear run of floor along each axis, and against the ceiling.
+A 228cm sofa in a room whose longest wall is 200cm says so, in centimetres, so
+the claim can be checked. Every one of these is gated on `measured` — warning
+someone their sofa won't fit on the strength of a catalog estimate is worse
+than saying nothing, because they'd measure it themselves, find it fine, and
+stop believing the app.
+
+**When we can't measure, we say so.** Home Depot, Lowe's and Wayfair refuse
+server-side requests outright — 403, 403 and 429, unchanged by a full browser
+header set, and Wayfair denies a real browser too. Those pieces go in at
+catalog-estimate size with a warning saying exactly that. The warning is only
+shown after a real attempt has failed, never guessed at from the hostname.
 
 ## Generated models
 

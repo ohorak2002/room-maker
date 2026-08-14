@@ -296,3 +296,28 @@
   margin-top: 2px;
   font-size: 0.75rem;
 }
+
+/* Real-measurement notes on a pasted product.
+   Three voices: a fact, a caution, and a refusal. The refusal is the only one
+   that gets a strong colour — a "won't fit" is the app telling someone not to
+   spend money, and it should read that way. */
+.spec-note.measuring {
+  color: var(--muted);
+  font-style: italic;
+}
+.spec-note.measured {
+  border-left: 3px solid var(--accent, #6E7A72);
+  padding-left: 10px;
+}
+.spec-note.warn {
+  border-left: 3px solid #C8932F;
+  padding-left: 10px;
+  background: color-mix(in srgb, #C8932F 7%, transparent);
+  border-radius: 0 4px 4px 0;
+}
+.spec-note.blocked {
+  border-left: 3px solid #B4483C;
+  padding-left: 10px;
+  background: color-mix(in srgb, #B4483C 8%, transparent);
+  border-radius: 0 4px 4px 0;
+}

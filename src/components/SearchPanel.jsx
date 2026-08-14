@@ -1,9 +1,99 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { formatUSD } from '../data/catalog'
 import { synthesize, synthesizeFromUrl, catalogMatches, EXAMPLE_QUERIES } from '../data/synth'
+import { requestFacts, applyFacts } from '../data/productFacts'
+import { checkFit } from '../data/fit'
 import ItemThumb from './ItemThumb'
 import './SearchPanel.css'
+
+/**
+ * The retailer's real measurements for a pasted link.
+ *
+ * Fetched here as well as at render time in the room, because this is where
+ * someone decides whether to add the thing. Being told a sofa is 30cm too wide
+ * before you place it is useful; being told after is a chore.
+ */
+function useProductFacts(spec) {
+  const [state, setState] = useState({ status: 'idle', facts: null })
+
+  useEffect(() => {
+    if (!spec?.sourceUrl) {
+      setState({ status: 'idle', facts: null })
+      return
+    }
+    let live = true
+    setState({ status: 'loading', facts: null })
+    requestFacts(spec).then((facts) => {
+      if (!live) return
+      setState({ status: facts ? 'ok' : 'unmeasured', facts })
+    })
+    return () => {
+      live = false
+    }
+  }, [spec?.sourceUrl, spec?.model])
+
+  return state
+}
+
+/**
+ * What we know about the real product, and whether it goes in the room.
+ *
+ * Three states worth distinguishing, because they mean different things to
+ * someone about to spend money:
+ *
+ *   measured   - the shop published a size, the piece is drawn at it, and the
+ *                fit verdict below is arithmetic rather than a guess
+ *   unmeasured - the shop refused us or published nothing usable, so the piece
+ *                is at catalog-estimate size and we say so plainly
+ *   loading    - a second, quietly
+ */
+function FitNote({ spec }) {
+  const { status, facts } = useProductFacts(spec)
+  const shape = useRoomStore((s) => s.shape())
+  const ceiling = shape?.h
+
+  if (status === 'idle') return null
+  if (status === 'loading') {
+    return <p className="spec-note measuring">Checking the shop for the real size…</p>
+  }
+
+  if (status === 'unmeasured') {
+    return (
+      <p className="spec-note warn">
+        <strong>Not scaled to the real product.</strong> This shop doesn't let us read its pages, so
+        the size here is a typical figure for this kind of piece — the real one may be noticeably
+        bigger or smaller. Check the listing's own measurements before you buy.
+      </p>
+    )
+  }
+
+  const measured = applyFacts(spec, facts)
+  const fit = checkFit(measured, shape, ceiling)
+  const cm = (m) => `${Math.round(m * 100)}cm`
+  const size = [
+    measured.wM && `${cm(measured.wM)} wide`,
+    measured.dM && `${cm(measured.dM)} deep`,
+    measured.h && `${cm(measured.h)} tall`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  return (
+    <>
+      {size && (
+        <p className="spec-note measured">
+          <strong>Real size from the shop:</strong> {size}. Drawn at that size in your room.
+        </p>
+      )}
+      {fit && (
+        <p className={`spec-note ${fit.level === 'blocked' ? 'blocked' : 'warn'}`}>
+          <strong>{fit.level === 'blocked' ? "Won't fit." : 'Tight.'}</strong> {fit.message}
+        </p>
+      )}
+    </>
+  )
+}
 
 export default function SearchPanel() {
   const store = useRoomStore()
@@ -160,14 +250,15 @@ export default function SearchPanel() {
               </p>
             )}
 
+            {spec.fromUrl && <FitNote spec={spec} />}
+
             <p className="spec-disclaimer">
               {spec.fromUrl ? (
                 <>
-                  Read from the <strong>address</strong> of that link, not from the page. Retailers
-                  block apps from loading their pages, and this app has no server to do it from — so
-                  the shape and colour come from the product name in the URL, and the price is what
-                  this kind of piece typically costs, <strong>not</strong> the listed price. The link
-                  goes back to your page.
+                  The shape comes from the product name in the URL, and the price is what this kind
+                  of piece typically costs, <strong>not</strong> the listed price. Size and colour
+                  are read from the page itself where the shop allows it — see above. The link goes
+                  back to your page.
                 </>
               ) : (
                 <>

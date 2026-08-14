@@ -84,6 +84,15 @@ function visibleText(html) {
  * measurement parses perfectly and lays out a sofa the size of a box.
  */
 function plausible(d) {
+  // Width is not optional, and this is the guard that matters most.
+  //
+  // Article publishes seat depth and seat height above the overall size, so a
+  // 91-inch sofa parsed cleanly as 64cm deep and 45cm high — both individually
+  // believable, both the wrong measurement, and a sofa drawn 64cm wide is far
+  // worse than one drawn at the catalog's estimate. Missing width is the tell
+  // that what was found is a sub-measurement rather than the product.
+  if (typeof d.widthM !== 'number') return false
+
   const vals = [d.widthM, d.depthM, d.heightM].filter((v) => typeof v === 'number')
   if (vals.length < 2) return false
   // Nothing in a room is under 5cm or over 4m on any axis.
