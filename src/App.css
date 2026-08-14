@@ -209,3 +209,61 @@ button {
 .progress-mark {
   margin-right: 4px;
 }
+
+/* ---------------------------------------------------------------------------
+   Touch targets.
+
+   Measured on a 375px phone before this existed: the top bar ran 31px tall,
+   the tabs 41px, and the palette rows 38px, against a 44px minimum — and
+   Export / Quiz / Hide sat 2px apart where 8px is the floor. Small targets are
+   not a cosmetic problem: they are the difference between tapping "Export" and
+   tapping "Retake quiz", which throws away the room.
+
+   Keyed on `pointer: coarse` rather than a width breakpoint, deliberately. A
+   narrow window on a laptop still has a mouse and does not need 44px of chrome;
+   a large tablet has a finger and does. This asks about the input device, which
+   is the thing that actually matters.
+
+   `min-height` with centred content rather than extra padding, so the visual
+   weight of the UI is unchanged — only the hit area grows.
+   --------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .btn-quiet,
+  .tab,
+  .palette-row,
+  .ctl-head,
+  button,
+  [role='button'] {
+    min-height: 44px;
+  }
+
+  .btn-quiet,
+  .tab,
+  .palette-row {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .palette-row,
+  .ctl-head {
+    width: 100%;
+  }
+
+  /* Colour swatches and the dismiss X were the two the blanket rule missed:
+     an <input type=color> ignores min-height in some engines, and a 22px-wide
+     X is tall enough but too narrow to hit. */
+  input[type='color'] {
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .crowd-close {
+    min-width: 44px;
+  }
+
+  /* 2px between the top-bar actions was one mis-tap away from discarding a
+     room. Eight is the documented minimum; ten leaves a margin for error. */
+  .topbar-actions {
+    gap: 10px;
+  }
+}
