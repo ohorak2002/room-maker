@@ -16,6 +16,10 @@ export default function HeroRoom({ palette = 'clay' }) {
   const mountRef = useRef(null)
   const [ready, setReady] = useState(false)
   const [shot, setShot] = useState(null)
+  // Set by a dot click, read by the render loop on its next frame. A ref
+  // rather than state because the loop lives outside React's render cycle
+  // and re-rendering on every click would tear down the scene.
+  const jumpRef = useRef(null)
 
   useEffect(() => {
     const mount = mountRef.current
@@ -83,21 +87,22 @@ export default function HeroRoom({ palette = 'clay' }) {
         // different shape, palette, light and furniture set, so the page shows
         // the range of what the app makes instead of a single example.
         const SCENES = [
-          { name: 'Living room', mood: 'Golden hour', shape: 'living', h: 2.9, palette, lighting: 'golden',
+          { name: 'Living room', mood: 'Golden hour', move: 'dolly', shape: 'living', h: 2.9, palette, lighting: 'golden',
             picks: ['sofa', 'coffee-table', 'rug', 'fiddle-fig', 'floor-lamp', 'bookshelf', 'canvas-art', 'monstera'] },
-          { name: 'Bedroom', mood: 'Dusk blue', shape: 'bedroom', h: 2.7, palette: 'dusk', lighting: 'warm',
+          { name: 'Bedroom', mood: 'Dusk blue', move: 'rise', shape: 'bedroom', h: 2.7, palette: 'dusk', lighting: 'warm',
             picks: ['bed', 'nightstand', 'rug', 'floor-lamp', 'gallery-set', 'snake-plant', 'curtains'] },
-          { name: 'Studio with a wing', mood: 'Sage & oat', shape: 'lshape', h: 2.8, palette: 'sage', lighting: 'natural',
+          { name: 'Studio with a wing', mood: 'Sage & oat', move: 'pan', shape: 'lshape', h: 2.8, palette: 'sage', lighting: 'natural',
             picks: ['sofa', 'desk', 'desk-chair', 'monitor', 'palm', 'bookshelf', 'rug', 'pouf'] },
-          { name: 'Loft', mood: 'Charcoal & copper', shape: 'loft', h: 3.6, palette: 'copper', lighting: 'moody',
+          { name: 'Loft', mood: 'Charcoal & copper', move: 'crane', shape: 'loft', h: 3.6, palette: 'copper', lighting: 'moody',
             picks: ['sofa', 'coffee-table', 'tv', 'led-strip', 'floor-lamp', 'olive-tree', 'rug', 'speaker'] },
-          { name: 'Room with an alcove', mood: 'Terracotta', shape: 'alcove', h: 2.8, palette: 'terra', lighting: 'overcast',
+          { name: 'Room with an alcove', mood: 'Terracotta', move: 'orbit', shape: 'alcove', h: 2.8, palette: 'terra', lighting: 'overcast',
             picks: ['bed', 'desk', 'desk-chair', 'bookshelf', 'hanging-pothos', 'floor-mirror', 'rug'] },
-          { name: 'Studio', mood: 'Mint & birch', shape: 'studio', h: 2.6, palette: 'mint', lighting: 'cool',
+          { name: 'Studio', mood: 'Mint & birch', move: 'pull', shape: 'studio', h: 2.6, palette: 'mint', lighting: 'cool',
             picks: ['bed-budget', 'desk-budget', 'chair-budget', 'succulent-trio', 'gallery-set', 'rug-budget'] },
         ]
 
         let sceneIndex = 0
+        let move = 'dolly'
         let built = null
         let disposeAtmosphere = null
         let room = null
@@ -105,6 +110,7 @@ export default function HeroRoom({ palette = 'clay' }) {
         const buildScene = (i) => {
           const cfg = SCENES[i % SCENES.length]
           setShot({ name: cfg.name, mood: cfg.mood, index: i % SCENES.length, total: SCENES.length })
+          move = cfg.move || 'dolly'
           const shape = { ...presets.getShape(cfg.shape), h: cfg.h }
           const p = presets.getPalette(cfg.palette)
           room = presets.shapeBounds(shape)
@@ -184,7 +190,10 @@ export default function HeroRoom({ palette = 'clay' }) {
           frame = requestAnimationFrame(tick)
           const elapsed = now - phaseStart
 
-          if (!fading && elapsed > HOLD_MS) {
+          // A click jumps immediately rather than waiting out the hold; making
+          // someone watch the rest of a scene they've chosen to leave is the
+          // opposite of what the control is for.
+          if (!fading && (elapsed > HOLD_MS || jumpRef.current !== null)) {
             fading = true
             swapped = false
             phaseStart = now
@@ -201,7 +210,12 @@ export default function HeroRoom({ palette = 'clay' }) {
 
             if (k >= 0.5 && !swapped) {
               teardownScene()
-              sceneIndex++
+              if (jumpRef.current !== null) {
+                sceneIndex = jumpRef.current
+                jumpRef.current = null
+              } else {
+                sceneIndex++
+              }
               buildScene(sceneIndex)
               reframe()
               swapped = true
@@ -215,19 +229,61 @@ export default function HeroRoom({ palette = 'clay' }) {
           }
           renderer.toneMappingExposure = exposure
 
-          // A slow push-in over the first few seconds of each scene. The camera
-          // arriving still and then creeping closer is what makes it feel shot
-          // rather than rendered — the drift alone read as a screensaver.
-          const settle = Math.min((now - entered) / 2600, 1)
-          const push = 1.075 - 0.075 * ease(settle)
+          // Every scene gets its own camera move rather than all six sharing one
+          // slow drift. A single repeated motion is what made the loop read as a
+          // screensaver: the second time you saw it you knew the third. Six
+          // distinct moves means each room arrives as a shot of its own.
+          //
+          // All of them run over the whole hold, eased, so the camera is always
+          // decelerating — real camera moves settle, they don't stop dead.
+          const span = Math.min((now - entered) / (HOLD_MS + FADE_MS), 1)
+          const e = ease(span)
+          const drift = now * 0.00004
 
-          const t = now * 0.00004
-          camera.position.set(
-            Math.sin(t) * dist * 0.62 * push,
-            eye * (1 + (1 - ease(settle)) * 0.05),
-            (Math.cos(t * 0.7) * dist * 0.5 + dist * 0.55) * push
-          )
-          camera.lookAt(0, room.h * 0.36, -room.d * 0.08)
+          let ox = Math.sin(drift) * dist * 0.62
+          let oy = eye
+          let oz = Math.cos(drift * 0.7) * dist * 0.5 + dist * 0.55
+          let look = room.h * 0.36
+
+          if (move === 'dolly') {
+            // Straight push toward the room.
+            const k = 1.09 - 0.11 * e
+            ox *= k
+            oz *= k
+          } else if (move === 'pan') {
+            // Slides across the front, holding its distance.
+            ox = (-0.5 + e) * dist * 0.62
+            oz = dist * 0.92
+          } else if (move === 'rise') {
+            // Starts low and lifts, which suits a bedroom — you come up over
+            // the bed rather than looking down at it from the start.
+            oy = eye * (0.62 + 0.5 * e)
+            const k = 1.04 - 0.06 * e
+            ox *= k
+            oz *= k
+            look = room.h * (0.3 + 0.1 * e)
+          } else if (move === 'crane') {
+            // Drops from high, for the loft, where the height is the point.
+            oy = eye * (1.7 - 0.72 * e)
+            const k = 1.14 - 0.16 * e
+            ox *= k
+            oz *= k
+            look = room.h * (0.5 - 0.14 * e)
+          } else if (move === 'orbit') {
+            // Arcs around a corner, which is how you'd read an odd-shaped room.
+            const a = -0.62 + e * 1.05
+            ox = Math.sin(a) * dist * 0.86
+            oz = Math.cos(a) * dist * 0.86
+          } else if (move === 'pull') {
+            // Backs off to reveal the whole space — the right last beat before
+            // the loop starts over.
+            const k = 0.86 + 0.24 * e
+            ox *= k
+            oz *= k
+          }
+
+          camera.position.set(ox, oy, oz)
+          camera.lookAt(0, look, -room.d * 0.08)
           composer.render()
         }
         frame = requestAnimationFrame(tick)
@@ -263,7 +319,7 @@ export default function HeroRoom({ palette = 'clay' }) {
   // several stacking and media rules on this screen, and an inline value is the
   // one thing that can't lose a specificity argument.
   return (
-    <div className="hero-stage" aria-hidden="true">
+    <div className="hero-stage">
       <div
         ref={mountRef}
         className="hero-room"
@@ -278,7 +334,15 @@ export default function HeroRoom({ palette = 'clay' }) {
           </span>
           <span className="hero-dots">
             {Array.from({ length: shot.total }, (_, i) => (
-              <span key={i} className={`hero-dot ${i === shot.index ? 'on' : ''}`} />
+              <button
+                key={i}
+                type="button"
+                className={`hero-dot ${i === shot.index ? 'on' : ''}`}
+                onClick={() => {
+                  if (i !== shot.index) jumpRef.current = i
+                }}
+                aria-label={`Show room ${i + 1} of ${shot.total}`}
+              />
             ))}
           </span>
         </div>

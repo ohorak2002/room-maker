@@ -130,3 +130,51 @@
   .hero-caption { right: 14px; bottom: 14px; padding: 7px 11px; }
   .hero-cap-text strong { font-size: 0.78rem; }
 }
+
+/* The stage ignores pointers so the Start button behind it stays clickable.
+   The caption opts back in, since its dots are now real controls. */
+.hero-caption {
+  pointer-events: auto;
+}
+
+button.hero-dot {
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  /* A 5px target is unhittable. The dot stays 5px visually and the button
+     carries a transparent 16px box around it. */
+  width: 16px;
+  height: 16px;
+  background: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.hero-dot::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(242, 240, 236, 0.26);
+  transition: background var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+button.hero-dot:hover::after {
+  background: rgba(242, 240, 236, 0.6);
+  transform: scale(1.25);
+}
+
+button.hero-dot.on::after {
+  background: rgba(242, 240, 236, 0.9);
+  transform: scale(1.35);
+}
+
+button.hero-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 50%;
+}
+
+.hero-dots { gap: 0; }
