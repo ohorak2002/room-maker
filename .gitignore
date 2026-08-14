@@ -12,3 +12,6 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+
+# Meshes pulled down by scripts/try-model.mjs
+scripts/out/

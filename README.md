@@ -53,6 +53,14 @@ sofa. `/api/model` is the way out of that: give it a product link and it fetches
 the retailer's own photo, sends it to an image-to-3D service, and returns the
 resulting silhouette as geometry the app can draw.
 
+**Not the `og:image`.** The obvious photo is the wrong one. IKEA's KIVIK page
+advertises a styled room — rattan chair, floor lamp, two prints, a fig, a shaggy
+rug — and generating from that buys you a model of the room. So the whole
+gallery is read and scored on its pixels, and the plain product shot is picked.
+The measurements and the thresholds are in `api/_lib/photo.js`; the one that
+does the work is ink coverage, because a dimensions diagram has the cleanest
+background on the page and would otherwise win.
+
 **Only for shapes the builders can't do.** A bookcase is a grid of boards and a
 dresser is a box with drawer fronts — the builders nail those, instantly and for
 nothing. Generating them would be slower, dearer and *worse*. The gate is in
@@ -80,6 +88,17 @@ and that is the cache key.
 Set `MESHY_API_KEY` to switch it on; see `.env.example` for the rest. With no
 key set the endpoint answers "unavailable" and the app behaves exactly as it did
 before. `npm run dev` serves the endpoint too, so dev and production match.
+
+Before trusting it, run one product through end to end and look at the result:
+
+```bash
+MESHY_API_KEY=... npm run try-model -- "https://www.ikea.com/us/en/p/kivik-sofa-tibbleby-beige-gray-s39440593/"
+```
+
+It narrates every stage — cache key, which photo it picked and why, generation
+progress, triangle count, proportions — then writes the mesh to `scripts/out/`
+alongside a viewer so the piece can be judged close up rather than guessed at
+from a triangle count. It calls exactly the code the deployed function calls.
 
 Rough edges, stated plainly:
 

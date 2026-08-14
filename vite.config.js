@@ -1,6 +1,26 @@
-import { statSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+
+/**
+ * Newest mtime anywhere under a directory.
+ *
+ * Stamping only the entry file is not enough, and fails in a way that wastes
+ * ten minutes: editing api/_lib/photo.js leaves model.js untouched, so the
+ * import URL doesn't change, so Node serves the whole cached module graph and
+ * the endpoint reports an export that plainly exists in the file you are
+ * looking at.
+ */
+function newestMtime(dir) {
+  let newest = 0
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = `${dir}/${entry.name}`
+    const at = entry.isDirectory() ? newestMtime(path) : statSync(path).mtimeMs
+    if (at > newest) newest = at
+  }
+  return newest
+}
 
 /**
  * Serve api/model.js from the dev server.
@@ -20,11 +40,13 @@ function modelApi(env) {
     configureServer(server) {
       server.middlewares.use('/api/model', async (req, res) => {
         try {
-          // Re-import when the file changes, so editing the endpoint doesn't
-          // mean restarting the dev server. Node caches ES modules by URL, and
-          // the mtime is what makes the URL new.
+          // Re-import when anything under api/ changes, so editing the endpoint
+          // or its helpers doesn't mean restarting the dev server. Node caches
+          // ES modules by URL, and the mtime is what makes the URL new.
           const path = new URL('./api/model.js', import.meta.url)
-          const stamp = statSync(path).mtimeMs
+          // fileURLToPath, not .pathname — the project lives under a directory
+          // with a space in it, and .pathname hands back the %20 undecoded.
+          const stamp = newestMtime(fileURLToPath(new URL('./api', import.meta.url)))
           const { default: handler } = await import(`${path.href}?v=${stamp}`)
 
           const url = new URL(req.url || '/', 'http://localhost')

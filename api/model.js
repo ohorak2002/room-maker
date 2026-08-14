@@ -44,7 +44,7 @@ import { cacheKeyFor, canonicalProductUrl } from '../src/data/productId.js'
 import { isUpgradable } from '../src/data/upgradable.js'
 import { readCached, writeCached } from './_lib/cache.js'
 import { glbToSpec, GlbError } from './_lib/glb.js'
-import { findProductPhoto, isAllowedProductHost } from './_lib/photo.js'
+import { pickProductPhoto, isAllowedProductHost } from './_lib/photo.js'
 import { createFromImage, createFromText, poll, hasCredentials, ProviderError } from './_lib/meshy.js'
 
 const TRIANGLE_BUDGET = Number(process.env.MODEL_TRIANGLE_BUDGET || 3000)
@@ -167,12 +167,14 @@ export default async function handler(req, res) {
 
   if (source && isAllowedProductHost(source)) {
     try {
-      const photo = await findProductPhoto(source)
-      if (photo) {
-        handle = await createFromImage(photo, { polycount: TRIANGLE_BUDGET })
+      // Not the page's og:image — that is a styled room, and it would generate
+      // a model of the room. See _lib/photo.js.
+      const photo = await pickProductPhoto(source)
+      if (photo.url) {
+        handle = await createFromImage(photo.url, { polycount: TRIANGLE_BUDGET })
         from = 'photo'
       } else {
-        note = 'the product page had no photo we could read'
+        note = 'the product page had no plain product shot, only styled scenes'
       }
     } catch (err) {
       // Falling back to the description is better than giving up, but the
