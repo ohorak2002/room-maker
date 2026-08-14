@@ -6,7 +6,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Centring a scroll container is a trap: once the content is taller than the
+     screen, the overflow goes off BOTH ends and the top can't be scrolled back
+     to. `safe` keeps the centring while the content fits and falls back to
+     start-aligned the moment it doesn't. The plain value stays first for
+     browsers that don't understand the keyword. */
   justify-content: center;
+  justify-content: safe center;
   gap: 32px;
   padding: 40px 24px;
   overflow-y: auto;
@@ -627,4 +633,46 @@
 
 @media (prefers-reduced-motion: reduce) {
   .wordmark { animation: none; }
+}
+
+/* --- fitting the screen you actually have -------------------------------- */
+/*
+ * The survey was locked to a ~620-640px column at every width. On a laptop
+ * that left half the display empty while the answers ran off the bottom, so
+ * every step meant scrolling. Widening the column on bigger screens turns that
+ * vertical scroll into extra columns — the option grids are all auto-fit, so
+ * they take the space without any further work.
+ */
+@media (min-width: 1100px) {
+  .onboard-top,
+  .onboard-stage,
+  .onboard-nav { width: min(1080px, 100%); }
+  .residence { max-width: 1080px; }
+  /* The welcome copy stays narrow on purpose — a headline and a paragraph read
+     badly at full width, and that step already fits. */
+  .welcome { max-width: 720px; }
+}
+
+@media (min-width: 1500px) {
+  .onboard-top,
+  .onboard-stage,
+  .onboard-nav { width: min(1260px, 100%); }
+  .residence { max-width: 1260px; }
+}
+
+/*
+ * Short screens — a 13" laptop, or any window that isn't full height. Trimming
+ * the outer padding and the gaps buys back close to 90px of vertical space,
+ * which is usually the difference between fitting and not.
+ */
+@media (max-height: 820px) {
+  .onboard { padding: 22px 24px; gap: 18px; }
+  .onboard-stage { gap: 16px; }
+  .residence { gap: 14px; }
+  .exact-dims { margin-top: 14px; padding-top: 14px; }
+}
+
+@media (max-height: 680px) {
+  .onboard { padding: 14px 20px; gap: 12px; }
+  .prefurn-grid { gap: 6px; }
 }
