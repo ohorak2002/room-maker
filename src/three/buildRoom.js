@@ -5,15 +5,20 @@ import { floorRuns, wallRuns, windowWall } from './shapeGeom'
 import { shapeBounds } from '../data/presets'
 import { applySurface } from './textures'
 import { FIDDLE_FIG } from './meshes/fiddleFig'
+import { requestUpgrade } from './modelUpgrade'
 
 /**
- * Build a mesh that was modelled in SketchUp and extracted as raw geometry.
+ * Build a mesh that arrived as raw geometry rather than as code.
  *
- * The data already arrives in this app's contract — metres, Y-up, origin on
- * the floor, centred on X and Z — so there is no scaling or re-seating to do.
- * Vertex normals are computed here rather than shipped: the extraction emits
- * one normal per face, and recomputing gives the pot and trunk a smooth
- * shaded surface for free while flat parts stay flat.
+ * Two things come through here now: the SketchUp fig, and whatever /api/model
+ * generates from a product photo. They share a format on purpose — metres,
+ * Y-up, origin on the floor, centred on X and Z — so neither needs a special
+ * case, and a third source later would not either.
+ *
+ * Vertex normals are computed here rather than shipped. Un-indexed data (the
+ * fig) comes out flat-shaded per face; indexed data (a generated mesh) comes
+ * out smooth across shared vertices, which is the right answer for the curved
+ * silhouettes that are the only shapes we generate — see data/upgradable.js.
  *
  * Materials marked `tint` are multiplied by the catalog colour, so the piece
  * still answers to the palette. The rest keep the colours they were authored
@@ -23,24 +28,69 @@ function sketchupMesh(spec, it) {
   const g = new THREE.Group()
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(spec.positions, 3))
+  // Indexing has to be set before normals are computed, or the averaging has
+  // no shared vertices to average across and every surface comes out faceted.
+  if (spec.indices) geo.setIndex(spec.indices)
   geo.computeVertexNormals()
 
   for (const [start, count, matIndex] of spec.groups) {
     geo.addGroup(start, count, matIndex)
   }
 
+  const tinted = GENERATED_SURFACE[it.model] || FOLIAGE
   const mats = spec.materials.map((m) => {
     const [r, gg, b] = m.rgb
     const hex = `#${((1 << 24) + (r << 16) + (gg << 8) + b).toString(16).slice(1)}`
-    return m.tint ? FOLIAGE(it.color || hex) : mat(hex, 0.62, 0.0, 0.4, 'paper')
+    return m.tint ? tinted(it.color || hex) : mat(hex, 0.62, 0.0, 0.4, 'paper')
   })
 
   const mesh = new THREE.Mesh(geo, mats)
   // Height is baked in, so honour the catalog's size by scaling uniformly.
-  const s = it.h ? it.h / spec.heightM : 1
+  let s = it.h ? it.h / spec.heightM : 1
+
+  // A generated mesh reports its own proportions, and they are the product's,
+  // not the catalog's. A three-seater standing in for a loveseat would keep its
+  // real width once scaled to the right height and shoulder its way through the
+  // neighbours, because the layout solver placed the piece using the catalog's
+  // footprint. Give it a quarter more room than that and no more.
+  if (spec.widthM && it.fp) {
+    const half = (spec.widthM * s) / 2
+    const allowed = it.fp * 1.25
+    if (half > allowed) s *= allowed / half
+  }
+
   mesh.scale.setScalar(s)
   g.add(mesh)
   return g
+}
+
+/**
+ * Replace a placed piece's geometry in situ, once a better model turns up.
+ *
+ * The node itself survives: it is what the drag layer raycasts against and
+ * what holds the key the store writes positions back under. Only its contents
+ * change, so a piece being upgraded mid-drag keeps following the pointer.
+ */
+function swapGeometry(node, spec, item) {
+  const replacement = shadowed(sketchupMesh(spec, item))
+
+  for (const child of [...node.children]) {
+    // Lamps carry a PointLight, and that light is the piece's actual job. The
+    // generated mesh is geometry only, so throwing the whole subtree away would
+    // swap a better-looking lamp in and switch the room's lighting off with it.
+    if (child.isLight) continue
+
+    node.remove(child)
+    child.traverse?.((o) => {
+      if (!o.isMesh) return
+      o.geometry?.dispose()
+      if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose())
+      else o.material?.dispose()
+    })
+  }
+
+  for (const child of [...replacement.children]) node.add(child)
+  node.userData.upgraded = true
 }
 
 // ---------------------------------------------------------------------------
@@ -243,6 +293,41 @@ const PLASTIC = (c) => mat(c, 0.42, 0.0, 0.7, 'plastic')
 const CERAMIC = (c) => mat(c, 0.22, 0.0, 0.95, 'porcelain')
 const FOLIAGE = (c) => mat(c, 0.72, 0.0, 0.2, 'leaf')
 const PAPERY = (c) => mat(c, 0.88, 0.0, 0.2, 'paper')
+
+/**
+ * What a generated mesh should be made of.
+ *
+ * A model that arrives from /api/model is one undivided surface — the provider
+ * is asked not to texture it, and without a texture there is nothing to tell
+ * the arm of a chair from its legs. So the material comes from what the piece
+ * is rather than from anything in the file.
+ *
+ * Getting this wrong is not subtle. The fig's tinted group is foliage and uses
+ * the leaf surface; run a sofa through the same default and it renders
+ * upholstered in leaves.
+ */
+const GENERATED_SURFACE = {
+  sofa: FABRIC,
+  armchair: FABRIC,
+  chair: FABRIC,
+  beanbag: FABRIC,
+  pouf: FABRIC,
+  diningchair: WOODEN,
+  stool: WOODEN,
+  // Not METAL: a lamp mesh is mostly shade, and chroming the whole thing to get
+  // the base right costs more than it wins.
+  floorlamp: PAPERY,
+  desklamp: PAPERY,
+  pendant: PAPERY,
+  palm: FOLIAGE,
+  plant: FOLIAGE,
+  smallplant: FOLIAGE,
+  hanging: FOLIAGE,
+  vase: CERAMIC,
+  bathtub: CERAMIC,
+  toilet: CERAMIC,
+}
+
 // Shower screens and appliance doors. Transparency alone reads as a hole in the
 // wall; it's the near-zero roughness plus a strong env response that makes it
 // register as glass.
@@ -1715,8 +1800,13 @@ function buildLights(scene, { shape, h, lighting, windows }) {
 /**
  * Instantiate every entry at the coordinates the caller resolved. Each node is
  * tagged with the data the drag layer needs to move it and write it back.
+ *
+ * `live` is how a scene that has been torn down refuses a late upgrade. Rooms
+ * are rebuilt on every palette, light and layout change, and a mesh requested
+ * by the room before last can still be in the air — adding it to a disposed
+ * group would leak the geometry and show nothing.
  */
-function placeItems(group, entries, placements) {
+function placeItems(group, entries, placements, live) {
   const handles = []
 
   for (const { key, item } of entries) {
@@ -1739,6 +1829,12 @@ function placeItems(group, entries, placements) {
       draggable: true,
     }
 
+    // The procedural piece is on screen from this frame. If a generated model
+    // of the actual product exists or can be made, it takes over later.
+    requestUpgrade(item).then((spec) => {
+      if (spec && live.ok) swapGeometry(node, spec, item)
+    })
+
     group.add(node)
     handles.push(node)
   }
@@ -1756,12 +1852,16 @@ export function buildRoom(scene, config) {
   shadowed(shell)
   group.add(shell)
 
-  const handles = placeItems(group, config.entries, config.placements)
+  // Flipped by dispose(), and read by any model still being generated.
+  const live = { ok: true }
+
+  const handles = placeItems(group, config.entries, config.placements, live)
   scene.add(group)
 
   const disposeLights = buildLights(scene, config)
 
   const dispose = () => {
+    live.ok = false
     disposeLights()
     scene.remove(group)
     group.traverse((o) => {
