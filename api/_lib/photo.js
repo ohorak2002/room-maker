@@ -308,3 +308,62 @@ export async function pickProductPhoto(pageUrl, { timeout = 8000 } = {}) {
   if (usable.length) return { url: usable[0].url, kind: 'cut-out', candidates: scored.length }
   return { url: null, kind: 'none', candidates: scored.length }
 }
+
+/**
+ * The product's actual colour, averaged from its photo.
+ *
+ * The catalog carries a hand-picked hex per item, which is a designer's guess
+ * at "beige sofa". The photo is the real thing, and it is already located and
+ * already decoded by the picker above, so this is nearly free.
+ *
+ * Only the middle of the frame is sampled, and only pixels that are not
+ * background: a cut-out is mostly white by area, so a naive average returns
+ * "slightly off-white" for every product in the shop.
+ */
+export async function averageColour(imageUrl) {
+  let decodeJpeg
+  try {
+    ;({ decode: decodeJpeg } = await import('jpeg-js'))
+  } catch {
+    return null
+  }
+
+  const res = await fetch(`${imageUrl}?f=s`, { signal: AbortSignal.timeout(8000) }).catch(() => null)
+  if (!res?.ok) return null
+
+  let img
+  try {
+    img = decodeJpeg(new Uint8Array(await res.arrayBuffer()), { useTArray: true })
+  } catch {
+    return null
+  }
+
+  const { width: w, height: h, data } = img
+  let r = 0
+  let g = 0
+  let b = 0
+  let n = 0
+
+  const x0 = Math.floor(w * 0.2)
+  const x1 = Math.ceil(w * 0.8)
+  const y0 = Math.floor(h * 0.2)
+  const y1 = Math.ceil(h * 0.8)
+
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * w + x) * 4
+      const [pr, pg, pb] = [data[i], data[i + 1], data[i + 2]]
+      // Skip the backdrop. 238 sits below the studio white measured on real
+      // pages (254) and above all but the palest upholstery.
+      if (pr > 238 && pg > 238 && pb > 238) continue
+      r += pr
+      g += pg
+      b += pb
+      n++
+    }
+  }
+  if (n < 200) return null
+
+  const hex = (v) => Math.round(v / n).toString(16).padStart(2, '0')
+  return `#${hex(r)}${hex(g)}${hex(b)}`.toUpperCase()
+}

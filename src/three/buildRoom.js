@@ -6,6 +6,7 @@ import { shapeBounds } from '../data/presets'
 import { applySurface } from './textures'
 import { FIDDLE_FIG } from './meshes/fiddleFig'
 import { requestUpgrade } from './modelUpgrade'
+import { requestFacts, applyFacts } from '../data/productFacts'
 
 /**
  * Build a mesh that arrived as raw geometry rather than as code.
@@ -1806,6 +1807,60 @@ function buildLights(scene, { shape, h, lighting, windows }) {
  * by the room before last can still be in the air — adding it to a disposed
  * group would leak the geometry and show nothing.
  */
+/**
+ * Rebuild a piece at the size the retailer says it is.
+ *
+ * Rebuilt rather than scaled: scaling a bookcase to 80cm wide would stretch its
+ * boards and its board *thickness* with it. The builders already take `h` and
+ * `fp`, so handing them the measured values and swapping the result keeps every
+ * proportion the builder knows about intact.
+ *
+ * The node itself is never replaced, only its contents — it carries the drag
+ * state and the selection, and the user may already have moved it.
+ */
+function resize(node, item, facts) {
+  const measured = applyFacts(item, facts)
+  const build = builders[item.model]
+  if (!build) return
+
+  // Nothing worth a rebuild: no size, and a colour close enough to see no
+  // difference. Recolouring in place is far cheaper than rebuilding.
+  const sized = measured.h !== item.h || measured.fp !== item.fp
+  if (!sized) {
+    if (facts.colour) {
+      node.traverse((child) => {
+        if (child.isMesh && child.material?.color && child.userData.tintable !== false) {
+          child.material.color.set(facts.colour)
+        }
+      })
+    }
+    return
+  }
+
+  let replacement
+  try {
+    replacement = shadowed(build(measured))
+  } catch {
+    return // A builder that cannot take these numbers keeps the estimate.
+  }
+
+  for (const child of [...node.children]) {
+    // Lights belong to the piece, not the geometry — a lamp that gets resized
+    // must not switch off. Same reasoning as swapGeometry.
+    if (child.isLight) continue
+    node.remove(child)
+    child.traverse?.((n) => {
+      n.geometry?.dispose?.()
+      if (Array.isArray(n.material)) n.material.forEach((m) => m.dispose())
+      else n.material?.dispose?.()
+    })
+  }
+  for (const child of [...replacement.children]) node.add(child)
+
+  node.userData.radius = measured.fp || node.userData.radius
+  node.userData.measured = true
+}
+
 function placeItems(group, entries, placements, live) {
   const handles = []
 
@@ -1833,6 +1888,13 @@ function placeItems(group, entries, placements, live) {
     // of the actual product exists or can be made, it takes over later.
     requestUpgrade(item).then((spec) => {
       if (spec && live.ok) swapGeometry(node, spec, item)
+    })
+
+    // The retailer's own measurements, which land in about a second and matter
+    // whether or not a better mesh ever arrives. A bookcase keeps its
+    // procedural geometry and still becomes exactly 80cm wide.
+    requestFacts(item).then((facts) => {
+      if (facts && live.ok) resize(node, item, facts)
     })
 
     group.add(node)

@@ -45,6 +45,27 @@ Paste a link to a real sofa and, given a provider key, the app will go and build
 - Design persists to `localStorage`; JSON export with a linked shopping list
 - Light and dark themes, responsive down to mobile widths
 
+## Real measurements
+
+Paste a product link and the piece becomes the size it actually is. `GET
+/api/product` reads the retailer's own published width, depth and height off
+the page, and the true colour out of the product photo.
+
+This matters more than mesh quality. The catalog stores `h` and `fp` — a
+footprint *radius* — so every piece is round in plan and sized by estimate. A
+BILLY bookcase the app guessed at 2m tall is really 1.06m; a KIVIK guessed at a
+1.05m radius is really 2.28m wide. A room laid out from estimates can tell you
+something fits when it would not go against your wall.
+
+Unlike generated meshes this applies to *everything*. A bookcase keeps its
+procedural geometry — the builder draws a grid of boards correctly — and simply
+becomes 80cm wide because that is what it is.
+
+Three traps, all hit on real pages and all documented in
+`api/_lib/dimensions.js`: IKEA's `measurementGroups` JSON is the flat-pack
+carton, its schema.org `width` is an image's pixel count, and `Length` means
+the long axis — which is the width of a coffee table but the depth of a bed.
+
 ## Generated models
 
 Every shape in the app is one of about forty-five builders written in code. That

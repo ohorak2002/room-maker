@@ -38,12 +38,13 @@ function modelApi(env) {
   return {
     name: 'nested-model-api',
     configureServer(server) {
-      server.middlewares.use('/api/model', async (req, res) => {
+      for (const endpoint of ['model', 'product']) {
+      server.middlewares.use(`/api/${endpoint}`, async (req, res) => {
         try {
           // Re-import when anything under api/ changes, so editing the endpoint
           // or its helpers doesn't mean restarting the dev server. Node caches
           // ES modules by URL, and the mtime is what makes the URL new.
-          const path = new URL('./api/model.js', import.meta.url)
+          const path = new URL(`./api/${endpoint}.js`, import.meta.url)
           // fileURLToPath, not .pathname — the project lives under a directory
           // with a space in it, and .pathname hands back the %20 undecoded.
           const stamp = newestMtime(fileURLToPath(new URL('./api', import.meta.url)))
@@ -70,6 +71,7 @@ function modelApi(env) {
           res.end(JSON.stringify({ status: 'failed', reason: String(err?.message || err) }))
         }
       })
+      }
     },
     config() {
       // The endpoint reads its keys off process.env, the way it will in
