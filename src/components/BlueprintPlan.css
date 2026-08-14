@@ -215,3 +215,35 @@
   .bp-progress { margin-left: 0; }
   .bp-canvas { padding: 10px 10px 26px; }
 }
+
+/* --- storey switcher ----------------------------------------------------- */
+
+.bp-floors {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.bp-floor {
+  min-width: 26px;
+  padding: 3px 7px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.bp-floor:hover { color: var(--ink); }
+
+.bp-floor.on {
+  background: var(--accent);
+  color: #fff;
+}

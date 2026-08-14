@@ -64,6 +64,40 @@ export const FURNISHABLE = new Set([
  * in listings ("4.5 bath"); a half bath is a powder room with no shower, which
  * for layout purposes is just a smaller bathroom.
  */
+/**
+ * How many storeys a place of this size and shape usually has.
+ *
+ * A 700 sq ft two-bed is an apartment and is flat. A 2,400 sq ft four-bed is a
+ * house and almost never is. The thresholds want both signals: square footage
+ * alone would put a big open loft upstairs, and bedroom count alone would
+ * stack a small three-bed flat.
+ */
+export function storeysFor({ beds, sqft }) {
+  if (sqft >= 3000 && beds >= 5) return 3
+  if (sqft >= 1400 && beds >= 3) return 2
+  return 1
+}
+
+/**
+ * Which storey a kind of room belongs on, lowest number first.
+ *
+ * This is the ordinary arrangement of a house rather than a rule: living,
+ * cooking and eating happen on the ground floor, sleeping happens above it.
+ * The entry has to be on the ground floor or the front door opens into air.
+ */
+const FLOOR_PREFERENCE = {
+  entry: 0,
+  living: 0,
+  kitchen: 0,
+  dining: 0,
+  laundry: 0,
+  primary: 1,
+  primaryBath: 1,
+  bedroom: 1,
+  bath: 1,
+  hall: 0,
+}
+
 function roomProgram({ beds, baths, sqft }) {
   const rooms = []
   const push = (kind, n = 1) => {
@@ -162,49 +196,93 @@ const cellsFor = (cols, rows) => {
  * @returns { rooms, w, d, h } — rooms carry their own cell mask plus an origin
  *          offset in metres from the home's centre.
  */
-export function generateHome({ beds = 2, baths = 1, sqft = 1000, ceilingFt = 9 }) {
+/**
+ * Spread the room list over the storeys.
+ *
+ * Preference decides the storey; the rest is making sure no floor is left with
+ * nothing on it and every floor has its own circulation — you can't reach the
+ * rooms on one storey through the hallway of another.
+ */
+function assignFloors(program, levels) {
+  const byFloor = Array.from({ length: levels }, () => [])
+
+  if (levels === 1) {
+    program.forEach((r, i) => byFloor[0].push({ ...r, id: `${r.kind}-${i}` }))
+    return byFloor
+  }
+
+  // Bedrooms rotate through the upper storeys instead of all landing on the
+  // first one above ground, which is what makes a three-storey house read as a
+  // house rather than a bungalow with an attic.
+  let next = 1
+  program.forEach((r, i) => {
+    const pref = FLOOR_PREFERENCE[r.kind] ?? 0
+    let level = 0
+    if (pref > 0) {
+      level = next
+      if (r.kind === 'bedroom' || r.kind === 'bath') next = 1 + (next % (levels - 1))
+    }
+    byFloor[Math.min(level, levels - 1)].push({ ...r, id: `${r.kind}-${i}` })
+  })
+
+  for (let l = 0; l < levels; l++) {
+    const needsHall = byFloor[l].length >= 3 && !byFloor[l].some((r) => r.kind === 'hall')
+    if (needsHall || !byFloor[l].length) {
+      byFloor[l].push({ kind: 'hall', id: `hall-f${l}` })
+    }
+  }
+  return byFloor
+}
+
+/**
+ * @param beds  bedroom count
+ * @param baths bathroom count, may be fractional (4.5)
+ * @param sqft  total interior square feet, across every storey
+ * @param ceilingFt ceiling height in feet
+ * @param storeys optional override; otherwise inferred from size and bedrooms
+ * @returns { rooms, storeys, w, d, h } — rooms carry their own cell mask, the
+ *          storey they sit on, and an origin offset in metres from the centre
+ *          of the footprint.
+ */
+export function generateHome({ beds = 2, baths = 1, sqft = 1000, ceilingFt = 9, storeys }) {
   const program = roomProgram({ beds, baths, sqft })
+  const levels = Math.max(1, Math.min(4, storeys ?? storeysFor({ beds, sqft })))
 
-  // Total interior area in m², and a footprint with a typical residential
-  // aspect ratio rather than a square.
+  // Storeys stack, so they share one footprint. The area that decides that
+  // footprint is a single floor's share, not the total square footage — sizing
+  // it from the total would produce a house twice as wide as it should be.
   const areaM2 = Math.max(20, sqft / 10.7639)
+  const floorArea = areaM2 / levels
   const ratio = 1.35
-  const totalW = Math.sqrt(areaM2 * ratio)
-  const totalD = areaM2 / totalW
+  const totalW = Math.sqrt(floorArea * ratio)
+  const totalD = floorArea / totalW
 
-  const weighted = program.map((r, i) => ({
-    ...r,
-    id: `${r.kind}-${i}`,
-    area: AREA_WEIGHTS[r.kind] ?? 1,
-  }))
-  const weightSum = weighted.reduce((s, r) => s + r.area, 0)
-  for (const r of weighted) r.area = (r.area / weightSum) * areaM2
-
-  // Bigger rooms first — squarified treemaps produce better proportions that way.
-  weighted.sort((a, b) => b.area - a.area)
-
-  const packed = []
-  squarify(weighted, 0, 0, totalW, totalD, packed)
-
-  // Snap every room to the 0.5m cell grid the 3D system uses.
-  //
-  // Critically, this snaps the room's *edges*, not its width and centre
-  // separately. squarify() produces a perfect tiling where neighbours share an
-  // exact edge coordinate; snapping each shared edge to the same grid line
-  // keeps them flush. Rounding size and position independently does not — a
-  // room widened by rounding while its neighbour's centre moved the other way
-  // produces overlapping rooms, which is exactly what happened before.
+  const byFloor = assignFloors(program, levels)
   const snap = (v) => Math.round(v / CELL) * CELL
   const counts = {}
-  const rooms = packed
-    .map((p) => {
+  const rooms = []
+
+  for (let level = 0; level < levels; level++) {
+    const onThis = byFloor[level]
+    if (!onThis.length) continue
+
+    // Each storey is packed on its own, filling the shared footprint.
+    const weighted = onThis.map((r) => ({ ...r, area: AREA_WEIGHTS[r.kind] ?? 1 }))
+    const weightSum = weighted.reduce((s, r) => s + r.area, 0)
+    for (const r of weighted) r.area = (r.area / weightSum) * floorArea
+    weighted.sort((a, b) => b.area - a.area)
+
+    const packed = []
+    squarify(weighted, 0, 0, totalW, totalD, packed)
+
+    for (const p of packed) {
+      // Snap the room's edges, not its size and centre separately — see the
+      // note this replaced: rounding those independently overlaps neighbours.
       const x1 = snap(p.x)
       const x2 = snap(p.x + p.w)
       const z1 = snap(p.y)
       const z2 = snap(p.y + p.h)
 
-      // A room can round away to nothing in a very small home; keep it usable
-      // by growing the far edge, which only ever eats into outside space.
       const cols = Math.max(2, Math.round((x2 - x1) / CELL))
       const rows = Math.max(2, Math.round((z2 - z1) / CELL))
       const w = cols * CELL
@@ -213,28 +291,31 @@ export function generateHome({ beds = 2, baths = 1, sqft = 1000, ceilingFt = 9 }
       counts[p.kind] = (counts[p.kind] || 0) + 1
       const n = counts[p.kind]
       const multiple = program.filter((r) => r.kind === p.kind).length > 1
-      return {
+
+      rooms.push({
         id: p.id,
         kind: p.kind,
+        floor: level,
         name: multiple ? `${LABEL[p.kind]} ${n}` : LABEL[p.kind],
         furnishable: FURNISHABLE.has(p.kind),
         cols,
         rows,
         cells: cellsFor(cols, rows),
         h: ftToM(ceilingFt),
-        // Origin is the room's centre, derived from the snapped edges so it
-        // stays consistent with the snapped size.
         ox: x1 + w / 2 - totalW / 2,
         oz: z1 + d / 2 - totalD / 2,
         items: [],
-      }
-    })
-    .sort((a, b) => a.oz - b.oz || a.ox - b.ox)
+      })
+    }
+  }
+
+  rooms.sort((a, b) => a.floor - b.floor || a.oz - b.oz || a.ox - b.ox)
 
   return {
     beds,
     baths,
     sqft,
+    storeys: levels,
     rooms,
     w: totalW,
     d: totalD,

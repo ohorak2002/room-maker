@@ -20,6 +20,10 @@ import './BlueprintPlan.css'
 // stroke widths below 1, which is awkward to read and to tune.
 const PX = 40
 
+// Ground floor is "G" rather than "1" — that's how people say it, and it makes
+// the button for the storey you start on unmistakable.
+const FLOOR_NAME = ['Ground floor', 'First floor', 'Second floor', 'Third floor']
+
 /** Metres to the feet-and-inches people actually describe rooms in. */
 function ftIn(m) {
   const totalIn = m * 39.3701
@@ -34,11 +38,14 @@ function ftIn(m) {
 
 const sqft = (wM, dM) => Math.round(wM * dM * 10.7639)
 
-export default function BlueprintPlan({ home, synthetics = {}, onPick }) {
+export default function BlueprintPlan({ home, synthetics = {}, onPick, floor = 0, onFloor }) {
   const [hover, setHover] = useState(null)
+  const storeys = home.storeys ?? 1
 
   const rooms = useMemo(() => {
-    return home.rooms.map((r) => {
+    return home.rooms
+      .filter((r) => (r.floor ?? 0) === floor)
+      .map((r) => {
       const wM = r.cols * CELL
       const dM = r.rows * CELL
       // Room origins are centres relative to the middle of the home; the plan
@@ -51,9 +58,9 @@ export default function BlueprintPlan({ home, synthetics = {}, onPick }) {
         return item ? Array.from({ length: entry.qty }, () => item) : []
       })
 
-      return { ...r, wM, dM, x, y, w: wM * PX, h: dM * PX, entries }
-    })
-  }, [home, synthetics])
+        return { ...r, wM, dM, x, y, w: wM * PX, h: dM * PX, entries }
+      })
+  }, [home, synthetics, floor])
 
   const W = home.w * PX
   const H = home.d * PX
@@ -61,20 +68,43 @@ export default function BlueprintPlan({ home, synthetics = {}, onPick }) {
   const furnishable = rooms.filter((r) => r.furnishable)
   const done = furnishable.filter((r) => r.entries.length > 0).length
 
+  // Counted across the whole building, not just this storey — "6 of 9" should
+  // mean the house, or switching floors would make the number jump around.
+  const allFurnishable = home.rooms.filter((r) => r.furnishable)
+  const allDone = allFurnishable.filter((r) => (r.items || []).length > 0).length
+
   return (
     <div className="blueprint">
       <div className="bp-head">
         <span className="bp-title">
           {home.beds} bed · {home.baths} bath · {home.sqft.toLocaleString()} sq ft
         </span>
+        {storeys > 1 && (
+          <span className="bp-floors" role="group" aria-label="Storey">
+            {Array.from({ length: storeys }, (_, i) => (
+              <button
+                key={i}
+                className={`bp-floor ${i === floor ? 'on' : ''}`}
+                onClick={() => onFloor?.(i)}
+                aria-pressed={i === floor}
+                title={FLOOR_NAME[i] || `Level ${i + 1}`}
+              >
+                {i === 0 ? 'G' : i + 1}
+              </button>
+            ))}
+          </span>
+        )}
+
         <span className="bp-progress">
           <span className="bp-progress-bar">
             <span
               className="bp-progress-fill"
-              style={{ width: `${furnishable.length ? (done / furnishable.length) * 100 : 0}%` }}
+              style={{
+                width: `${allFurnishable.length ? (allDone / allFurnishable.length) * 100 : 0}%`,
+              }}
             />
           </span>
-          {done} of {furnishable.length} rooms furnished
+          {allDone} of {allFurnishable.length} rooms furnished
         </span>
       </div>
 

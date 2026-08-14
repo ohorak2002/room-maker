@@ -17,7 +17,7 @@ import { floorRuns, wallRuns } from './shapeGeom'
 
 const WALL_H = 0.55 // low enough to see the whole plan from a shallow angle
 
-export function buildHome(scene, { home, palette }) {
+export function buildHome(scene, { home, palette, floor = 0 }) {
   const group = new THREE.Group()
   const pickables = []
 
@@ -28,16 +28,27 @@ export function buildHome(scene, { home, palette }) {
     envMapIntensity: 0.15,
   })
 
-  for (const room of home.rooms) {
+  // One storey at a time. Stacking them would hide the lower floors under the
+  // upper ones from any useful camera angle.
+  const shown = home.rooms.filter((r) => (r.floor ?? 0) === floor)
+
+  for (const room of shown) {
     const roomGroup = new THREE.Group()
     roomGroup.position.set(room.ox, 0, room.oz)
 
+    // Whether anything has been put in this room yet. An unfurnished room is
+    // drawn washed out, so the overview answers "which rooms have I done" the
+    // same way the plan does — without that, the two views disagreed and you
+    // had to open every room to find out.
+    const furnished = (room.items || []).length > 0
     const tint = ROOM_KIND_COLORS[room.kind] || '#B8AFA2'
     const floorMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(tint),
       roughness: 0.9,
       metalness: 0,
       envMapIntensity: 0.2,
+      transparent: !furnished,
+      opacity: furnished ? 1 : 0.32,
     })
 
     const shape = { cols: room.cols, rows: room.rows, cells: room.cells, h: WALL_H }

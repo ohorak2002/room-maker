@@ -8,8 +8,9 @@ const initial = {
   // 'room'  — design one room, the original behavior
   // 'home'  — generate a whole floorplan, then focus one room at a time
   scope: 'room',
-  home: null, // { beds, baths, sqft, rooms: [...], w, d, h } from generateHome()
+  home: null, // { beds, baths, sqft, storeys, rooms: [...], w, d, h } from generateHome()
   focusedRoom: null, // room id being edited while in home scope
+  activeFloor: 0, // storey shown in the whole-home views
 
 
   // Where you live. Optional, free text, never leaves the browser — see the
@@ -42,7 +43,7 @@ const initial = {
 
 // Fields worth restoring on undo. Deliberately excludes onboarding answers and
 // the photo — undo is for room edits, not for rewinding the whole session.
-const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customShape', 'customDims', 'windows', 'wallOverride', 'floorOverride', 'home', 'scope', 'focusedRoom']
+const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customShape', 'customDims', 'windows', 'wallOverride', 'floorOverride', 'home', 'scope', 'focusedRoom', 'activeFloor']
 
 const snapshot = (s) => Object.fromEntries(TRACKED.map((k) => [k, s[k]]))
 
@@ -215,7 +216,25 @@ export const useRoomStore = create(
         set((s) => ({ home, scope: 'home', focusedRoom: null, layoutRev: s.layoutRev + 1 }))
       },
 
-      focusRoom: (roomId) => set((s) => ({ focusedRoom: roomId, layoutRev: s.layoutRev + 1 })),
+      /** Focus a room, following it to its storey so leaving lands you there. */
+      focusRoom: (roomId) =>
+        set((s) => {
+          const room = s.home?.rooms.find((r) => r.id === roomId)
+          return {
+            focusedRoom: roomId,
+            activeFloor: room?.floor ?? s.activeFloor,
+            layoutRev: s.layoutRev + 1,
+          }
+        }),
+
+      setFloor: (floor) => set((s) => ({ activeFloor: floor, layoutRev: s.layoutRev + 1 })),
+
+      /** Rooms on the storey currently being shown. */
+      floorRooms: () => {
+        const s = get()
+        if (!s.home) return []
+        return s.home.rooms.filter((r) => (r.floor ?? 0) === s.activeFloor)
+      },
 
       exitRoom: () => set((s) => ({ focusedRoom: null, layoutRev: s.layoutRev + 1 })),
 

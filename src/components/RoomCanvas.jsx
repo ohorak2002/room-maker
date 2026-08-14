@@ -43,6 +43,7 @@ export default function RoomCanvas() {
   const scope = useRoomStore((s) => s.scope)
   const home = useRoomStore((s) => s.home)
   const focusedRoom = useRoomStore((s) => s.focusedRoom)
+  const activeFloor = useRoomStore((s) => s.activeFloor)
 
   // ---- engine (once) -----------------------------------------------------
   useEffect(() => {
@@ -222,7 +223,11 @@ export default function RoomCanvas() {
         floorY: 0,
       })
       engine.homeLights = buildHomeLights(scene, { span })
-      engine.room = buildHome(scene, { home: store.home, palette: colors })
+      engine.room = buildHome(scene, {
+        home: store.home,
+        palette: colors,
+        floor: store.activeFloor,
+      })
 
       // Look down at the plan from a shallow angle — high enough to read the
       // layout, low enough that the low walls still give it depth.
@@ -298,7 +303,7 @@ export default function RoomCanvas() {
     camera.position.set(dist * xBias, room.h * 0.78, dist * 0.86)
     controls.target.set(0, room.h * 0.4, -room.d * 0.1)
     controls.update()
-  }, [palette, lighting, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom])
+  }, [palette, lighting, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom, activeFloor])
 
   // ---- home overview: hover + click a room to focus it --------------------
   useEffect(() => {
@@ -685,7 +690,13 @@ export default function RoomCanvas() {
         <div ref={mountRef} className="canvas-mount" hidden={planView} />
 
         {planView && (
-          <BlueprintPlan home={home} synthetics={store.synthetics} onPick={(id) => store.focusRoom(id)} />
+          <BlueprintPlan
+            home={home}
+            synthetics={store.synthetics}
+            onPick={(id) => store.focusRoom(id)}
+            floor={store.activeFloor}
+            onFloor={(f) => store.setFloor(f)}
+          />
         )}
 
         <div className="canvas-tools">
@@ -705,6 +716,23 @@ export default function RoomCanvas() {
               3D
             </button>
           </div>
+          {/* The plan carries its own storey buttons in its header; the 3D view
+              needs them here or you'd have to switch views to change floor. */}
+          {!planView && (home.storeys ?? 1) > 1 && (
+            <span className="bp-floors" role="group" aria-label="Storey">
+              {Array.from({ length: home.storeys }, (_, i) => (
+                <button
+                  key={i}
+                  className={`bp-floor ${i === store.activeFloor ? 'on' : ''}`}
+                  onClick={() => store.setFloor(i)}
+                  aria-pressed={i === store.activeFloor}
+                >
+                  {i === 0 ? 'G' : i + 1}
+                </button>
+              ))}
+            </span>
+          )}
+
           {!planView && (
             <span className="tool-note">
               {home.beds} bed · {home.baths} bath · {home.sqft.toLocaleString()} sq ft
