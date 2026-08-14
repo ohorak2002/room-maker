@@ -134,17 +134,18 @@ const SURFACES = {
 
   /** Upholstery. A real over-under weave, not a checker — threads alternate. */
   fabric: (u, v) => {
-    const f = 34
+    const f = 26
     const x = u * f
     const y = v * f
     const over = (Math.floor(x) + Math.floor(y)) % 2 === 0
     const thread = over ? Math.sin(fract(x) * Math.PI) : Math.sin(fract(y) * Math.PI)
-    const fuzz = fbm(u * 140, v * 140, 2, 8)
-    const h = thread * 0.8 + fuzz * 0.2
+    const fuzz = fbm(u * 150, v * 150, 2, 8)
     return {
-      h,
-      a: 0.86 + thread * 0.12 - fuzz * 0.04,
-      r: 1.0 + (1 - thread) * 0.08 + fuzz * 0.06,
+      h: thread * 0.72 + fuzz * 0.28,
+      // Most of what identifies woven cloth is the alternating sheen, not the
+      // relief — so the variation lives in roughness rather than in height.
+      a: 0.9 + thread * 0.07 - fuzz * 0.03,
+      r: 1.0 + (1 - thread) * 0.16 + fuzz * 0.05,
     }
   },
 
@@ -225,9 +226,13 @@ const SURFACES = {
 // times it repeats across a piece by default. Wood needs a low repeat or the
 // grain looks like corduroy; fabric weave needs a high one or it looks knitted.
 const TUNING = {
-  wood: { normalScale: 0.55, repeat: 1.2 },
+  wood: { normalScale: 0.3, repeat: 1.2 },
   plank: { normalScale: 0.4, repeat: 1 },
-  fabric: { normalScale: 0.45, repeat: 3 },
+  // Upholstery weave was reading as corduroy: the relief was far too deep and
+  // the tile too large, so at close range a sofa looked ribbed. Real weave is
+  // almost flat — it's a sheen difference more than a bumpy surface — so the
+  // normal is weak and the tile repeats many more times across a piece.
+  fabric: { normalScale: 0.09, repeat: 9 },
   tile: { normalScale: 1.0, repeat: 1.6 },
   brushed: { normalScale: 0.25, repeat: 1 },
   porcelain: { normalScale: 0.18, repeat: 1 },

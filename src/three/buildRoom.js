@@ -51,6 +51,50 @@ const box = (w, h, d, material, radius = 0.018) => {
 /** Hard-edged box, for the room shell where bevels would read as sloppy. */
 const hardBox = (w, h, d, material) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material)
 
+/**
+ * A cushion: a box with a large corner radius, squashed slightly and given a
+ * gentle barrel to its faces.
+ *
+ * This is most of what separates upholstery from a crate. Real foam under
+ * fabric never has a flat face or a sharp arris — it bulges between its seams,
+ * and the highlight running along that bulge is what the eye reads as "soft".
+ * A rounded box alone still looks machined; the barrel is the part that lands.
+ */
+const cushion = (w, h, d, material, radius = 0.07, bulge = 0.02) => {
+  const r = Math.min(radius, w / 2.4, h / 2.4, d / 2.4)
+  const geo = new RoundedBoxGeometry(w, h, d, 6, r)
+  const pos = geo.attributes.position
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const y = pos.getY(i)
+    const z = pos.getZ(i)
+    // Push each vertex out by how far it is from the middle on the other two
+    // axes, so faces swell and edges stay put.
+    const fx = 1 - Math.min(1, Math.abs(x) / (w / 2)) ** 2
+    const fy = 1 - Math.min(1, Math.abs(y) / (h / 2)) ** 2
+    const fz = 1 - Math.min(1, Math.abs(z) / (d / 2)) ** 2
+    pos.setX(i, x + Math.sign(x) * bulge * fy * fz)
+    pos.setY(i, y + Math.sign(y) * bulge * fx * fz)
+    pos.setZ(i, z + Math.sign(z) * bulge * fx * fy)
+  }
+  geo.computeVertexNormals()
+  return new THREE.Mesh(geo, material)
+}
+
+/**
+ * A leg tapered toward the floor, tilted out from vertical.
+ *
+ * Furniture legs are almost never straight cylinders standing plumb. The taper
+ * and the splay are small — a couple of centimetres and a few degrees — and
+ * they're the difference between a piece that sits and a piece that hovers.
+ */
+const taperedLeg = (topR, botR, h, material, splay = 0) => {
+  const leg = cyl(topR, botR, h, material, 10)
+  leg.rotation.z = splay
+  return leg
+}
+
 const cyl = (rt, rb, h, material, seg = 32) =>
   new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), material)
 const sphere = (r, material, seg = 24) => new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), material)
@@ -272,33 +316,98 @@ export const builders = {
   armchair: (it) => {
     const g = new THREE.Group()
     const m = FABRIC(it.color)
-    const seat = box(0.85, 0.35, 0.85, m)
-    seat.position.y = 0.3
+    const legH = 0.12
+    const W = 0.86
+    const D = 0.86
+
+    const base = box(W, 0.2, D, m, 0.05)
+    base.position.y = legH + 0.1
+    g.add(base)
+
+    const seat = cushion(W - 0.24, 0.16, D - 0.22, m, 0.06, 0.022)
+    seat.position.set(0, legH + 0.28, 0.03)
     g.add(seat)
-    const back = box(0.85, 0.6, 0.18, m)
-    back.position.set(0, 0.6, -0.34)
+
+    const back = cushion(W - 0.26, 0.42, 0.16, m, 0.07, 0.025)
+    back.position.set(0, legH + 0.47, -D / 2 + 0.16)
+    back.rotation.x = -0.14
     g.add(back)
+
     for (const s of [-1, 1]) {
-      const arm = box(0.16, 0.28, 0.85, m)
-      arm.position.set(s * 0.35, 0.6, 0)
+      const arm = box(0.15, 0.32, D, m, 0.05)
+      arm.position.set(s * (W / 2 - 0.075), legH + 0.32, 0)
       g.add(arm)
+
+      const roll = cyl(0.075, 0.075, D, m, 16)
+      roll.rotation.x = Math.PI / 2
+      roll.position.set(s * (W / 2 - 0.075), legH + 0.48, 0)
+      g.add(roll)
+    }
+
+    for (const [x, z] of [[-0.33, -0.31], [0.33, -0.31], [-0.33, 0.31], [0.33, 0.31]]) {
+      const leg = taperedLeg(0.026, 0.018, legH, WOODEN('#5A4230'))
+      leg.position.set(x, legH / 2, z)
+      g.add(leg)
     }
     return g
   },
 
+  /**
+   * A sofa built the way one is actually made: a frame, then cushions sitting
+   * in it with visible seams, then arms, then legs.
+   *
+   * The old version was four boxes and read as a crate. What changed isn't
+   * detail for its own sake — it's that the seams between separate cushions,
+   * the gap under the frame, and the slight sink of the seats into the base
+   * are the specific cues the eye uses to identify a sofa. Miss them and no
+   * amount of texture rescues it.
+   */
   sofa: (it) => {
     const g = new THREE.Group()
     const m = FABRIC(it.color)
-    const seat = box(2.1, 0.4, 0.9, m)
-    seat.position.y = 0.3
-    g.add(seat)
-    const back = box(2.1, 0.6, 0.2, m)
-    back.position.set(0, 0.6, -0.35)
-    g.add(back)
+    const W = 2.1
+    const D = 0.92
+    const legH = 0.13
+
+    // Plinth — the frame the cushions sit in, lifted off the floor.
+    const base = box(W, 0.22, D, m, 0.04)
+    base.position.y = legH + 0.11
+    g.add(base)
+
+    // Three seat cushions with real gaps. One long cushion is the single
+    // biggest tell that something isn't a sofa.
+    const seatW = (W - 0.34) / 3
+    for (let i = 0; i < 3; i++) {
+      const c = cushion(seatW - 0.02, 0.17, D - 0.24, m, 0.06, 0.022)
+      c.position.set((i - 1) * seatW, legH + 0.3, 0.04)
+      g.add(c)
+    }
+
+    // Back cushions, tilted back and sitting proud of the frame.
+    for (let i = 0; i < 3; i++) {
+      const b = cushion(seatW - 0.03, 0.42, 0.17, m, 0.07, 0.025)
+      b.position.set((i - 1) * seatW, legH + 0.5, -D / 2 + 0.17)
+      b.rotation.x = -0.12
+      g.add(b)
+    }
+
+    // Rolled arms — a squashed cylinder capping a slab, which is the shape of
+    // every upholstered arm and nothing like the flat board it replaced.
     for (const s of [-1, 1]) {
-      const arm = box(0.18, 0.3, 0.9, m)
-      arm.position.set(s * 0.96, 0.62, 0)
+      const arm = box(0.17, 0.34, D, m, 0.05)
+      arm.position.set(s * (W / 2 - 0.085), legH + 0.34, 0)
       g.add(arm)
+
+      const roll = cyl(0.085, 0.085, D, m, 18)
+      roll.rotation.x = Math.PI / 2
+      roll.position.set(s * (W / 2 - 0.085), legH + 0.51, 0)
+      g.add(roll)
+    }
+
+    for (const [x, z] of [[-0.9, -0.34], [0.9, -0.34], [-0.9, 0.34], [0.9, 0.34]]) {
+      const leg = taperedLeg(0.028, 0.019, legH, WOODEN('#5A4230'), 0)
+      leg.position.set(x, legH / 2, z)
+      g.add(leg)
     }
     return g
   },
@@ -359,19 +468,41 @@ export const builders = {
 
   bed: (it) => {
     const g = new THREE.Group()
-    const base = box(1.6, 0.35, 2.0, FABRIC(it.color))
-    base.position.y = 0.18
-    g.add(base)
-    const mattress = box(1.55, 0.22, 1.95, FABRIC('#EFEAE2'))
-    mattress.position.y = 0.46
+    const m = FABRIC(it.color)
+    const legH = 0.11
+    const W = 1.6
+    const L = 2.0
+
+    const frame = box(W, 0.26, L, m, 0.03)
+    frame.position.y = legH + 0.13
+    g.add(frame)
+
+    // The mattress bulges — that soft edge rolling over the frame is the thing
+    // a stacked pair of boxes never gets.
+    const mattress = cushion(W - 0.07, 0.24, L - 0.07, FABRIC('#EFEAE2'), 0.09, 0.03)
+    mattress.position.y = legH + 0.37
     g.add(mattress)
-    const head = box(1.6, 0.7, 0.12, FABRIC(it.color))
-    head.position.set(0, 0.6, -1.0)
-    g.add(head)
+
+    // Duvet folded back, so the bed reads as made rather than as a slab.
+    const duvet = cushion(W - 0.04, 0.1, L * 0.62, FABRIC('#F6F3EC'), 0.05, 0.02)
+    duvet.position.set(0, legH + 0.5, L / 2 - (L * 0.62) / 2 - 0.04)
+    g.add(duvet)
+
+    const headboard = box(W, 0.78, 0.11, m, 0.04)
+    headboard.position.set(0, legH + 0.52, -L / 2 + 0.05)
+    g.add(headboard)
+
     for (const s of [-1, 1]) {
-      const pillow = box(0.6, 0.14, 0.35, FABRIC('#FFFFFF'))
-      pillow.position.set(s * 0.38, 0.62, -0.72)
+      const pillow = cushion(0.62, 0.15, 0.36, FABRIC('#FCFBF8'), 0.075, 0.035)
+      pillow.position.set(s * 0.37, legH + 0.55, -L / 2 + 0.32)
+      pillow.rotation.z = s * 0.03
       g.add(pillow)
+    }
+
+    for (const [x, z] of [[-0.72, -0.92], [0.72, -0.92], [-0.72, 0.92], [0.72, 0.92]]) {
+      const leg = taperedLeg(0.03, 0.021, legH, WOODEN('#5A4230'))
+      leg.position.set(x, legH / 2, z)
+      g.add(leg)
     }
     return g
   },
