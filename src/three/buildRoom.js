@@ -4,6 +4,44 @@ import { zoneOf } from './layout'
 import { floorRuns, wallRuns, windowWall } from './shapeGeom'
 import { shapeBounds } from '../data/presets'
 import { applySurface } from './textures'
+import { FIDDLE_FIG } from './meshes/fiddleFig'
+
+/**
+ * Build a mesh that was modelled in SketchUp and extracted as raw geometry.
+ *
+ * The data already arrives in this app's contract — metres, Y-up, origin on
+ * the floor, centred on X and Z — so there is no scaling or re-seating to do.
+ * Vertex normals are computed here rather than shipped: the extraction emits
+ * one normal per face, and recomputing gives the pot and trunk a smooth
+ * shaded surface for free while flat parts stay flat.
+ *
+ * Materials marked `tint` are multiplied by the catalog colour, so the piece
+ * still answers to the palette. The rest keep the colours they were authored
+ * with — a terracotta pot shouldn't turn sage because the walls did.
+ */
+function sketchupMesh(spec, it) {
+  const g = new THREE.Group()
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(spec.positions, 3))
+  geo.computeVertexNormals()
+
+  for (const [start, count, matIndex] of spec.groups) {
+    geo.addGroup(start, count, matIndex)
+  }
+
+  const mats = spec.materials.map((m) => {
+    const [r, gg, b] = m.rgb
+    const hex = `#${((1 << 24) + (r << 16) + (gg << 8) + b).toString(16).slice(1)}`
+    return m.tint ? FOLIAGE(it.color || hex) : mat(hex, 0.62, 0.0, 0.4, 'paper')
+  })
+
+  const mesh = new THREE.Mesh(geo, mats)
+  // Height is baked in, so honour the catalog's size by scaling uniformly.
+  const s = it.h ? it.h / spec.heightM : 1
+  mesh.scale.setScalar(s)
+  g.add(mesh)
+  return g
+}
 
 // ---------------------------------------------------------------------------
 // Materials
@@ -319,7 +357,14 @@ export const builders = {
    * makes this species recognisable is big individual leaves on visible stems,
    * so the leaves are modelled and the canopy isn't.
    */
-  tree: (it) => {
+  /**
+   * The fig is now the SketchUp model rather than the procedural one — the
+   * first piece in the app whose geometry was authored in a real modeller and
+   * imported as data. Everything else here is still built in code.
+   */
+  tree: (it) => sketchupMesh(FIDDLE_FIG, it),
+
+  _treeProcedural: (it) => {
     const g = new THREE.Group()
     const pot = lathe([[0.16, 0], [0.19, 0.03], [0.21, 0.14], [0.23, 0.33], [0.215, 0.35], [0.19, 0.33]], CERAMIC('#A8705A'))
     g.add(pot)
