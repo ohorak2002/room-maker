@@ -247,3 +247,28 @@
   background: var(--accent);
   color: #fff;
 }
+
+/* --- doors and windows --------------------------------------------------- */
+
+/* The cut is drawn in the ground colour, over the wall, so an opening is a
+   genuine hole in the line rather than a symbol sitting on top of it. */
+.bp-cut {
+  stroke: var(--surface-sunk);
+  stroke-width: 5.5;
+  stroke-linecap: butt;
+}
+
+.bp-swing {
+  fill: none;
+  stroke: var(--ink-muted);
+  stroke-width: 1.2;
+  opacity: 0.6;
+}
+
+.bp-glass {
+  stroke: var(--ink-muted);
+  stroke-width: 1.4;
+  opacity: 0.85;
+}
+
+.bp-cuts { pointer-events: none; }

@@ -84,6 +84,8 @@ export function autoArrange(entries, room) {
   let ceilSlot = 0
   let deskAnchor = null
   let bedAnchor = null
+  let diningAnchor = null
+  let chairSlot = 0
 
   // Kitchen pieces consume a shared cursor along the back wall, so a counter, a
   // range and a fridge end up in one continuous run the way a real kitchen is
@@ -212,6 +214,32 @@ export function autoArrange(entries, room) {
         p = { x: 0, z: d * 0.14, ry: 0 }
         break
 
+      // --- dining: chairs go around the table, not into corners -------------
+      case 'diningtable':
+        p = { x: 0, z: 0, ry: 0 }
+        diningAnchor = p
+        break
+
+      case 'diningchair': {
+        // Seats alternate long sides first, then the ends — which is the order
+        // a table actually fills up, and keeps pairs facing each other.
+        const a = diningAnchor || { x: 0, z: 0 }
+        const slot = chairSlot++
+        const perSide = 3
+        const side = slot % 2 ? 1 : -1
+        const idx = Math.floor(slot / 2) % perSide
+        if (Math.floor(slot / 2) < perSide) {
+          p = { x: a.x + (idx - 1) * 0.62, z: a.z + side * 0.78, ry: side > 0 ? Math.PI : 0 }
+        } else {
+          p = { x: a.x + side * 1.15, z: a.z, ry: side > 0 ? -Math.PI / 2 : Math.PI / 2 }
+        }
+        break
+      }
+
+      case 'sideboard':
+        p = { x: 0, z: backZ + 0.32, ry: 0 }
+        break
+
       // --- bathroom: fixtures are plumbed to walls, not floated -------------
       // Toilet and vanity share the back wall on opposite sides; the tub takes
       // the long front wall and the shower the far corner, which is how a small
@@ -315,7 +343,7 @@ export function autoArrange(entries, room) {
 // Anything plumbed, vented or built in holds its spot outright — a fridge does
 // not get nudged aside by a plant. The relax pass moves the loose piece instead.
 const PINNED = new Set([
-  'bed', 'desk', 'sofa', 'shelf',
+  'bed', 'desk', 'sofa', 'shelf', 'diningtable', 'sideboard',
   'toilet', 'vanity', 'bathtub', 'shower',
   'counter', 'kitchensink', 'range', 'dishwasher', 'fridge', 'island',
   'washer', 'dryer',
@@ -328,7 +356,8 @@ const ORDER = [
   'counter', 'kitchensink', 'range', 'dishwasher', 'fridge', 'island',
   'bathtub', 'shower', 'toilet', 'vanity',
   'washer', 'dryer',
-  'bed', 'sofa', 'desk', 'shelf', 'nightstand', 'chair', 'monitor', 'tower', 'desklamp',
+  'bed', 'sofa', 'diningtable', 'desk', 'shelf', 'sideboard', 'nightstand',
+  'diningchair', 'chair', 'monitor', 'tower', 'desklamp',
 ]
 const rank = (model) => {
   const i = ORDER.indexOf(model)

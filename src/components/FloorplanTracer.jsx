@@ -228,7 +228,9 @@ export default function FloorplanTracer({ onDone, onCancel }) {
           )}
 
           <button className="btn-primary" disabled={!ready} onClick={finish}>
-            {ready ? `Build this home — ${rects.length} rooms` : 'Draw at least one room'}
+            {ready
+              ? `Build this home — ${rects.length} ${rects.length === 1 ? 'room' : 'rooms'}`
+              : 'Draw at least one room'}
           </button>
         </div>
       )}

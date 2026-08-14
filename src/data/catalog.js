@@ -116,6 +116,16 @@ const raw = [
   { id: 'dishwasher', name: 'Built-In Dishwasher', cat: 'kitchen', retailer: 'lowes', price: 649, color: '#B9BDC2', model: 'dishwasher', h: 0.86, fp: 0.36, area: 0.37, group: 'dishwasher', rooms: ['kitchen'], vibes: ['modern', 'cool'] },
   { id: 'washer', name: 'Front-Load Washer', cat: 'kitchen', retailer: 'homedepot', price: 749, color: '#E8EAEC', model: 'washer', h: 0.97, fp: 0.36, area: 0.36, group: 'washer', rooms: ['laundry'], vibes: ['modern', 'cool', 'minimal'] },
   { id: 'dryer', name: 'Front-Load Electric Dryer', cat: 'kitchen', retailer: 'homedepot', price: 699, color: '#E8EAEC', model: 'dryer', h: 0.97, fp: 0.36, area: 0.36, group: 'dryer', rooms: ['laundry'], vibes: ['modern', 'cool', 'minimal'] },
+
+  // ---- Dining -------------------------------------------------------------
+  // Dining rooms generated as furnishable but had nothing to put in them — the
+  // same gap the bathrooms had. Chairs are sold as pairs, which is how they're
+  // actually bought and how the layout solver wants to place them.
+  { id: 'dining-table', name: 'Seats-6 Dining Table', cat: 'surfaces', retailer: 'wayfair', price: 549, color: '#7A5C42', model: 'diningtable', h: 0.76, fp: 1.05, area: 1.76, group: 'dining-table', rooms: ['dining', 'kitchen'], vibes: ['warm', 'modern', 'natural'] },
+  { id: 'dining-table-budget', name: 'Seats-4 Dining Table (Value)', cat: 'surfaces', retailer: 'ikea', price: 229, color: '#8C7A62', model: 'diningtable', h: 0.74, fp: 0.9, area: 1.3, group: 'dining-table', rooms: ['dining', 'kitchen'], vibes: ['minimal', 'modern'] },
+  { id: 'dining-chairs', name: 'Dining Chairs, Set of 2', cat: 'seating', retailer: 'wayfair', price: 189, color: '#B8A489', model: 'diningchair', h: 0.92, fp: 0.3, area: 0.22, group: 'dining-chair', rooms: ['dining', 'kitchen'], vibes: ['warm', 'natural', 'modern'] },
+  { id: 'dining-chairs-budget', name: 'Dining Chairs, Set of 2 (Value)', cat: 'seating', retailer: 'walmart', price: 89, color: '#A89880', model: 'diningchair', h: 0.9, fp: 0.28, area: 0.2, group: 'dining-chair', rooms: ['dining', 'kitchen'], vibes: ['minimal', 'modern'] },
+  { id: 'sideboard', name: 'Sideboard Buffet Cabinet', cat: 'surfaces', retailer: 'westelm', price: 799, color: '#6B5340', model: 'sideboard', h: 0.82, fp: 0.8, area: 0.68, group: 'sideboard', rooms: ['dining', 'living'], vibes: ['warm', 'modern', 'academic'] },
 ]
 
 export const CATALOG = raw.map((item) => {
@@ -230,6 +240,7 @@ export const ROOM_PACKS = {
   bath: { name: 'Full bathroom', items: ['toilet', 'vanity', 'bathtub', 'towel-rack'] },
   primaryBath: { name: 'Primary bathroom', items: ['toilet', 'vanity', 'shower', 'bathtub', 'towel-rack'] },
   kitchen: { name: 'Working kitchen', items: ['counter-run', 'kitchen-sink', 'range', 'fridge', 'dishwasher'] },
+  dining: { name: 'Dining set', items: ['dining-table', 'dining-chairs', 'dining-chairs', 'sideboard', 'pendant'] },
   laundry: { name: 'Laundry pair', items: ['washer', 'dryer', 'towel-rack'] },
 }
 

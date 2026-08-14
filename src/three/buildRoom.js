@@ -837,6 +837,89 @@ export const builders = {
     return g
   },
 
+  // --- dining -------------------------------------------------------------
+
+  diningtable: (it) => {
+    const g = new THREE.Group()
+    const wood = WOODEN(it.color)
+
+    const top = box(1.85, 0.055, 0.95, wood)
+    top.position.y = it.h
+    g.add(top)
+
+    // The apron under the top is what stops a dining table reading as a slab on
+    // sticks — it's the band every real one has between the legs.
+    const apron = box(1.62, 0.09, 0.74, wood)
+    apron.position.y = it.h - 0.08
+    g.add(apron)
+
+    for (const [x, z] of [[-0.8, -0.36], [0.8, -0.36], [-0.8, 0.36], [0.8, 0.36]]) {
+      const leg = box(0.075, it.h - 0.055, 0.075, wood)
+      leg.position.set(x, (it.h - 0.055) / 2, z)
+      g.add(leg)
+    }
+    return g
+  },
+
+  diningchair: (it) => {
+    const g = new THREE.Group()
+    const wood = WOODEN('#7A5C42')
+    const seatY = it.h * 0.42
+
+    const seat = box(0.44, 0.06, 0.44, FABRIC(it.color))
+    seat.position.y = seatY
+    g.add(seat)
+
+    // Slatted back — a solid panel reads as a bench, and the gaps are most of
+    // what makes a dining chair look like one from across a room.
+    for (let i = 0; i < 3; i++) {
+      const slat = box(0.4, 0.075, 0.035, wood)
+      slat.position.set(0, seatY + 0.16 + i * 0.13, -0.2)
+      g.add(slat)
+    }
+    for (const s of [-1, 1]) {
+      const post = box(0.045, it.h - seatY, 0.045, wood)
+      post.position.set(s * 0.2, seatY + (it.h - seatY) / 2, -0.2)
+      g.add(post)
+    }
+
+    for (const [x, z] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) {
+      const leg = box(0.045, seatY, 0.045, wood)
+      leg.position.set(x, seatY / 2, z)
+      g.add(leg)
+    }
+    return g
+  },
+
+  sideboard: (it) => {
+    const g = new THREE.Group()
+    const wood = WOODEN(it.color)
+    const legH = 0.14
+    const bodyH = it.h - legH
+
+    const body = box(1.5, bodyH, 0.45, wood)
+    body.position.y = legH + bodyH / 2
+    g.add(body)
+
+    for (let i = 0; i < 3; i++) {
+      const x = -0.5 + i * 0.5
+      const door = box(0.46, bodyH - 0.1, 0.02, wood)
+      door.position.set(x, legH + bodyH / 2, 0.235)
+      g.add(door)
+
+      const pull = box(0.15, 0.018, 0.018, METAL('#C9CDD2'))
+      pull.position.set(x, legH + bodyH * 0.72, 0.255)
+      g.add(pull)
+    }
+
+    for (const [x, z] of [[-0.68, -0.16], [0.68, -0.16], [-0.68, 0.16], [0.68, 0.16]]) {
+      const leg = box(0.05, legH, 0.05, METAL(DARK))
+      leg.position.set(x, legH / 2, z)
+      g.add(leg)
+    }
+    return g
+  },
+
   // --- laundry ------------------------------------------------------------
 
   washer: (it) => frontLoader(it, '#9FB3BD'),

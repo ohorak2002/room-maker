@@ -38,6 +38,81 @@ function ftIn(m) {
 
 const sqft = (wM, dM) => Math.round(wM * dM * 10.7639)
 
+/**
+ * Work out where the doors and windows go.
+ *
+ * Nothing in the data says — the generator produces rooms, not openings. But a
+ * plan without them reads as a diagram of boxes rather than somewhere you could
+ * walk, and the rules are simple enough to derive: two rooms that share a wall
+ * need a door between them, and a wall with nothing on the other side is an
+ * outside wall, which is where windows go.
+ *
+ * Both are drawn as a gap in the wall rather than a symbol on top of it, which
+ * is what makes an opening read as an opening.
+ */
+function openings(rooms) {
+  const doors = []
+  const windows = []
+  const EPS = 1.5
+  const DOOR = 34 // ~0.85m at PX=40
+  const MIN_SHARED = 56
+
+  const overlap = (a1, a2, b1, b2) => [Math.max(a1, b1), Math.min(a2, b2)]
+
+  // Every edge starts out exterior; sharing one with a neighbour marks it used.
+  const shared = rooms.map(() => ({ L: [], R: [], T: [], B: [] }))
+
+  for (let i = 0; i < rooms.length; i++) {
+    for (let j = i + 1; j < rooms.length; j++) {
+      const a = rooms[i]
+      const b = rooms[j]
+
+      // Vertical seam: one room's right edge against the other's left.
+      for (const [p, q, pi, qi] of [[a, b, i, j], [b, a, j, i]]) {
+        if (Math.abs(p.x + p.w - q.x) < EPS) {
+          const [y1, y2] = overlap(p.y, p.y + p.h, q.y, q.y + q.h)
+          if (y2 - y1 > MIN_SHARED) {
+            shared[pi].R.push([y1, y2])
+            shared[qi].L.push([y1, y2])
+            doors.push({ x: q.x, y: (y1 + y2) / 2, vertical: true, len: DOOR })
+          }
+        }
+        if (Math.abs(p.y + p.h - q.y) < EPS) {
+          const [x1, x2] = overlap(p.x, p.x + p.w, q.x, q.x + q.w)
+          if (x2 - x1 > MIN_SHARED) {
+            shared[pi].B.push([x1, x2])
+            shared[qi].T.push([x1, x2])
+            doors.push({ x: (x1 + x2) / 2, y: q.y, vertical: false, len: DOOR })
+          }
+        }
+      }
+    }
+  }
+
+  // A window per outside wall, but only on rooms people occupy — a window into
+  // a hallway from nowhere is noise, and utility rooms often genuinely have none.
+  rooms.forEach((r, i) => {
+    if (!r.furnishable) return
+    const s = shared[i]
+    const covered = (list, from, to) => list.some(([a, b]) => b - a > (to - from) * 0.55)
+
+    if (!covered(s.T, r.x, r.x + r.w) && r.w > 90) {
+      windows.push({ x1: r.x + r.w * 0.3, y1: r.y, x2: r.x + r.w * 0.7, y2: r.y })
+    }
+    if (!covered(s.B, r.x, r.x + r.w) && r.w > 90) {
+      windows.push({ x1: r.x + r.w * 0.3, y1: r.y + r.h, x2: r.x + r.w * 0.7, y2: r.y + r.h })
+    }
+    if (!covered(s.L, r.y, r.y + r.h) && r.h > 90) {
+      windows.push({ x1: r.x, y1: r.y + r.h * 0.3, x2: r.x, y2: r.y + r.h * 0.7 })
+    }
+    if (!covered(s.R, r.y, r.y + r.h) && r.h > 90) {
+      windows.push({ x1: r.x + r.w, y1: r.y + r.h * 0.3, x2: r.x + r.w, y2: r.y + r.h * 0.7 })
+    }
+  })
+
+  return { doors, windows }
+}
+
 export default function BlueprintPlan({ home, synthetics = {}, onPick, floor = 0, onFloor }) {
   const [hover, setHover] = useState(null)
   const storeys = home.storeys ?? 1
@@ -67,6 +142,8 @@ export default function BlueprintPlan({ home, synthetics = {}, onPick, floor = 0
 
   const furnishable = rooms.filter((r) => r.furnishable)
   const done = furnishable.filter((r) => r.entries.length > 0).length
+
+  const cuts = useMemo(() => openings(rooms), [rooms])
 
   // Counted across the whole building, not just this storey — "6 of 9" should
   // mean the house, or switching floors would make the number jump around.
@@ -199,6 +276,35 @@ export default function BlueprintPlan({ home, synthetics = {}, onPick, floor = 0
               </g>
             )
           })}
+
+          {/* Openings go on top of every room, so a door punched through a
+              shared wall erases both rooms' wall lines rather than one of them
+              and leaving a stub behind. */}
+          <g className="bp-cuts">
+            {cuts.windows.map((w, i) => (
+              <g key={`w${i}`} className="bp-window">
+                <line className="bp-cut" x1={w.x1} y1={w.y1} x2={w.x2} y2={w.y2} />
+                <line className="bp-glass" x1={w.x1} y1={w.y1} x2={w.x2} y2={w.y2} />
+              </g>
+            ))}
+
+            {cuts.doors.map((d, i) => {
+              const half = d.len / 2
+              const [x1, y1, x2, y2] = d.vertical
+                ? [d.x, d.y - half, d.x, d.y + half]
+                : [d.x - half, d.y, d.x + half, d.y]
+              // A quarter arc from the hinge, the way a plan shows a door swing.
+              const arc = d.vertical
+                ? `M ${d.x} ${d.y - half} A ${d.len} ${d.len} 0 0 1 ${d.x + d.len} ${d.y + half - d.len + d.len}`
+                : `M ${d.x - half} ${d.y} A ${d.len} ${d.len} 0 0 0 ${d.x - half + d.len} ${d.y + d.len}`
+              return (
+                <g key={`d${i}`} className="bp-door">
+                  <line className="bp-cut" x1={x1} y1={y1} x2={x2} y2={y2} />
+                  <path className="bp-swing" d={arc} />
+                </g>
+              )
+            })}
+          </g>
         </svg>
       </div>
 
