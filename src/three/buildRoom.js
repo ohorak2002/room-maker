@@ -1753,16 +1753,26 @@ function buildLights(scene, { shape, h, lighting, windows }) {
     return l
   }
 
-  // The environment map now supplies most of the fill, so these are roughly a
-  // third of what they were before it existed. Keeping the old values on top of
-  // IBL blew every scene out to white.
+  // Balance is everything here, and it was wrong: ambient plus a ceiling fill
+  // at `fill * 12` came to more light than the key, so nothing had a lit side
+  // and a shaded side. Every room rendered as a milky white box — a clay floor
+  // at #b08968 came out near-white — and no palette could show through it.
+  //
+  // The fix is not less light overall, it is a wider gap between key and fill.
+  // A room reads as three-dimensional because one direction is brighter than
+  // the others; flatten that and the nicest palette in the world goes grey.
+  //
+  // So: ambient down by about two thirds, key up, fill down to a hint. Overcast
+  // deliberately keeps its high ambient and low key, because "flat, soft,
+  // shadowless grey" is what that rig is *for* — it is the one place the old
+  // balance was correct.
   const rigs = {
-    natural: { amb: 0.28, ambColor: 0xf3f1ea, sun: 2.1, sunColor: 0xfff6e8, fill: 0.22 },
-    warm: { amb: 0.2, ambColor: 0xffd9a8, sun: 1.1, sunColor: 0xffb865, fill: 0.42 },
-    cool: { amb: 0.3, ambColor: 0xe4edf7, sun: 1.7, sunColor: 0xd2e4ff, fill: 0.2 },
-    moody: { amb: 0.06, ambColor: 0x5b5266, sun: 0.5, sunColor: 0xffa055, fill: 0.55 },
-    golden: { amb: 0.18, ambColor: 0xffd9a0, sun: 2.4, sunColor: 0xffb95e, fill: 0.3 },
-    overcast: { amb: 0.42, ambColor: 0xe8ebee, sun: 0.7, sunColor: 0xdfe6ec, fill: 0.15 },
+    natural: { amb: 0.1, ambColor: 0xf3f1ea, sun: 3.0, sunColor: 0xfff6e8, fill: 0.06 },
+    warm: { amb: 0.09, ambColor: 0xffd9a8, sun: 1.9, sunColor: 0xffb865, fill: 0.11 },
+    cool: { amb: 0.11, ambColor: 0xe4edf7, sun: 2.6, sunColor: 0xd2e4ff, fill: 0.05 },
+    moody: { amb: 0.03, ambColor: 0x5b5266, sun: 1.0, sunColor: 0xffa055, fill: 0.14 },
+    golden: { amb: 0.08, ambColor: 0xffd9a0, sun: 3.4, sunColor: 0xffb95e, fill: 0.07 },
+    overcast: { amb: 0.34, ambColor: 0xe8ebee, sun: 1.2, sunColor: 0xdfe6ec, fill: 0.04 },
   }
   const rig = rigs[lighting] || rigs.natural
 
