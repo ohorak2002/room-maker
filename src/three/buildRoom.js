@@ -105,7 +105,9 @@ const ENAMEL = (c) => mat(c, 0.15, 0.25, 1.1, 'porcelain')
  */
 const frontLoader = (it, doorTint) => {
   const g = new THREE.Group()
-  const body = box(0.6, it.h, 0.6, mat('#E8EAEC', 0.35, 0.1, 0.7))
+  // Painted appliance steel — closest to porcelain's faint orange peel, not the
+  // directional brushing of a stainless finish.
+  const body = box(0.6, it.h, 0.6, mat('#E8EAEC', 0.35, 0.1, 0.7, 'porcelain'))
   body.position.y = it.h / 2
   g.add(body)
 
@@ -119,7 +121,7 @@ const frontLoader = (it, doorTint) => {
   ring.position.set(0, it.h * 0.5, 0.285)
   g.add(ring)
 
-  const panel = box(0.56, 0.1, 0.02, mat('#2A2D31', 0.3, 0.2, 0.8))
+  const panel = box(0.56, 0.1, 0.02, mat('#2A2D31', 0.3, 0.2, 0.8, 'plastic'))
   panel.position.set(0, it.h * 0.87, 0.31)
   g.add(panel)
 
