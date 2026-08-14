@@ -45,6 +45,22 @@ const TYPES = [
   { model: 'tv', cat: 'tech', words: ['tv', 'television', 'smart tv'], h: 0.85, fp: 0.75, base: 480 },
   { model: 'tower', cat: 'tech', words: ['pc', 'tower', 'desktop computer', 'gaming pc'], h: 0.5, fp: 0.28, base: 800 },
   { model: 'speaker', cat: 'tech', words: ['speaker', 'speakers', 'subwoofer'], h: 1.0, fp: 0.25, base: 200 },
+
+  // Appliances and fixtures. Everything here has a builder, so a generated
+  // "stainless gas stove" renders as a real object rather than failing to parse.
+  { model: 'range', cat: 'kitchen', words: ['stove', 'oven', 'range', 'cooktop', 'stovetop', 'gas range', 'electric range'], h: 0.92, fp: 0.45, area: 0.5, base: 800 },
+  { model: 'fridge', cat: 'kitchen', words: ['fridge', 'refrigerator', 'freezer', 'icebox'], h: 1.78, fp: 0.52, area: 0.66, base: 1200 },
+  { model: 'dishwasher', cat: 'kitchen', words: ['dishwasher', 'dish washer'], h: 0.86, fp: 0.36, area: 0.37, base: 650 },
+  { model: 'washer', cat: 'kitchen', words: ['washer', 'washing machine', 'clothes washer'], h: 0.97, fp: 0.36, area: 0.36, base: 750 },
+  { model: 'dryer', cat: 'kitchen', words: ['dryer', 'clothes dryer', 'tumble dryer'], h: 0.97, fp: 0.36, area: 0.36, base: 700 },
+  { model: 'counter', cat: 'kitchen', words: ['cabinets', 'cupboards', 'counter', 'countertop', 'base cabinets', 'kitchen cabinets'], h: 0.92, fp: 0.95, area: 1.21, base: 890 },
+  { model: 'kitchensink', cat: 'kitchen', words: ['kitchen sink', 'sink cabinet'], h: 0.92, fp: 0.68, area: 0.82, base: 420 },
+  { model: 'island', cat: 'kitchen', words: ['island', 'kitchen island', 'breakfast bar'], h: 0.94, fp: 0.85, area: 1.72, base: 750 },
+  { model: 'toilet', cat: 'bath', words: ['toilet', 'commode', 'water closet'], h: 0.78, fp: 0.38, area: 0.28, base: 190 },
+  { model: 'vanity', cat: 'bath', words: ['vanity', 'bathroom vanity', 'bathroom sink', 'sink'], h: 0.85, fp: 0.5, area: 0.5, base: 450 },
+  { model: 'bathtub', cat: 'bath', words: ['bathtub', 'tub', 'soaking tub', 'bath tub'], h: 0.55, fp: 0.9, area: 1.24, base: 530 },
+  { model: 'shower', cat: 'bath', words: ['shower', 'shower stall', 'shower enclosure', 'walk in shower'], h: 2.0, fp: 0.62, area: 0.85, base: 680 },
+  { model: 'towelrack', cat: 'bath', words: ['towel rack', 'towel bar', 'towel rail'], h: 0.5, fp: 0.3, base: 35 },
 ]
 
 const COLORS = [
@@ -179,6 +195,9 @@ export function synthesize(query, quality = 55, maxPrice = null) {
     model: type.model,
     h: +(type.h * (size?.scale ?? 1)).toFixed(2),
     fp: +(type.fp * (size?.scale ?? 1)).toFixed(2),
+    // Fixtures carry a measured footprint so crowding doesn't over-count them.
+    // Area is two-dimensional, so it scales by the square of a size modifier.
+    ...(type.area ? { area: +(type.area * (size?.scale ?? 1) ** 2).toFixed(2) } : {}),
     color: color?.hex ?? '#B8AFA2',
     emissive: type.emissive ?? false,
     price,
@@ -222,7 +241,8 @@ export const EXAMPLE_QUERIES = [
   'large walnut desk',
   'small brass floor lamp',
   'green velvet armchair',
-  'tall faux olive tree',
+  'stainless gas stove',
+  'compact washing machine',
   'black metal bookshelf',
 ]
 

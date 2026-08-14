@@ -30,15 +30,42 @@ const SYNONYMS = {
   'floor-mirror': ['mirror', 'full length mirror', 'floor mirror'],
   monitor: ['monitor', 'display', 'screen'],
   'pc-tower': ['pc', 'computer', 'desktop', 'tower'],
-  'ceiling-fan': ['ceiling fan', 'fan'],
-  microwave: ['microwave'],
-  dishwasher: ['dishwasher'],
-  blinds: ['mini blinds', 'venetian blinds'],
-  closet: ['closet organizer', 'closet system'],
+
+  // Appliances and fixtures. These are the words people actually reach for
+  // about a place they're moving into — "it came with a stove" is far commoner
+  // than "it came with a freestanding gas range".
+  range: ['stove', 'oven', 'range', 'cooktop', 'stovetop', 'gas range', 'electric range'],
+  fridge: ['fridge', 'refrigerator', 'freezer', 'icebox'],
+  dishwasher: ['dishwasher', 'dish washer'],
+  washer: ['washer', 'washing machine', 'clothes washer'],
+  dryer: ['dryer', 'clothes dryer', 'tumble dryer'],
+  'counter-run': ['cabinets', 'cupboards', 'counters', 'countertop', 'counter top', 'base cabinets', 'kitchen cabinets'],
+  'kitchen-sink': ['kitchen sink', 'sink'],
+  island: ['island', 'kitchen island', 'breakfast bar'],
+  toilet: ['toilet', 'commode', 'water closet'],
+  vanity: ['vanity', 'bathroom vanity', 'bathroom sink', 'sink cabinet'],
+  bathtub: ['bathtub', 'tub', 'soaking tub', 'bath tub'],
+  shower: ['shower', 'shower stall', 'walk in shower', 'shower enclosure'],
+  'towel-rack': ['towel rack', 'towel bar', 'towel rail'],
+
+  // Deliberately mapped to the nearest thing that actually exists.
+  curtains: ['mini blinds', 'venetian blinds'],
 }
 
-/** Longest phrases first so "desk chair" wins over "desk". */
+/**
+ * Longest phrases first so "desk chair" wins over "desk", and "kitchen sink"
+ * over "sink".
+ *
+ * Synonyms pointing at an id no catalog item has are dropped rather than
+ * matched. Letting them through produced chips labelled with the raw id — a
+ * literal "ceiling-fan" where a product name should be — because nothing could
+ * be looked up to give it a name. Better to leave the phrase in `leftovers`,
+ * where it's shown back honestly as something we couldn't place.
+ */
+const VALID = new Set(CATALOG.map((i) => i.id))
+
 const MATCHERS = Object.entries(SYNONYMS)
+  .filter(([id]) => VALID.has(id))
   .flatMap(([id, words]) => words.map((w) => ({ id, w: w.toLowerCase() })))
   .concat(CATALOG.map((i) => ({ id: i.id, w: i.name.toLowerCase() })))
   .sort((a, b) => b.w.length - a.w.length)

@@ -274,9 +274,24 @@ export default function RoomCanvas() {
     const vHalf = (camera.fov * Math.PI) / 360
     const hHalf = Math.atan(Math.tan(vHalf) * Math.max(camera.aspect, 0.35))
     const radius = Math.hypot(room.w / 2, room.d / 2, room.h / 2)
-    const dist = (radius / Math.sin(Math.min(vHalf, hHalf))) * 0.7
 
-    camera.position.set(dist * 0.5, room.h * 0.78, dist * 0.86)
+    // 0.7 crops in for a tighter shot, which flatters a living room and ruins a
+    // bathroom — at that distance the camera sits level with the side walls.
+    // Ease back toward a full fit as the room gets smaller.
+    const snug = THREE.MathUtils.clamp(Math.min(room.w, room.d) / 4.5, 0, 1)
+    const crop = THREE.MathUtils.lerp(1.08, 0.7, snug)
+    const fit = (radius / Math.sin(Math.min(vHalf, hHalf))) * crop
+    // Stand off far enough to clear the footprint no matter how small the room.
+    const dist = Math.max(fit, room.d / 2 + 1.7)
+
+    // Only the near wall is left off, so the view has to enter through that
+    // opening. A fixed swing to the side works until the room is narrower than
+    // it is deep — then the sight line crosses a side wall instead, which is
+    // exactly what a small bathroom or a galley kitchen is. Straighten up as
+    // the room narrows.
+    const xBias = 0.5 * Math.min(1, room.w / Math.max(room.d, 0.01))
+
+    camera.position.set(dist * xBias, room.h * 0.78, dist * 0.86)
     controls.target.set(0, room.h * 0.4, -room.d * 0.1)
     controls.update()
   }, [palette, lighting, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom])
