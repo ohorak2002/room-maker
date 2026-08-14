@@ -294,6 +294,30 @@ export const useRoomStore = create(
       version: 2,
       // Undo history is session-only.
       partialize: (s) => Object.fromEntries(Object.entries(s).filter(([k]) => k !== '_past')),
+
+      /**
+       * Carry an older saved room forward.
+       *
+       * Without this, zustand logs "State loaded from storage couldn't be
+       * migrated" and *discards the save* — so anyone who used the app before a
+       * version bump silently loses their room on their next visit. That is a
+       * bad way to greet a returning user, and the only ones who ever see it
+       * are the people who liked the app enough to come back.
+       *
+       * Merging over `initial` rather than returning the old state directly is
+       * what makes this safe for future bumps: fields added since the save
+       * arrive at their defaults instead of `undefined`.
+       */
+      migrate: (persisted, from) => {
+        if (!persisted || typeof persisted !== 'object') return { ...initial }
+        const next = { ...initial, ...persisted }
+        // v1 stored a single `dims` object where v2 splits preset from custom.
+        if (from < 2 && persisted.dims && !persisted.customDims) {
+          next.customDims = persisted.dims
+          delete next.dims
+        }
+        return next
+      },
     }
   )
 )
