@@ -15,6 +15,7 @@ import './HeroRoom.css'
 export default function HeroRoom({ palette = 'clay' }) {
   const mountRef = useRef(null)
   const [ready, setReady] = useState(false)
+  const [shot, setShot] = useState(null)
 
   useEffect(() => {
     const mount = mountRef.current
@@ -82,17 +83,17 @@ export default function HeroRoom({ palette = 'clay' }) {
         // different shape, palette, light and furniture set, so the page shows
         // the range of what the app makes instead of a single example.
         const SCENES = [
-          { shape: 'living', h: 2.9, palette, lighting: 'golden',
+          { name: 'Living room', mood: 'Golden hour', shape: 'living', h: 2.9, palette, lighting: 'golden',
             picks: ['sofa', 'coffee-table', 'rug', 'fiddle-fig', 'floor-lamp', 'bookshelf', 'canvas-art', 'monstera'] },
-          { shape: 'bedroom', h: 2.7, palette: 'dusk', lighting: 'warm',
+          { name: 'Bedroom', mood: 'Dusk blue', shape: 'bedroom', h: 2.7, palette: 'dusk', lighting: 'warm',
             picks: ['bed', 'nightstand', 'rug', 'floor-lamp', 'gallery-set', 'snake-plant', 'curtains'] },
-          { shape: 'lshape', h: 2.8, palette: 'sage', lighting: 'natural',
+          { name: 'Studio with a wing', mood: 'Sage & oat', shape: 'lshape', h: 2.8, palette: 'sage', lighting: 'natural',
             picks: ['sofa', 'desk', 'desk-chair', 'monitor', 'palm', 'bookshelf', 'rug', 'pouf'] },
-          { shape: 'loft', h: 3.6, palette: 'copper', lighting: 'moody',
+          { name: 'Loft', mood: 'Charcoal & copper', shape: 'loft', h: 3.6, palette: 'copper', lighting: 'moody',
             picks: ['sofa', 'coffee-table', 'tv', 'led-strip', 'floor-lamp', 'olive-tree', 'rug', 'speaker'] },
-          { shape: 'alcove', h: 2.8, palette: 'terra', lighting: 'overcast',
+          { name: 'Room with an alcove', mood: 'Terracotta', shape: 'alcove', h: 2.8, palette: 'terra', lighting: 'overcast',
             picks: ['bed', 'desk', 'desk-chair', 'bookshelf', 'hanging-pothos', 'floor-mirror', 'rug'] },
-          { shape: 'studio', h: 2.6, palette: 'mint', lighting: 'cool',
+          { name: 'Studio', mood: 'Mint & birch', shape: 'studio', h: 2.6, palette: 'mint', lighting: 'cool',
             picks: ['bed-budget', 'desk-budget', 'chair-budget', 'succulent-trio', 'gallery-set', 'rug-budget'] },
         ]
 
@@ -103,6 +104,7 @@ export default function HeroRoom({ palette = 'clay' }) {
 
         const buildScene = (i) => {
           const cfg = SCENES[i % SCENES.length]
+          setShot({ name: cfg.name, mood: cfg.mood, index: i % SCENES.length, total: SCENES.length })
           const shape = { ...presets.getShape(cfg.shape), h: cfg.h }
           const p = presets.getPalette(cfg.palette)
           room = presets.shapeBounds(shape)
@@ -166,11 +168,16 @@ export default function HeroRoom({ palette = 'clay' }) {
         // Each scene holds for HOLD_MS, then crossfades to the next through
         // black. Swapping geometry mid-fade means the change is never visible
         // as a pop — the only frame where both could be seen is fully dark.
-        const HOLD_MS = 7000
-        const FADE_MS = 900
+        const HOLD_MS = 6400
+        const FADE_MS = 760
         let phaseStart = performance.now()
         let fading = false
         let swapped = false
+        let entered = performance.now()
+
+        // Cubic ease, used for both the dip and the push-in. Linear motion is
+        // the single clearest sign that something was animated by a computer.
+        const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
         let frame
         const tick = (now) => {
@@ -186,9 +193,11 @@ export default function HeroRoom({ palette = 'clay' }) {
           let exposure = 1.15
           if (fading) {
             const k = Math.min((now - phaseStart) / FADE_MS, 1)
-            // Down to black at the midpoint, back up after the swap.
-            const dip = 1 - Math.sin(Math.min(k, 1) * Math.PI)
-            exposure = 1.15 * Math.max(dip, 0.02)
+            // Dips deep enough to hide the geometry swap and no deeper. The old
+            // version went to near-black, which read as the power cutting out
+            // rather than as a transition.
+            const dip = 1 - Math.sin(ease(k) * Math.PI) * 0.94
+            exposure = 1.15 * dip
 
             if (k >= 0.5 && !swapped) {
               teardownScene()
@@ -196,6 +205,7 @@ export default function HeroRoom({ palette = 'clay' }) {
               buildScene(sceneIndex)
               reframe()
               swapped = true
+              entered = now
             }
             if (k >= 1) {
               fading = false
@@ -205,8 +215,18 @@ export default function HeroRoom({ palette = 'clay' }) {
           }
           renderer.toneMappingExposure = exposure
 
+          // A slow push-in over the first few seconds of each scene. The camera
+          // arriving still and then creeping closer is what makes it feel shot
+          // rather than rendered — the drift alone read as a screensaver.
+          const settle = Math.min((now - entered) / 2600, 1)
+          const push = 1.075 - 0.075 * ease(settle)
+
           const t = now * 0.00004
-          camera.position.set(Math.sin(t) * dist * 0.62, eye, Math.cos(t * 0.7) * dist * 0.5 + dist * 0.55)
+          camera.position.set(
+            Math.sin(t) * dist * 0.62 * push,
+            eye * (1 + (1 - ease(settle)) * 0.05),
+            (Math.cos(t * 0.7) * dist * 0.5 + dist * 0.55) * push
+          )
           camera.lookAt(0, room.h * 0.36, -room.d * 0.08)
           composer.render()
         }
@@ -243,11 +263,26 @@ export default function HeroRoom({ palette = 'clay' }) {
   // several stacking and media rules on this screen, and an inline value is the
   // one thing that can't lose a specificity argument.
   return (
-    <div
-      ref={mountRef}
-      className="hero-room"
-      style={{ opacity: ready ? 0.92 : 0, transform: ready ? 'none' : 'translateY(10px)' }}
-      aria-hidden="true"
-    />
+    <div className="hero-stage" aria-hidden="true">
+      <div
+        ref={mountRef}
+        className="hero-room"
+        style={{ opacity: ready ? 0.92 : 0, transform: ready ? 'none' : 'translateY(10px)' }}
+      />
+
+      {ready && shot && (
+        <div className="hero-caption">
+          <span key={shot.name} className="hero-cap-text">
+            <strong>{shot.name}</strong>
+            <span className="hero-cap-mood">{shot.mood}</span>
+          </span>
+          <span className="hero-dots">
+            {Array.from({ length: shot.total }, (_, i) => (
+              <span key={i} className={`hero-dot ${i === shot.index ? 'on' : ''}`} />
+            ))}
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
