@@ -21,9 +21,9 @@ const TYPES = [
   { model: 'chair', cat: 'seating', words: ['desk chair', 'office chair', 'task chair', 'chair'], h: 1.1, fp: 0.42, base: 180 },
   { model: 'beanbag', cat: 'seating', words: ['bean bag', 'beanbag'], h: 0.65, fp: 0.5, base: 120 },
   { model: 'pouf', cat: 'seating', words: ['pouf', 'ottoman', 'footstool'], h: 0.4, fp: 0.34, base: 90 },
-  { model: 'bed', cat: 'surfaces', words: ['bed', 'bed frame', 'platform bed', 'mattress'], h: 0.55, fp: 1.3, base: 520 },
+  { model: 'bed', cat: 'surfaces', words: ['bed', 'bed frame', 'platform bed', 'mattress', 'double bed', 'queen bed', 'king bed', 'twin bed', 'daybed', 'futon', 'bunk bed', 'crib', 'cot'], h: 0.55, fp: 1.3, base: 520 },
   { model: 'desk', cat: 'surfaces', words: ['desk', 'writing table', 'standing desk', 'workstation'], h: 0.75, fp: 0.85, base: 280 },
-  { model: 'table', cat: 'surfaces', words: ['coffee table', 'side table', 'round table', 'table'], h: 0.42, fp: 0.55, base: 260 },
+  { model: 'table', cat: 'surfaces', words: ['coffee table', 'side table', 'round table', 'end table', 'console table', 'accent table', 'bar cart', 'plant stand', 'table'], h: 0.42, fp: 0.55, base: 260 },
   { model: 'nightstand', cat: 'surfaces', words: ['nightstand', 'bedside table', 'night stand'], h: 0.6, fp: 0.32, base: 130 },
   { model: 'shelf', cat: 'surfaces', words: ['bookshelf', 'shelving', 'bookcase', 'shelf', 'storage unit'], h: 1.8, fp: 0.5, base: 190 },
   { model: 'rug', cat: 'surfaces', words: ['rug', 'carpet', 'area rug'], h: 0.02, fp: 1.6, base: 220 },
@@ -61,6 +61,28 @@ const TYPES = [
   { model: 'bathtub', cat: 'bath', words: ['bathtub', 'tub', 'soaking tub', 'bath tub'], h: 0.55, fp: 0.9, area: 1.24, base: 530 },
   { model: 'shower', cat: 'bath', words: ['shower', 'shower stall', 'shower enclosure', 'walk in shower'], h: 2.0, fp: 0.62, area: 0.85, base: 680 },
   { model: 'towelrack', cat: 'bath', words: ['towel rack', 'towel bar', 'towel rail'], h: 0.5, fp: 0.3, base: 35 },
+
+  // --- dining ---------------------------------------------------------------
+  { model: 'diningtable', cat: 'surfaces', words: ['dining table', 'kitchen table', 'dinner table', 'breakfast table', 'dining set'], h: 0.76, fp: 1.05, area: 1.76, base: 550 },
+  { model: 'diningchair', cat: 'seating', words: ['dining chair', 'kitchen chair', 'side chair'], h: 0.92, fp: 0.3, area: 0.22, base: 95 },
+  { model: 'sideboard', cat: 'surfaces', words: ['sideboard', 'buffet', 'hutch', 'server'], h: 0.82, fp: 0.8, area: 0.68, base: 800 },
+
+  // --- storage --------------------------------------------------------------
+  { model: 'dresser', cat: 'surfaces', words: ['dresser', 'chest of drawers', 'drawers', 'chest', 'bureau', 'credenza', 'tallboy'], h: 0.9, fp: 0.62, area: 0.58, base: 380 },
+  { model: 'wardrobe', cat: 'surfaces', words: ['wardrobe', 'armoire', 'closet', 'clothes rack', 'garment rack', 'cupboard', 'linen cabinet', 'storage cabinet', 'cabinet', 'locker', 'filing cabinet'], h: 1.95, fp: 0.6, area: 0.63, base: 620 },
+
+  // --- more seating ---------------------------------------------------------
+  { model: 'stool', cat: 'seating', words: ['stool', 'bar stool', 'barstool', 'counter stool', 'step stool'], h: 0.68, fp: 0.24, area: 0.11, base: 95 },
+  { model: 'bench', cat: 'seating', words: ['bench', 'entry bench', 'shoe bench', 'window seat', 'piano bench'], h: 0.45, fp: 0.7, area: 0.5, base: 180 },
+
+  // --- countertop machines --------------------------------------------------
+  // One shape covers all of these. The differences between a toaster and an air
+  // fryer don't survive being 40cm wide across a room, and a recognisable box
+  // on the counter beats a refusal.
+  { model: 'smallappliance', cat: 'kitchen', words: ['microwave', 'toaster', 'toaster oven', 'air fryer', 'coffee maker', 'coffee machine', 'espresso machine', 'kettle', 'blender', 'food processor', 'mixer', 'slow cooker', 'rice cooker', 'instant pot', 'bread maker', 'juicer'], h: 0.32, fp: 0.26, area: 0.16, base: 110 },
+
+  // --- bins and baskets -----------------------------------------------------
+  { model: 'bin', cat: 'decor', words: ['hamper', 'laundry basket', 'basket', 'bin', 'trash can', 'garbage can', 'wastebasket', 'recycling bin', 'storage basket', 'toy box', 'litter box'], h: 0.55, fp: 0.24, area: 0.13, base: 45 },
 ]
 
 const COLORS = [

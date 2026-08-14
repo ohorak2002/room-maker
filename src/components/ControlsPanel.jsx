@@ -2,6 +2,7 @@ import { useRoomStore } from '../store/roomStore'
 import Section from './Section'
 import ShapeEditor from './ShapeEditor'
 import IncludedChat from './IncludedChat'
+import PaletteImport from './PaletteImport'
 import { PALETTES, MOODS, LIGHTING } from '../data/presets'
 import './ControlsPanel.css'
 
@@ -61,6 +62,10 @@ export default function ControlsPanel() {
             Reset to palette colors
           </button>
         )}
+      </Section>
+
+      <Section title="Your own palette" summary="Paste hex codes">
+        <PaletteImport />
       </Section>
 
       <Section title="Feel" summary={MOODS.find((m) => m.id === store.mood)?.name}>

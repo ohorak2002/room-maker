@@ -227,6 +227,8 @@ export default function RoomCanvas() {
         home: store.home,
         palette: colors,
         floor: store.activeFloor,
+        synthetics: store.synthetics,
+        placements: store.placements,
       })
 
       // Look down at the plan from a shallow angle — high enough to read the
@@ -677,6 +679,7 @@ export default function RoomCanvas() {
   const pack = starterForRoom(activeRoom?.kind, store.mood)
   const packName = pack.name
   const isFixtureRoom = Boolean(activeRoom?.kind && ROOM_PACKS[activeRoom.kind])
+  const saved = activeItems.reduce((n, i) => n + i.qty, 0)
 
   // --- whole-home overview: a different set of controls entirely -----------
   if (inOverview) {
@@ -769,6 +772,13 @@ export default function RoomCanvas() {
             ← Whole place
           </button>
           <span className="focus-name">{activeRoom.name}</span>
+          {/* Everything is already written to the browser as you go, so this
+              doesn't perform a save — it confirms one and takes you back. A
+              button that implied work was happening would be a lie; what was
+              actually missing was any sign that the work had been kept. */}
+          <button className="focus-save" onClick={() => store.exitRoom()}>
+            {saved > 0 ? `Saved · ${saved} ${saved === 1 ? 'piece' : 'pieces'}` : 'Nothing in here yet'}
+          </button>
         </div>
       )}
 

@@ -293,3 +293,24 @@
   background: var(--accent);
   color: #fff;
 }
+
+/* Confirmation that the room's contents are kept, in the banner where you'd
+   look for a save button. It reads state rather than performing an action. */
+.focus-save {
+  margin-left: 10px;
+  padding: 5px 11px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-save:hover {
+  background: var(--accent);
+  color: #fff;
+}

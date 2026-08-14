@@ -920,6 +920,111 @@ export const builders = {
     return g
   },
 
+  // --- storage and odds and ends -------------------------------------------
+  // These exist so ordinary words resolve to something recognisable. A dresser
+  // is not a nightstand and a wardrobe is not a bookshelf, and typing either
+  // used to fall through to a plain crate.
+
+  dresser: (it) => {
+    const g = new THREE.Group()
+    const wood = WOODEN(it.color)
+    const body = box(1.15, it.h, 0.5, wood)
+    body.position.y = it.h / 2
+    g.add(body)
+
+    const rows = 3
+    for (let r = 0; r < rows; r++) {
+      const y = (it.h / rows) * (r + 0.5)
+      for (const s of [-1, 1]) {
+        const drawer = box(0.52, it.h / rows - 0.05, 0.02, wood)
+        drawer.position.set(s * 0.28, y, 0.26)
+        g.add(drawer)
+
+        const pull = box(0.16, 0.018, 0.018, METAL('#C9CDD2'))
+        pull.position.set(s * 0.28, y, 0.285)
+        g.add(pull)
+      }
+    }
+    return g
+  },
+
+  wardrobe: (it) => {
+    const g = new THREE.Group()
+    const wood = WOODEN(it.color)
+    const body = box(1.05, it.h, 0.6, wood)
+    body.position.y = it.h / 2
+    g.add(body)
+
+    for (const s of [-1, 1]) {
+      const door = box(0.5, it.h - 0.1, 0.022, wood)
+      door.position.set(s * 0.26, it.h / 2, 0.31)
+      g.add(door)
+
+      const handle = cyl(0.014, 0.014, 0.22, METAL('#C9CDD2'), 10)
+      handle.position.set(s * 0.06, it.h * 0.5, 0.335)
+      g.add(handle)
+    }
+    return g
+  },
+
+  stool: (it) => {
+    const g = new THREE.Group()
+    const seat = cyl(0.18, 0.18, 0.06, FABRIC(it.color), 20)
+    seat.position.y = it.h - 0.03
+    g.add(seat)
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2
+      const leg = cyl(0.016, 0.02, it.h - 0.06, METAL(DARK), 8)
+      leg.position.set(Math.cos(a) * 0.12, (it.h - 0.06) / 2, Math.sin(a) * 0.12)
+      leg.rotation.z = Math.cos(a) * 0.08
+      leg.rotation.x = -Math.sin(a) * 0.08
+      g.add(leg)
+    }
+    return g
+  },
+
+  bench: (it) => {
+    const g = new THREE.Group()
+    const seat = box(1.3, 0.08, 0.38, WOODEN(it.color))
+    seat.position.y = it.h
+    g.add(seat)
+    for (const s of [-1, 1]) {
+      const leg = box(0.07, it.h, 0.34, WOODEN(it.color))
+      leg.position.set(s * 0.55, it.h / 2, 0)
+      g.add(leg)
+    }
+    return g
+  },
+
+  /** Countertop machines — toaster, microwave, coffee maker, air fryer. */
+  smallappliance: (it) => {
+    const g = new THREE.Group()
+    const body = box(0.44, it.h, 0.36, mat('#D8DADD', 0.35, 0.35, 0.9), 0.03)
+    body.position.y = it.h / 2
+    g.add(body)
+
+    const door = box(0.34, it.h * 0.6, 0.02, ENAMEL('#1B1D21'))
+    door.position.set(-0.03, it.h * 0.5, 0.19)
+    g.add(door)
+
+    const panel = box(0.06, it.h * 0.6, 0.02, mat('#2A2D31', 0.4, 0.2, 0.7))
+    panel.position.set(0.17, it.h * 0.5, 0.19)
+    g.add(panel)
+    return g
+  },
+
+  /** Bins, hampers, baskets — anything cylindrical you drop things into. */
+  bin: (it) => {
+    const g = new THREE.Group()
+    const body = cyl(0.2, 0.16, it.h, FABRIC(it.color), 20)
+    body.position.y = it.h / 2
+    g.add(body)
+    const rim = cyl(0.205, 0.205, 0.03, FABRIC(it.color), 20)
+    rim.position.y = it.h
+    g.add(rim)
+    return g
+  },
+
   // --- laundry ------------------------------------------------------------
 
   washer: (it) => frontLoader(it, '#9FB3BD'),

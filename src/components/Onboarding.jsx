@@ -244,12 +244,8 @@ function ResidenceStep({ store }) {
       </label>
 
       <p className="privacy-note">
-        As you type, we look up matching addresses through Photon, a free public map service — the
-        text you type is sent to their servers to generate suggestions, which is different from every
-        other field in this app. Nothing else about you is sent, and it's just for typing convenience:
-        there's still no data source that maps an address to a floorplan, so this can't look up your
-        unit's actual layout or size. You can also just type a name like "The Hub Athens" and skip the
-        suggestions entirely.
+        Stays on your device. Address suggestions come from a public map service as you type; nothing
+        else about you is ever sent anywhere.
       </p>
 
       <fieldset className="prefurn">

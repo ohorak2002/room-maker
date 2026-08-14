@@ -3,6 +3,9 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { CELL } from '../data/presets'
 import { ROOM_KIND_COLORS, roomSqft } from '../data/homeLayout'
 import { floorRuns, wallRuns } from './shapeGeom'
+import { builders } from './buildRoom'
+import { autoArrange, instanceKey, zoneOf } from './layout'
+import { resolveItem } from '../data/catalog'
 
 /**
  * A dollhouse view of a whole generated floorplan.
@@ -11,13 +14,18 @@ import { floorRuns, wallRuns } from './shapeGeom'
  * choosing which room to work on, not judging materials, so this trades
  * realism for legibility: low walls you can see over, flat colour-coded floors
  * per room type, and each room raycastable as one object so clicking it can
- * focus it. Rendering six fully-furnished photoreal rooms at once would be
- * slower, harder to read, and answer a question nobody is asking here.
+ * focus it.
+ *
+ * It does render the furniture, though, which it used to skip. Leaving rooms
+ * empty here meant the overview couldn't answer the one question it exists to
+ * answer — which rooms have I actually done — without opening every one of
+ * them. Wall-mounted and ceiling pieces are dropped, because at this camera
+ * angle they'd float over the low walls and read as clutter.
  */
 
 const WALL_H = 0.55 // low enough to see the whole plan from a shallow angle
 
-export function buildHome(scene, { home, palette, floor = 0 }) {
+export function buildHome(scene, { home, palette, floor = 0, synthetics = {}, placements = {} }) {
   const group = new THREE.Group()
   const pickables = []
 
@@ -69,6 +77,41 @@ export function buildHome(scene, { home, palette, floor = 0 }) {
       wall.castShadow = true
       wall.receiveShadow = true
       roomGroup.add(wall)
+    }
+
+    // --- the room's contents ---------------------------------------------
+    // Laid out with the same solver the single-room view uses, so a room looks
+    // the same from up here as it does once you open it. Anything the user has
+    // dragged by hand keeps its spot.
+    const entries = []
+    for (const entry of room.items || []) {
+      const item = resolveItem(entry.id, synthetics)
+      if (!item || !builders[item.model]) continue
+      const zone = zoneOf(item.model)
+      // Wall art and pendants would hang in mid-air over 0.55m walls.
+      if (zone !== 'floor' && zone !== 'center') continue
+      for (let n = 0; n < entry.qty; n++) {
+        entries.push({ key: instanceKey(item.id, n), item })
+      }
+    }
+
+    if (entries.length) {
+      const roomDims = { w: room.cols * CELL, d: room.rows * CELL, h: room.h, shape }
+      const solved = autoArrange(entries, roomDims)
+      for (const { key, item } of entries) {
+        const p = placements[`${room.id}:${key}`] || solved[key]
+        if (!p) continue
+        const node = builders[item.model](item)
+        node.position.set(p.x, p.y || 0, p.z)
+        node.rotation.y = p.ry || 0
+        node.traverse((o) => {
+          if (o.isMesh) {
+            o.castShadow = true
+            o.receiveShadow = true
+          }
+        })
+        roomGroup.add(node)
+      }
     }
 
     // One invisible slab covering the room's footprint, so a click anywhere in

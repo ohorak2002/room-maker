@@ -1,0 +1,93 @@
+.pal-import {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pal-input {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.pal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pal-swatches {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.pal-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+}
+
+.pal-count {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin-left: 4px;
+}
+
+.pal-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pal-role {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+.pal-role-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.pal-role-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.pal-role-hex {
+  margin-left: auto;
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+}
+
+.pal-note,
+.pal-miss {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.pal-miss code {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--surface-sunk);
+}
