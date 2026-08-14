@@ -15,6 +15,7 @@ import { buildAtmosphere } from '../three/atmosphere'
 import { autoArrange, instanceKey, zoneOf } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
 import PieceMenu from './PieceMenu'
+import BlueprintPlan from './BlueprintPlan'
 import './RoomCanvas.css'
 
 export default function RoomCanvas() {
@@ -25,6 +26,9 @@ export default function RoomCanvas() {
   const [warnDismissed, setWarnDismissed] = useState(false)
   const [menu, setMenu] = useState(null) // { key, name, x, y }
   const [hoveredRoom, setHoveredRoom] = useState(null) // { name, sqft } in home overview
+  // The flat plan is the default overview: it shows every room's name, size and
+  // contents at once, which the 3D view can't. The 3D stays a toggle away.
+  const [planView, setPlanView] = useState(true)
 
   const palette = useRoomStore((s) => s.palette)
   const lighting = useRoomStore((s) => s.lighting)
@@ -672,27 +676,55 @@ export default function RoomCanvas() {
   // --- whole-home overview: a different set of controls entirely -----------
   if (inOverview) {
     const furnished = home.rooms.filter((r) => (r.items || []).length > 0).length
+
     return (
       <div className="canvas-root">
-        <div ref={mountRef} className="canvas-mount" />
+        {/* The 3D mount stays mounted underneath even while the plan is showing.
+            Unmounting it would tear down the renderer and rebuild the whole
+            scene on every toggle, which is both slow and visibly jarring. */}
+        <div ref={mountRef} className="canvas-mount" hidden={planView} />
+
+        {planView && (
+          <BlueprintPlan home={home} synthetics={store.synthetics} onPick={(id) => store.focusRoom(id)} />
+        )}
 
         <div className="canvas-tools">
-          <span className="tool-note">
-            {home.beds} bed · {home.baths} bath · {home.sqft.toLocaleString()} sq ft
-          </span>
-        </div>
-
-        <div className="canvas-hud">
-          {hoveredRoom ? (
-            <span className="hud-sel">
-              <strong>{hoveredRoom.name}</strong> — {hoveredRoom.sqft} sq ft · click to design it
-            </span>
-          ) : (
-            <span className="hud-hint">
-              Click any room to design it{furnished > 0 ? ` · ${furnished} furnished so far` : ''}
+          <div className="view-toggle" role="group" aria-label="Overview style">
+            <button
+              className={`view-btn ${planView ? 'on' : ''}`}
+              onClick={() => setPlanView(true)}
+              aria-pressed={planView}
+            >
+              Plan
+            </button>
+            <button
+              className={`view-btn ${!planView ? 'on' : ''}`}
+              onClick={() => setPlanView(false)}
+              aria-pressed={!planView}
+            >
+              3D
+            </button>
+          </div>
+          {!planView && (
+            <span className="tool-note">
+              {home.beds} bed · {home.baths} bath · {home.sqft.toLocaleString()} sq ft
             </span>
           )}
         </div>
+
+        {!planView && (
+          <div className="canvas-hud">
+            {hoveredRoom ? (
+              <span className="hud-sel">
+                <strong>{hoveredRoom.name}</strong> — {hoveredRoom.sqft} sq ft · click to design it
+              </span>
+            ) : (
+              <span className="hud-hint">
+                Click any room to design it{furnished > 0 ? ` · ${furnished} furnished so far` : ''}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     )
   }

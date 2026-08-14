@@ -1,0 +1,232 @@
+/*
+ * Blueprint plan.
+ *
+ * Deliberately reads as a drawing rather than as app chrome: a paper-ish
+ * ground, heavy wall lines, and a single accent for the room you're pointing
+ * at. Colour is used for exactly two things — which rooms are furnished, and
+ * which one you're about to open — so neither has to compete for attention.
+ */
+
+.blueprint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  background: var(--bp-ground, #eef2f7);
+  min-height: 0;
+}
+
+:root[data-theme='dark'] .blueprint,
+.dark .blueprint {
+  --bp-ground: #12161c;
+}
+
+/* --- header ------------------------------------------------------------- */
+
+.bp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  /* The Plan/3D toggle is absolutely positioned over the canvas by the parent,
+     so the header has to leave its corner alone. */
+  padding-right: 120px;
+}
+
+.bp-title {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.bp-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bp-progress-bar {
+  display: block;
+  width: 90px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.bp-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* --- drawing ------------------------------------------------------------ */
+
+.bp-canvas {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bp-svg {
+  width: 100%;
+  height: 100%;
+  /* The plan is one shape; letting it fill the box would stretch the building. */
+  object-fit: contain;
+}
+
+.bp-room {
+  outline: none;
+}
+
+.bp-room.is-furnishable {
+  cursor: pointer;
+}
+
+.bp-fill {
+  fill: var(--bp-room, #dfe8f3);
+  transition: fill 0.16s ease;
+}
+
+.bp-wall {
+  fill: none;
+  stroke: var(--bp-wall, #2a4a7a);
+  stroke-width: 3.5;
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .bp-fill,
+.dark .bp-fill { fill: #1c2733; }
+
+:root[data-theme='dark'] .bp-wall,
+.dark .bp-wall { stroke: #5b7ea8; }
+
+/* Utility space — halls, entries. Present for orientation, but visibly not
+   somewhere you're being asked to do anything. */
+.bp-room.is-utility .bp-fill {
+  fill: var(--bp-utility, #e6e9ee);
+}
+
+:root[data-theme='dark'] .bp-room.is-utility .bp-fill,
+.dark .bp-room.is-utility .bp-fill { fill: #171c23; }
+
+.bp-room.is-utility .bp-wall {
+  stroke-width: 2.5;
+  opacity: 0.55;
+}
+
+/* An unfurnished room is drawn hollow, so "still to do" is legible at a glance
+   from across the plan rather than needing to be read. */
+.bp-room.is-furnishable.is-empty .bp-fill {
+  fill: transparent;
+  stroke: var(--bp-wall, #2a4a7a);
+  stroke-width: 1;
+  stroke-dasharray: 5 5;
+  opacity: 0.55;
+}
+
+.bp-room.is-hover.is-furnishable .bp-fill {
+  fill: var(--accent-wash, #d7ece2);
+  opacity: 1;
+  stroke: none;
+}
+
+.bp-room.is-hover.is-furnishable .bp-wall {
+  stroke: var(--accent);
+  stroke-width: 5;
+}
+
+.bp-room.is-furnishable:focus-visible .bp-wall {
+  stroke: var(--accent);
+  stroke-width: 5;
+}
+
+/* --- labels ------------------------------------------------------------- */
+
+.bp-name,
+.bp-dims,
+.bp-empty,
+.bp-more {
+  text-anchor: middle;
+  pointer-events: none;
+  fill: var(--bp-ink, #24384f);
+}
+
+:root[data-theme='dark'] .bp-name,
+:root[data-theme='dark'] .bp-dims,
+:root[data-theme='dark'] .bp-empty,
+:root[data-theme='dark'] .bp-more,
+.dark .bp-name,
+.dark .bp-dims,
+.dark .bp-empty,
+.dark .bp-more { fill: #c6d4e4; }
+
+.bp-name {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.bp-dims {
+  font-size: 10.5px;
+  opacity: 0.62;
+  font-variant-numeric: tabular-nums;
+}
+
+.bp-empty {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.bp-more {
+  text-anchor: start;
+  font-size: 10px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.bp-room.is-utility .bp-name {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+/* --- piece markers ------------------------------------------------------ */
+
+.bp-dot {
+  stroke: rgba(0, 0, 0, 0.28);
+  stroke-width: 0.8;
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .bp-dot,
+.dark .bp-dot { stroke: rgba(255, 255, 255, 0.3); }
+
+/* --- footer ------------------------------------------------------------- */
+
+.bp-hint {
+  flex-shrink: 0;
+  min-height: 1.2em;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .blueprint { padding: 10px 10px 8px; }
+  .bp-head { justify-content: center; }
+}
