@@ -1,0 +1,233 @@
+.tracer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 18px;
+}
+
+.tracer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tracer-steps {
+  display: flex;
+  gap: 14px;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tracer-steps .on {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.tracer-steps .done {
+  color: var(--ink-soft);
+}
+
+.tracer-hint {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+/* --- the image + overlay ------------------------------------------------- */
+
+.tracer-stage {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface-sunk);
+  /* Dragging on an image otherwise starts a native image-drag, which cancels
+     the pointer sequence halfway through the first rectangle. */
+  touch-action: none;
+  user-select: none;
+}
+
+.tracer-stage.scale { cursor: crosshair; }
+.tracer-stage.rooms { cursor: crosshair; }
+
+.tracer-stage img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.tracer-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* --- traced rooms -------------------------------------------------------- */
+
+.t-rect rect {
+  fill: var(--accent-wash);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.t-rect text {
+  fill: var(--accent);
+  font-size: 11px;
+  font-weight: 650;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* Rooms on an upper storey are drawn differently so a traced plan that covers
+   two floors doesn't look like one impossible floor with overlapping rooms. */
+.t-rect.upper rect {
+  stroke-dasharray: 6 4;
+  fill: rgba(154, 85, 24, 0.12);
+  stroke: var(--money);
+}
+
+.t-rect.upper text { fill: var(--money); }
+
+.t-rect.sel rect {
+  stroke-width: 3.5;
+}
+
+.t-draft {
+  fill: var(--accent-wash);
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+.t-scale line {
+  stroke: var(--danger);
+  stroke-width: 3;
+}
+
+.t-scale circle {
+  fill: var(--danger);
+}
+
+/* --- controls ------------------------------------------------------------ */
+
+.tracer-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tracer-foot.col {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.tracer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tracer-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.tracer-field input,
+.tracer-field select {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.tracer-field input[type='number'] {
+  width: 68px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- traced room list ---------------------------------------------------- */
+
+.tracer-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.tracer-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+.tracer-list li.sel {
+  border-color: var(--accent);
+}
+
+.tracer-list input {
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--ink);
+  font-size: 0.84rem;
+}
+
+.tracer-list input:focus {
+  border-color: var(--line);
+  background: var(--surface-sunk);
+}
+
+.tracer-list select {
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.t-size {
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- empty state --------------------------------------------------------- */
+
+.tracer-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 18px 16px;
+}
+
+.tracer-empty p {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { generateHome, roomSqft, ROOM_KIND_COLORS } from '../data/homeLayout'
+import FloorplanTracer from './FloorplanTracer'
 import './HomePanel.css'
 
 const PRESETS = [
@@ -19,6 +20,7 @@ export default function HomePanel() {
   const [baths, setBaths] = useState(store.home?.baths ?? 1)
   const [sqft, setSqft] = useState(store.home?.sqft ?? 1000)
   const [ceilingFt, setCeilingFt] = useState(9)
+  const [tracing, setTracing] = useState(false)
 
   const build = () => store.setHome(generateHome({ beds, baths, sqft, ceilingFt }))
 
@@ -57,6 +59,22 @@ export default function HomePanel() {
             published averages for how floor area is normally divided up. It's a plausible home of
             the right size and make-up, not a copy of your actual unit.
           </p>
+
+          {/* The one way to get the user's real plan: they almost always have
+              the image, even though no API has the data behind it. */}
+          <div className="trace-cta">
+            <div>
+              <strong>Have the actual floorplan?</strong>
+              <span>Trace over it and get your real layout instead of a generated one.</span>
+            </div>
+            <button className="btn-quiet bordered" onClick={() => setTracing(true)}>
+              {store.planImage ? 'Trace it' : 'Upload & trace'}
+            </button>
+          </div>
+
+          {tracing && (
+            <FloorplanTracer onDone={() => setTracing(false)} onCancel={() => setTracing(false)} />
+          )}
 
           <div className="preset-row">
             {PRESETS.map((p) => (
