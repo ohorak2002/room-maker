@@ -93,9 +93,13 @@ const SURFACES = {
     const fibre = fbm(u * 4, v * 130, 2, 16)
     const pore = fbm(u * 70, v * 22, 2)
     return {
-      h: rings * 0.5 + fibre * 0.38 + pore * 0.12,
-      a: 0.84 + rings * 0.1 + fibre * 0.08 - pore * 0.04,
-      r: 1.02 - rings * 0.12 + pore * 0.12,
+      // Height stays almost flat. Planed timber is smooth — you see grain, you
+      // don't feel it — and giving the rings real relief turned every wooden
+      // piece into basketwork at close range. The figure lives in the albedo
+      // and the sheen instead, which is where it lives on a real board.
+      h: rings * 0.16 + fibre * 0.1 + pore * 0.06,
+      a: 0.8 + rings * 0.16 + fibre * 0.06 - pore * 0.04,
+      r: 1.04 - rings * 0.16 + pore * 0.1,
     }
   },
 
@@ -226,8 +230,8 @@ const SURFACES = {
 // times it repeats across a piece by default. Wood needs a low repeat or the
 // grain looks like corduroy; fabric weave needs a high one or it looks knitted.
 const TUNING = {
-  wood: { normalScale: 0.3, repeat: 1.2 },
-  plank: { normalScale: 0.4, repeat: 1 },
+  wood: { normalScale: 0.07, repeat: 2.2 },
+  plank: { normalScale: 0.3, repeat: 1 },
   // Upholstery weave was reading as corduroy: the relief was far too deep and
   // the tile too large, so at close range a sofa looked ribbed. Real weave is
   // almost flat — it's a sheen difference more than a bumpy surface — so the

@@ -97,6 +97,83 @@ const taperedLeg = (topR, botR, h, material, splay = 0) => {
 
 const cyl = (rt, rb, h, material, seg = 32) =>
   new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), material)
+
+/**
+ * A surface of revolution from a 2D profile — `[[radius, height], ...]`.
+ *
+ * Pots, vases, bowls and lamp shades are all one curve spun around an axis,
+ * which is exactly how they're really made on a wheel. Stacking cylinders to
+ * fake the same shape gives you visible steps where there should be a curve.
+ */
+const lathe = (profile, material, seg = 28) =>
+  new THREE.Mesh(
+    new THREE.LatheGeometry(profile.map(([x, y]) => new THREE.Vector2(Math.max(0.0001, x), y)), seg),
+    material
+  )
+
+/**
+ * Re-map a mesh's UVs by projecting straight down from above.
+ *
+ * A lathe wraps its UVs around the axis, so any grain painted on one ends up
+ * running in concentric circles — a round table top came out looking like a
+ * sawn stump. Timber is cut from a board, so the grain runs straight across
+ * regardless of how the edge was turned. Projecting from above gives that.
+ */
+const planarUV = (mesh, scale = 1) => {
+  const geo = mesh.geometry
+  const pos = geo.attributes.position
+  const uv = new Float32Array(pos.count * 2)
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = pos.getX(i) * scale + 0.5
+    uv[i * 2 + 1] = pos.getZ(i) * scale + 0.5
+  }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+  return mesh
+}
+
+// A leaf outline: base at the origin, tip at (0,1), swelling to either side.
+const LEAF_SHAPE = (() => {
+  const s = new THREE.Shape()
+  s.moveTo(0, 0)
+  s.bezierCurveTo(0.42, 0.18, 0.34, 0.78, 0, 1)
+  s.bezierCurveTo(-0.34, 0.78, -0.42, 0.18, 0, 0)
+  return s
+})()
+
+const LEAF_GEO = new THREE.ExtrudeGeometry(LEAF_SHAPE, {
+  depth: 0.012,
+  bevelEnabled: true,
+  bevelSize: 0.012,
+  bevelThickness: 0.006,
+  bevelSegments: 2,
+  curveSegments: 10,
+})
+
+/**
+ * One leaf, scaled and curled.
+ *
+ * Plants were the worst-looking things in the app because their leaves were
+ * flat rectangles, and nothing in nature is a flat rectangle. A real leaf has
+ * an outline that tapers to a point and a curl along its length — the curl is
+ * what catches light unevenly and stops a plant reading as a paper cut-out.
+ *
+ * The geometry is cloned from one shared shape rather than rebuilt per leaf,
+ * since a tree can carry thirty of them.
+ */
+const leaf = (len, wid, material, curl = 0.25) => {
+  const geo = LEAF_GEO.clone()
+  const pos = geo.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const y = pos.getY(i)
+    // Curl along the length, and fold slightly about the midrib.
+    pos.setZ(i, pos.getZ(i) - curl * y * y - Math.abs(x) * 0.22)
+  }
+  geo.computeVertexNormals()
+  const m = new THREE.Mesh(geo, material)
+  m.scale.set(wid, len, 1)
+  return m
+}
 const sphere = (r, material, seg = 24) => new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), material)
 
 const shadowed = (group) => {
@@ -177,48 +254,109 @@ const frontLoader = (it, doorTint) => {
 }
 
 export const builders = {
+  /**
+   * A snake plant: stiff blades rising from a pot, each one twisted and leaning
+   * a different way. Real ones are never symmetrical, and the irregularity is
+   * most of what stops a cluster reading as a fan.
+   */
   plant: (it) => {
     const g = new THREE.Group()
-    const pot = cyl(0.16, 0.12, 0.26, CERAMIC('#B4785A'))
-    pot.position.y = 0.13
+    const soil = CERAMIC('#2E2A26')
+    const pot = lathe([[0.11, 0], [0.135, 0.02], [0.15, 0.1], [0.165, 0.26], [0.155, 0.27], [0.14, 0.26]], CERAMIC('#B4785A'))
     g.add(pot)
-    for (let i = 0; i < 6; i++) {
-      const blade = box(0.06, it.h - 0.2, 0.02, FOLIAGE(it.color))
-      blade.position.set(Math.sin(i) * 0.07, 0.26 + (it.h - 0.2) / 2, Math.cos(i) * 0.07)
-      blade.rotation.z = (i - 3) * 0.09
-      g.add(blade)
+
+    const dirt = cyl(0.142, 0.142, 0.02, soil, 20)
+    dirt.position.y = 0.255
+    g.add(dirt)
+
+    const m = FOLIAGE(it.color)
+    const blades = 7
+    const H = Math.max(0.3, it.h - 0.28)
+    for (let i = 0; i < blades; i++) {
+      const a = (i / blades) * Math.PI * 2 + 0.4
+      const len = H * (0.72 + ((i * 37) % 10) / 28)
+      const b = leaf(len, 0.075, m, 0.1)
+      b.position.set(Math.cos(a) * 0.05, 0.25, Math.sin(a) * 0.05)
+      b.rotation.y = -a + Math.PI / 2
+      b.rotation.x = -0.06
+      b.rotation.z = Math.sin(i * 2.1) * 0.16
+      g.add(b)
     }
     return g
   },
 
+  /** A succulent: a rosette of short fat leaves, tightest at the centre. */
   smallplant: (it) => {
     const g = new THREE.Group()
-    const pot = cyl(0.11, 0.09, 0.12, CERAMIC('#D8CFC2'))
-    pot.position.y = 0.06
+    const pot = lathe([[0.075, 0], [0.09, 0.015], [0.1, 0.07], [0.11, 0.12], [0.1, 0.13]], CERAMIC('#D8CFC2'))
     g.add(pot)
-    for (let i = 0; i < 3; i++) {
-      const bud = sphere(0.07, FOLIAGE(it.color))
-      bud.scale.y = 0.8
-      bud.position.set((i - 1) * 0.09, 0.16, 0)
-      g.add(bud)
+
+    const dirt = cyl(0.093, 0.093, 0.015, CERAMIC('#332E29'), 18)
+    dirt.position.y = 0.125
+    g.add(dirt)
+
+    const m = FOLIAGE(it.color)
+    for (let ring = 0; ring < 3; ring++) {
+      const n = 6 - ring
+      const tilt = 1.15 - ring * 0.34
+      const size = 0.1 - ring * 0.022
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + ring * 0.7
+        const l = leaf(size, 0.052, m, 0.3)
+        l.position.set(Math.cos(a) * 0.018 * (ring + 1), 0.13, Math.sin(a) * 0.018 * (ring + 1))
+        l.rotation.y = -a
+        l.rotation.x = -tilt
+        g.add(l)
+      }
     }
     return g
   },
 
+  /**
+   * A fiddle-leaf fig: a bare trunk with large leaves clustered up top.
+   *
+   * The old version was five squashed spheres, which reads as topiary. What
+   * makes this species recognisable is big individual leaves on visible stems,
+   * so the leaves are modelled and the canopy isn't.
+   */
   tree: (it) => {
     const g = new THREE.Group()
-    const pot = cyl(0.22, 0.17, 0.34, CERAMIC('#A8705A'))
-    pot.position.y = 0.17
+    const pot = lathe([[0.16, 0], [0.19, 0.03], [0.21, 0.14], [0.23, 0.33], [0.215, 0.35], [0.19, 0.33]], CERAMIC('#A8705A'))
     g.add(pot)
-    const trunk = cyl(0.035, 0.05, it.h - 0.4, WOODEN('#6B5340'), 12)
-    trunk.position.y = 0.34 + (it.h - 0.4) / 2
+
+    const dirt = cyl(0.2, 0.2, 0.02, CERAMIC('#2E2A26'), 22)
+    dirt.position.y = 0.335
+    g.add(dirt)
+
+    const trunkH = it.h - 0.35
+    const trunk = cyl(0.028, 0.045, trunkH, WOODEN('#6B5340'), 12)
+    trunk.position.y = 0.35 + trunkH / 2
+    trunk.rotation.z = 0.02
     g.add(trunk)
-    const canopyY = it.h - 0.15
-    for (let i = 0; i < 5; i++) {
-      const leaf = sphere(0.24 - i * 0.02, FOLIAGE(it.color), 16)
-      leaf.scale.set(1, 0.7, 1)
-      leaf.position.set(Math.cos(i * 2.2) * 0.2, canopyY - i * 0.22, Math.sin(i * 2.2) * 0.2)
-      g.add(leaf)
+
+    const m = FOLIAGE(it.color)
+    const leaves = 20
+    for (let i = 0; i < leaves; i++) {
+      const t = i / (leaves - 1)
+      // Leaves belong in the top third. Spreading them evenly down the trunk
+      // made it read as a cactus — a fig is bare stem with a crown on top.
+      const y = 0.35 + trunkH * (0.58 + t * 0.44)
+      const a = i * 2.399 // golden angle, so they never line up in columns
+      const size = 0.42 - t * 0.13
+      const reach = 0.1 + t * 0.14
+
+      const stem = cyl(0.007, 0.009, 0.16, WOODEN('#7A6248'), 6)
+      stem.position.set(Math.cos(a) * 0.07, y, Math.sin(a) * 0.07)
+      stem.rotation.z = Math.cos(a) * 0.8
+      stem.rotation.x = -Math.sin(a) * 0.8
+      g.add(stem)
+
+      const l = leaf(size, 0.27, m, 0.2)
+      l.position.set(Math.cos(a) * reach, y + 0.04, Math.sin(a) * reach)
+      l.rotation.y = -a + Math.PI / 2
+      l.rotation.x = -0.75 - t * 0.35
+      l.rotation.z = Math.sin(i * 1.7) * 0.35
+      g.add(l)
     }
     return g
   },
@@ -271,45 +409,105 @@ export const builders = {
 
   vase: (it) => {
     const g = new THREE.Group()
-    const v = cyl(0.07, 0.05, 0.22, CERAMIC('#DCD3C6'))
-    v.position.y = 0.11
+    // A real vase narrows at the neck and flares at the lip; a straight
+    // cylinder is a tin can.
+    const v = lathe([[0.05, 0], [0.075, 0.03], [0.085, 0.1], [0.06, 0.19], [0.055, 0.22], [0.065, 0.235], [0.061, 0.24]], CERAMIC('#DCD3C6'))
     g.add(v)
-    for (let i = 0; i < 8; i++) {
-      const stem = box(0.015, 0.3, 0.015, FOLIAGE(it.color))
-      stem.position.set((Math.random() - 0.5) * 0.12, 0.34, (Math.random() - 0.5) * 0.12)
-      stem.rotation.z = (Math.random() - 0.5) * 0.5
+
+    const m = FOLIAGE(it.color)
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2
+      const lean = 0.18 + (i % 3) * 0.09
+      const len = 0.26 + (i % 4) * 0.05
+
+      const stem = cyl(0.005, 0.007, len, m, 6)
+      stem.position.set(Math.cos(a) * 0.03, 0.24 + len / 2, Math.sin(a) * 0.03)
+      stem.rotation.z = Math.cos(a) * lean
+      stem.rotation.x = -Math.sin(a) * lean
       g.add(stem)
+
+      const l = leaf(0.12, 0.07, m, 0.3)
+      l.position.set(Math.cos(a) * (0.03 + len * lean), 0.24 + len, Math.sin(a) * (0.03 + len * lean))
+      l.rotation.y = -a
+      l.rotation.z = Math.cos(a) * lean
+      g.add(l)
     }
     return g
   },
 
   hanging: (it) => {
     const g = new THREE.Group()
-    const pot = cyl(0.12, 0.14, 0.16, FABRIC('#C4B49A'))
+    const pot = lathe([[0.1, 0], [0.12, 0.02], [0.13, 0.09], [0.125, 0.15], [0.11, 0.16]], FABRIC('#C4B49A'))
     g.add(pot)
-    for (let i = 0; i < 6; i++) {
-      const vine = box(0.03, 0.4 + Math.random() * 0.3, 0.03, FOLIAGE(it.color))
-      const a = (i / 6) * Math.PI * 2
-      vine.position.set(Math.cos(a) * 0.1, -0.25, Math.sin(a) * 0.1)
+
+    const m = FOLIAGE(it.color)
+    // Trailing vines: a chain of leaves down a drooping stem, which is what a
+    // pothos actually looks like. Rectangles hanging down looked like tinsel.
+    for (let v = 0; v < 6; v++) {
+      const a = (v / 6) * Math.PI * 2
+      const drop = 0.35 + (v % 3) * 0.18
+      const x = Math.cos(a) * 0.09
+      const z = Math.sin(a) * 0.09
+
+      const vine = cyl(0.004, 0.004, drop, m, 5)
+      vine.position.set(x, -drop / 2, z)
       g.add(vine)
+
+      const count = 3 + (v % 2)
+      for (let i = 0; i < count; i++) {
+        const t = (i + 1) / (count + 1)
+        const l = leaf(0.085, 0.075, m, 0.35)
+        l.position.set(x, -drop * t, z)
+        l.rotation.y = -a + i * 1.2
+        l.rotation.x = Math.PI * 0.62
+        g.add(l)
+      }
     }
     return g
   },
 
   chair: (it) => {
     const g = new THREE.Group()
-    const seat = box(0.5, 0.08, 0.5, FABRIC(it.color))
-    seat.position.y = 0.45
+    const m = FABRIC(it.color)
+    const seatY = 0.46
+
+    // Contoured seat and a back with a waist. An office chair is never two flat
+    // slabs, and the taper is what reads as ergonomic.
+    const seat = cushion(0.48, 0.075, 0.46, m, 0.05, 0.014)
+    seat.position.y = seatY
     g.add(seat)
-    const back = box(0.5, 0.55, 0.07, FABRIC(it.color))
-    back.position.set(0, 0.75, -0.22)
+
+    const back = cushion(0.44, 0.5, 0.06, m, 0.05, 0.016)
+    back.position.set(0, seatY + 0.32, -0.22)
+    back.rotation.x = -0.14
     g.add(back)
-    const post = cyl(0.04, 0.04, 0.4, METAL(DARK), 10)
-    post.position.y = 0.22
+
+    const lumbar = cyl(0.03, 0.03, 0.4, m, 12)
+    lumbar.rotation.z = Math.PI / 2
+    lumbar.position.set(0, seatY + 0.16, -0.2)
+    g.add(lumbar)
+
+    const post = cyl(0.032, 0.038, 0.26, METAL('#8E9297'), 12)
+    post.position.y = seatY - 0.17
     g.add(post)
-    const base = cyl(0.28, 0.28, 0.04, METAL(DARK), 16)
-    base.position.y = 0.03
-    g.add(base)
+
+    // Five-star base with castors, which is the silhouette everyone recognises.
+    const hub = cyl(0.05, 0.06, 0.05, METAL(DARK), 16)
+    hub.position.y = 0.06
+    g.add(hub)
+
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2
+      const arm = box(0.26, 0.022, 0.045, METAL(DARK), 0.01)
+      arm.position.set(Math.cos(a) * 0.14, 0.055, Math.sin(a) * 0.14)
+      arm.rotation.y = -a
+      g.add(arm)
+
+      const castor = cyl(0.026, 0.026, 0.02, PLASTIC('#1B1D21'), 12)
+      castor.rotation.x = Math.PI / 2
+      castor.position.set(Math.cos(a) * 0.26, 0.026, Math.sin(a) * 0.26)
+      g.add(castor)
+    }
     return g
   },
 
@@ -431,12 +629,30 @@ export const builders = {
 
   desk: (it) => {
     const g = new THREE.Group()
-    const top = box(1.5, 0.06, 0.7, WOODEN(it.color))
+    const wood = WOODEN(it.color)
+    const W = 1.5
+    const D = 0.7
+
+    // The top overhangs its frame, which is what gives a desk its shadow line.
+    const top = box(W, 0.04, D, wood)
     top.position.y = it.h
     g.add(top)
-    for (const [x, z] of [[-0.68, -0.3], [0.68, -0.3], [-0.68, 0.3], [0.68, 0.3]]) {
-      const leg = box(0.06, it.h, 0.06, METAL(DARK))
-      leg.position.set(x, it.h / 2, z)
+
+    const apron = box(W - 0.14, 0.07, D - 0.12, wood)
+    apron.position.y = it.h - 0.055
+    g.add(apron)
+
+    // A shallow drawer under one side, with a reveal around it.
+    const drawer = box(0.44, 0.1, 0.02, wood)
+    drawer.position.set(-0.32, it.h - 0.11, D / 2 - 0.07)
+    g.add(drawer)
+    const pull = box(0.16, 0.016, 0.016, METAL('#C9CDD2'))
+    pull.position.set(-0.32, it.h - 0.11, D / 2 - 0.05)
+    g.add(pull)
+
+    for (const [x, z] of [[-0.68, -0.29], [0.68, -0.29], [-0.68, 0.29], [0.68, 0.29]]) {
+      const leg = taperedLeg(0.026, 0.017, it.h - 0.06, METAL(DARK))
+      leg.position.set(x, (it.h - 0.06) / 2, z)
       g.add(leg)
     }
     return g
@@ -444,24 +660,52 @@ export const builders = {
 
   table: (it) => {
     const g = new THREE.Group()
-    const top = cyl(0.5, 0.5, 0.05, WOODEN(it.color), 24)
-    top.position.y = it.h
+    // Round top with a chamfered edge, on a weighted pedestal. The profile is
+    // what stops it reading as a disc balanced on a tube.
+    const top = lathe(
+      [[0, it.h + 0.03], [0.47, it.h + 0.03], [0.5, it.h + 0.015], [0.5, it.h - 0.015], [0.47, it.h - 0.03], [0, it.h - 0.03]],
+      WOODEN(it.color),
+      32
+    )
+    // Grain runs across the board, not around the turned edge.
+    planarUV(top, 0.8)
     g.add(top)
-    const stem = cyl(0.06, 0.1, it.h, METAL(DARK), 12)
-    stem.position.y = it.h / 2
+
+    const stem = lathe(
+      [[0.22, 0], [0.23, 0.015], [0.12, 0.06], [0.055, 0.2], [0.05, it.h - 0.05], [0.14, it.h - 0.035], [0, it.h - 0.035]],
+      METAL(DARK),
+      24
+    )
     g.add(stem)
     return g
   },
 
   nightstand: (it) => {
     const g = new THREE.Group()
-    const body = box(0.45, it.h, 0.4, WOODEN(it.color))
-    body.position.y = it.h / 2
+    const wood = WOODEN(it.color)
+    const legH = 0.11
+    const bodyH = it.h - legH
+
+    const body = box(0.45, bodyH, 0.4, wood)
+    body.position.y = legH + bodyH / 2
     g.add(body)
-    for (const y of [0.18, 0.4]) {
-      const pull = box(0.16, 0.02, 0.02, METAL('#D8CFC2'))
-      pull.position.set(0, y, 0.21)
+
+    // Two drawers standing proud, so the reveal between them catches shadow.
+    for (let i = 0; i < 2; i++) {
+      const y = legH + bodyH * (0.28 + i * 0.44)
+      const face = box(0.4, bodyH * 0.38, 0.02, wood)
+      face.position.set(0, y, 0.21)
+      g.add(face)
+
+      const pull = box(0.14, 0.018, 0.018, METAL('#C9CDD2'))
+      pull.position.set(0, y, 0.235)
       g.add(pull)
+    }
+
+    for (const [x, z] of [[-0.17, -0.15], [0.17, -0.15], [-0.17, 0.15], [0.17, 0.15]]) {
+      const leg = taperedLeg(0.022, 0.015, legH, WOODEN('#5A4230'))
+      leg.position.set(x, legH / 2, z)
+      g.add(leg)
     }
     return g
   },
@@ -509,16 +753,47 @@ export const builders = {
 
   shelf: (it) => {
     const g = new THREE.Group()
-    const m = WOODEN(it.color)
+    const wood = WOODEN(it.color)
+    const W = 0.9
+    const D = 0.32
+    const shelves = 5
+
     for (const s of [-1, 1]) {
-      const side = box(0.05, it.h, 0.32, m)
-      side.position.set(s * 0.42, it.h / 2, 0)
+      const side = box(0.035, it.h, D, wood)
+      side.position.set(s * (W / 2 - 0.017), it.h / 2, 0)
       g.add(side)
     }
-    for (let i = 0; i <= 4; i++) {
-      const shelfBoard = box(0.9, 0.04, 0.32, m)
-      shelfBoard.position.y = (i * it.h) / 4
-      g.add(shelfBoard)
+
+    // A thin back panel. Without it you see straight through to the wall and
+    // the unit reads as a ladder rather than a bookcase.
+    const back = box(W - 0.05, it.h, 0.012, wood)
+    back.position.set(0, it.h / 2, -D / 2 + 0.008)
+    g.add(back)
+
+    const spines = ['#7A3B34', '#3E5C74', '#6E7A52', '#8A6F4E', '#4A3A4F', '#B08968', '#2E4A44']
+    for (let i = 0; i < shelves; i++) {
+      const y = (i * (it.h - 0.03)) / (shelves - 1)
+      const board = box(W - 0.06, 0.028, D - 0.02, wood)
+      board.position.y = y
+      g.add(board)
+
+      // Books, leaning slightly and never filling the shelf. A full upright row
+      // looks like a wall; the gap and the lean are what make it lived in.
+      if (i < shelves - 1) {
+        let x = -W / 2 + 0.06
+        const limit = W / 2 - 0.16 - ((i * 53) % 17) / 100
+        let n = 0
+        while (x < limit && n < 9) {
+          const bw = 0.022 + ((i * 7 + n * 13) % 5) * 0.007
+          const bh = 0.16 + ((i * 3 + n * 11) % 6) * 0.016
+          const bk = box(bw, bh, D - 0.09, PAPERY(spines[(i + n) % spines.length]), 0.004)
+          bk.position.set(x + bw / 2, y + 0.014 + bh / 2, 0.005)
+          bk.rotation.z = n % 4 === 3 ? 0.1 : 0
+          g.add(bk)
+          x += bw + 0.004
+          n++
+        }
+      }
     }
     return g
   },
@@ -1059,22 +1334,31 @@ export const builders = {
   dresser: (it) => {
     const g = new THREE.Group()
     const wood = WOODEN(it.color)
-    const body = box(1.15, it.h, 0.5, wood)
-    body.position.y = it.h / 2
+    const legH = 0.13
+    const bodyH = it.h - legH
+
+    const body = box(1.15, bodyH, 0.5, wood)
+    body.position.y = legH + bodyH / 2
     g.add(body)
 
     const rows = 3
     for (let r = 0; r < rows; r++) {
-      const y = (it.h / rows) * (r + 0.5)
+      const y = legH + (bodyH / rows) * (r + 0.5)
       for (const s of [-1, 1]) {
-        const drawer = box(0.52, it.h / rows - 0.05, 0.02, wood)
-        drawer.position.set(s * 0.28, y, 0.26)
-        g.add(drawer)
+        const face = box(0.52, bodyH / rows - 0.035, 0.022, wood)
+        face.position.set(s * 0.28, y, 0.26)
+        g.add(face)
 
-        const pull = box(0.16, 0.018, 0.018, METAL('#C9CDD2'))
+        const pull = box(0.17, 0.018, 0.018, METAL('#C9CDD2'))
         pull.position.set(s * 0.28, y, 0.285)
         g.add(pull)
       }
+    }
+
+    for (const [x, z] of [[-0.5, -0.19], [0.5, -0.19], [-0.5, 0.19], [0.5, 0.19]]) {
+      const leg = taperedLeg(0.026, 0.018, legH, WOODEN('#5A4230'))
+      leg.position.set(x, legH / 2, z)
+      g.add(leg)
     }
     return g
   },
@@ -1082,18 +1366,33 @@ export const builders = {
   wardrobe: (it) => {
     const g = new THREE.Group()
     const wood = WOODEN(it.color)
-    const body = box(1.05, it.h, 0.6, wood)
-    body.position.y = it.h / 2
+    const legH = 0.1
+    const bodyH = it.h - legH
+
+    const body = box(1.05, bodyH, 0.6, wood)
+    body.position.y = legH + bodyH / 2
     g.add(body)
 
+    // A cornice at the top and a plinth reveal at the bottom. Both are small,
+    // and both are why a wardrobe looks like joinery instead of a fridge.
+    const cornice = box(1.11, 0.05, 0.65, wood)
+    cornice.position.y = legH + bodyH - 0.02
+    g.add(cornice)
+
     for (const s of [-1, 1]) {
-      const door = box(0.5, it.h - 0.1, 0.022, wood)
-      door.position.set(s * 0.26, it.h / 2, 0.31)
+      const door = box(0.5, bodyH - 0.13, 0.024, wood)
+      door.position.set(s * 0.26, legH + bodyH / 2 - 0.03, 0.31)
       g.add(door)
 
-      const handle = cyl(0.014, 0.014, 0.22, METAL('#C9CDD2'), 10)
-      handle.position.set(s * 0.06, it.h * 0.5, 0.335)
+      const handle = cyl(0.013, 0.013, 0.24, METAL('#C9CDD2'), 10)
+      handle.position.set(s * 0.06, legH + bodyH * 0.5, 0.335)
       g.add(handle)
+    }
+
+    for (const [x, z] of [[-0.45, -0.24], [0.45, -0.24], [-0.45, 0.24], [0.45, 0.24]]) {
+      const leg = taperedLeg(0.024, 0.018, legH, WOODEN('#5A4230'))
+      leg.position.set(x, legH / 2, z)
+      g.add(leg)
     }
     return g
   },
