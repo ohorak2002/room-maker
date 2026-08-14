@@ -80,7 +80,9 @@ export default function BlueprintPlan({ home, synthetics = {}, onPick }) {
 
       <div className="bp-canvas">
         <svg
-          viewBox={`${-PX * 0.6} ${-PX * 0.6} ${W + PX * 1.2} ${H + PX * 1.2}`}
+          // Just enough margin for the outer wall's stroke width. Any more and
+          // the drawing shrinks to leave empty space that says nothing.
+          viewBox={`${-PX * 0.12} ${-PX * 0.12} ${W + PX * 0.24} ${H + PX * 0.24}`}
           className="bp-svg"
           role="img"
           aria-label="Floor plan. Select a room to design it."
