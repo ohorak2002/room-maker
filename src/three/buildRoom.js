@@ -841,6 +841,28 @@ export const builders = {
 
   washer: (it) => frontLoader(it, '#9FB3BD'),
   dryer: (it) => frontLoader(it, '#C7BFB2'),
+
+  /**
+   * Stand-in for anything we don't have a model of yet.
+   *
+   * Deliberately plain — a crate with a lid, sized from the piece's own height
+   * and footprint. It should read as "a box standing in for something", not as
+   * a broken attempt at the real product. The card that adds it says the same.
+   */
+  generic: (it) => {
+    const g = new THREE.Group()
+    const w = Math.max(0.26, (it.fp || 0.3) * 1.6)
+    const d = Math.max(0.22, (it.fp || 0.3) * 1.25)
+
+    const body = box(w, it.h, d, PLASTIC(it.color), 0.035)
+    body.position.y = it.h / 2
+    g.add(body)
+
+    const lid = box(w * 0.97, 0.022, d * 0.97, WOODEN(it.color))
+    lid.position.y = it.h + 0.005
+    g.add(lid)
+    return g
+  },
 }
 
 // ---------------------------------------------------------------------------

@@ -129,12 +129,34 @@ const findBest = (hay, table) => {
   let best = null
   for (const entry of table) {
     for (const w of entry.words) {
-      if (hay.includes(` ${w} `) && (!best || w.length > best.matched.length)) {
+      // Plurals matter more than they look: people type "speakers" and
+      // "curtains" far more often than the singular the table is written in.
+      const hit = hay.includes(` ${w} `) || hay.includes(` ${w}s `) || hay.includes(` ${w}es `)
+      if (hit && (!best || w.length > best.matched.length)) {
         best = { ...entry, matched: w }
       }
     }
   }
   return best
+}
+
+/**
+ * The shape used when nothing in the vocabulary matches.
+ *
+ * Returning null meant typing something ordinary — "espresso machine", "litter
+ * box" — got you nothing at all, which is a dead end in a tool whose whole
+ * pitch is that you can ask for anything. A neutral box sized from your words
+ * is more useful than a refusal, and the card says plainly that it's a stand-in
+ * rather than a real model of that product.
+ */
+const GENERIC = {
+  model: 'generic',
+  cat: 'decor',
+  words: [],
+  h: 0.5,
+  fp: 0.3,
+  base: 90,
+  generic: true,
 }
 
 export function parseQuery(text) {
@@ -157,7 +179,11 @@ const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1)
  * @param maxPrice optional ceiling; the spec is downgraded to fit rather than hidden
  */
 export function synthesize(query, quality = 55, maxPrice = null) {
-  const { type, color, material, size } = parseQuery(query)
+  const parsed = parseQuery(query)
+  const { color, material, size } = parsed
+  // Fall back to a neutral shape rather than refusing. `generic` on the result
+  // lets the UI say so instead of passing a box off as a model of the product.
+  const type = parsed.type || (query.trim() ? GENERIC : null)
   if (!type) return null
 
   let tier = tierFor(quality)
@@ -181,15 +207,27 @@ export function synthesize(query, quality = 55, maxPrice = null) {
     }
   }
 
+  const cleaned = query.trim().replace(/\s+/g, ' ')
   const bits = [size?.label, material?.label, color ? titleCase(color.matched) : null]
     .filter(Boolean)
     .join(' ')
-  const name = `${bits} ${titleCase(type.matched)}`.replace(/\s+/g, ' ').trim()
-  const searchTerm = [material?.label, color?.matched, type.matched].filter(Boolean).join(' ')
+  // With no recognised type there's nothing to build a tidy name from, so the
+  // words you typed are the name — and the search link uses them verbatim,
+  // which is the part that actually finds the product.
+  const name = type.generic
+    ? titleCase(cleaned)
+    : `${bits} ${titleCase(type.matched)}`.replace(/\s+/g, ' ').trim()
+  const searchTerm = type.generic
+    ? cleaned
+    : [material?.label, color?.matched, type.matched].filter(Boolean).join(' ')
 
   return {
     id: `synth:${name.toLowerCase().replace(/\s+/g, '-')}:${tier.name}`,
     synthetic: true,
+    // True when we had no model for this and fell back to a neutral shape. The
+    // UI must say so — a box labelled "Espresso Machine" with nothing marking
+    // it as a stand-in is a small lie.
+    generic: Boolean(type.generic),
     name,
     cat: type.cat,
     model: type.model,
@@ -219,6 +257,74 @@ export function synthesize(query, quality = 55, maxPrice = null) {
       material: material?.label ?? null,
       size: size?.label ?? null,
     },
+  }
+}
+
+/**
+ * Pull a usable description out of a product URL.
+ *
+ * What this does NOT do is fetch the page. A browser can't: the retailers all
+ * block cross-origin requests, Amazon blocks automated ones outright, and this
+ * app has no server to proxy through. So there is no price, no photo, and no
+ * stock — claiming otherwise would be inventing data.
+ *
+ * What it can do is read the slug, which is where most retailers put the
+ * product name. Amazon's
+ *   /Modway-Loveseat-Upholstered-Fabric-Sofa/dp/B01N...
+ * carries "upholstered fabric loveseat" in plain sight. That's fed to the same
+ * generator everything else uses, so you get the right shape, colour and size,
+ * and a link straight back to the page you copied.
+ */
+const URL_NOISE = new Set([
+  'dp', 'gp', 'product', 'ref', 'sspa', 'aw', 'd', 'p', 'pd', 'ip', 'a', 'pdp', 'itm',
+  'com', 'www', 'html', 'htm', 'shop', 'buy', 'us', 'en', 'store', 'products', 'item',
+])
+
+export function parseProductUrl(raw) {
+  let url
+  try {
+    url = new URL(raw.trim())
+  } catch {
+    return null
+  }
+
+  const host = url.hostname.replace(/^www\./, '')
+  const words = url.pathname
+    .split('/')
+    .flatMap((seg) => seg.split(/[-_+]/))
+    .map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    // Drop routing noise, ASINs and other id-looking chunks — an id is long,
+    // alphanumeric and tells us nothing about what the thing is.
+    .filter((w) => w.length > 2 && w.length < 20 && !URL_NOISE.has(w) && !/\d/.test(w))
+
+  // De-duplicate while keeping order; slugs often repeat the brand.
+  const seen = new Set()
+  const terms = words.filter((w) => (seen.has(w) ? false : seen.add(w)))
+
+  if (!terms.length) return null
+  return { host, terms, query: terms.join(' ') }
+}
+
+/**
+ * Build a piece from a product URL. Returns the spec plus the source link, so
+ * the card can point back at the exact listing the user pasted.
+ */
+export function synthesizeFromUrl(raw, quality = 55) {
+  const parsed = parseProductUrl(raw)
+  if (!parsed) return null
+
+  const spec = synthesize(parsed.query, quality)
+  if (!spec) return null
+
+  return {
+    ...spec,
+    // The pasted page beats a store search — it's the actual product.
+    url: raw.trim(),
+    retailerName: parsed.host,
+    sourceUrl: raw.trim(),
+    fromUrl: true,
+    // Price came from the quality tier, not from the listing. Say so.
+    priceUnknown: true,
   }
 }
 

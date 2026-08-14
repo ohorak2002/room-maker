@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { formatUSD } from '../data/catalog'
-import { synthesize, catalogMatches, EXAMPLE_QUERIES } from '../data/synth'
+import { synthesize, synthesizeFromUrl, catalogMatches, EXAMPLE_QUERIES } from '../data/synth'
 import ItemThumb from './ItemThumb'
 import './SearchPanel.css'
 
@@ -11,23 +11,33 @@ export default function SearchPanel() {
   const [quality, setQuality] = useState(55)
   const [budget, setBudget] = useState(0) // 0 = no ceiling
 
-  const spec = useMemo(
-    () => (query.trim() ? synthesize(query, quality, budget || null) : null),
-    [query, quality, budget]
+  // One field takes both. Pasting a link is a different intent from describing
+  // a piece, but making people pick the right box first is friction for no gain
+  // — a string starting with http is unambiguous.
+  const isUrl = /^https?:\/\//i.test(query.trim())
+
+  const spec = useMemo(() => {
+    const q = query.trim()
+    if (!q) return null
+    return isUrl ? synthesizeFromUrl(q, quality) : synthesize(q, quality, budget || null)
+  }, [query, quality, budget, isUrl])
+
+  const existing = useMemo(
+    () => (query.trim() && !isUrl ? catalogMatches(query) : []),
+    [query, isUrl]
   )
-  const existing = useMemo(() => (query.trim() ? catalogMatches(query) : []), [query])
 
   return (
     <div className="search-panel">
       <label className="search-field">
-        <span className="field-label">What are you looking for?</span>
+        <span className="field-label">Describe it, or paste a product link</span>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="white cotton sofa"
+          placeholder="white cotton sofa — or an Amazon / IKEA link"
           autoComplete="off"
-          aria-label="Describe the piece you want"
+          aria-label="Describe the piece you want, or paste a product URL"
         />
       </label>
 
@@ -86,11 +96,14 @@ export default function SearchPanel() {
       {query.trim() && !spec && (
         <div className="search-miss">
           <p>
-            Couldn't work out what kind of piece <strong>"{query}"</strong> is.
+            {isUrl
+              ? "Couldn't read a product name out of that link."
+              : `Couldn't work out what "${query}" is.`}
           </p>
           <p className="search-miss-hint">
-            Name the furniture itself — "sofa", "floor lamp", "bookshelf" — and add colour, material
-            or size around it.
+            {isUrl
+              ? 'Most store links carry the product name in the address. If this one is a short share link, open it and copy the full address, or just describe the piece instead.'
+              : 'Try naming the furniture itself — "sofa", "floor lamp", "bookshelf".'}
           </p>
         </div>
       )}
@@ -140,10 +153,29 @@ export default function SearchPanel() {
               </a>
             </div>
 
+            {spec.generic && (
+              <p className="spec-note">
+                No model of this yet, so it goes in as a plain box at roughly the right size. It
+                still moves, prices and links like anything else.
+              </p>
+            )}
+
             <p className="spec-disclaimer">
-              This is a <strong>specification</strong>, not a listing. Nothing here searched a store —
-              no free product API exists to search with — so the price is what this piece typically
-              costs at {spec.retailerName}, and the link runs the real search.
+              {spec.fromUrl ? (
+                <>
+                  Read from the <strong>address</strong> of that link, not from the page. Retailers
+                  block apps from loading their pages, and this app has no server to do it from — so
+                  the shape and colour come from the product name in the URL, and the price is what
+                  this kind of piece typically costs, <strong>not</strong> the listed price. The link
+                  goes back to your page.
+                </>
+              ) : (
+                <>
+                  This is a <strong>specification</strong>, not a listing. Nothing here searched a
+                  store — no free product API exists to search with — so the price is what this piece
+                  typically costs at {spec.retailerName}, and the link runs the real search.
+                </>
+              )}
             </p>
           </div>
 
