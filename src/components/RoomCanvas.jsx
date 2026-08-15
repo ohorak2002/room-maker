@@ -81,18 +81,27 @@ export default function RoomCanvas() {
     // slightly above the floor, because a shadow map alone can't darken the
     // narrow contact seam where a leg meets the boards.
     //
-    // Radius is in metres. Furniture-contact scale (~0.25) looks correct on
-    // paper but renders almost no occlusion here, because rooms are viewed from
-    // several metres back and that radius covers only a few pixels on screen.
-    // 1.0 is what actually reads at the distance this camera sits at.
+    // Radius is in metres and MUST stay at furniture-contact scale. A previous
+    // pass raised it to 1.0 reasoning that a small radius covers too few pixels
+    // when the camera sits several metres back. That produced the black slab
+    // people kept reporting: at a metre, every surface occludes every other
+    // surface near it, the occlusion saturates across whole walls, and the
+    // result is a hard-edged dark panel hanging in the room with pale geometry
+    // underneath it. The same failure painted a dark ellipse around a single
+    // piece on an otherwise empty floor.
+    //
+    // 0.25 is a chair leg, a bed rail, the gap under a cabinet — the seams AO
+    // is for. Blend at half strength because the environment map is already
+    // doing some of this work, and doubling up reads as grime.
     const gtao = new GTAOPass(scene, camera, 1, 1)
-    gtao.blendIntensity = 0.85
-    gtao.updateGtaoMaterial({ radius: 1.0, distanceExponent: 1, thickness: 1, scale: 1, samples: 16 })
+    gtao.blendIntensity = 0.5
+    gtao.updateGtaoMaterial({ radius: 0.25, distanceExponent: 1, thickness: 0.5, scale: 1, samples: 16 })
     composer.addPass(gtao)
 
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.82)
     composer.addPass(bloom)
     composer.addPass(new OutputPass())
+
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
