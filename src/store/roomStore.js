@@ -21,6 +21,7 @@ const initial = {
   palette: 'clay',
   mood: 'cozy',
   lighting: 'natural',
+  wallMaterial: 'plaster',
   floorplan: 'bedroom',
   // A hand-edited cell mask, when the user has painted their own footprint.
   // Null means "use the preset named by floorplan".

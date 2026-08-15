@@ -1618,7 +1618,7 @@ export const builders = {
 // Room shell
 // ---------------------------------------------------------------------------
 
-function buildShell({ shape, h, colors, windows }) {
+function buildShell({ shape, h, colors, windows, wallMaterial }) {
   // Architecture wants crisp corners — a bevelled wall reads as a mistake, and
   // rounding the shell would also leave visible seams where planes meet.
   const box = hardBox
@@ -1629,7 +1629,20 @@ function buildShell({ shape, h, colors, windows }) {
   // Box UVs run 0..1 per face, so `repeat` here is "tiles across this whole
   // surface" rather than tiles per metre. Walls and floors are the largest
   // things in the scene and need far more repeats than a nightstand does.
-  const wallMat = mat(colors.wall, 0.96, 0.0, 0.12, 'plaster', 5)
+  // The wall's construction, chosen in the survey. Brick and concrete carry
+  // their own colour rather than taking the palette's wall paint — an "exposed
+  // brick" wall that turns mint green in a cool palette is not exposed brick.
+  // Plaster and painted boarding do take the paint, because that is what they
+  // are: a surface with a colour chosen for it.
+  const wm = wallMaterial || { surface: 'plaster', repeat: 5 }
+  const wallMat = mat(
+    wm.tint || colors.wall,
+    wm.roughness ?? 0.96,
+    0.0,
+    0.12,
+    wm.surface || 'plaster',
+    wm.repeat || 5
+  )
   const floorMat = mat(colors.floor, 0.72, 0.0, 0.3, 'plank', 2)
   const trimMat = mat(colors.trim, 0.7, 0.0, 0.18, 'plaster', 2)
   const ceilMat = mat(colors.trim, 0.98, 0.0, 0.1, 'plaster', 5)

@@ -323,3 +323,55 @@ export function pointInShape(shape, x, z) {
   const r = Math.floor((z + d / 2) / CELL)
   return hasCell(shape, c, r)
 }
+
+/**
+ * What the walls are actually made of.
+ *
+ * Separate from palette on purpose: palette is the colour you paint a surface,
+ * this is the surface. Exposed brick stays brick whether the room is clay or
+ * ink, and a brick wall painted white is still obviously brick — the relief
+ * survives the paint, which is exactly why it reads as character rather than
+ * as a colour choice.
+ *
+ * `surface` names a generator in three/textures.js. `repeat` is tiles across
+ * the whole wall rather than per metre, because box UVs run 0..1 per face —
+ * see the note in buildShell.
+ */
+export const WALL_MATERIALS = [
+  {
+    id: 'plaster',
+    name: 'Painted plaster',
+    blurb: 'Smooth painted drywall — most flats and new builds',
+    surface: 'plaster',
+    repeat: 5,
+  },
+  {
+    id: 'brick',
+    name: 'Exposed brick',
+    blurb: 'Warehouse conversions, older terraces, loft walls',
+    surface: 'brick',
+    repeat: 3,
+    // Brick keeps its own colour rather than taking the wall paint, or an
+    // "exposed brick" wall comes out mint green in a cool palette.
+    tint: '#9c6650',
+    roughness: 1.0,
+  },
+  {
+    id: 'shiplap',
+    name: 'Painted wood',
+    blurb: 'Horizontal boarding — cottages, cabins, coastal',
+    surface: 'shiplap',
+    repeat: 4,
+  },
+  {
+    id: 'concrete',
+    name: 'Poured concrete',
+    blurb: 'Board-formed, industrial, minimalist new build',
+    surface: 'concrete',
+    repeat: 3,
+    tint: '#9a9791',
+    roughness: 1.05,
+  },
+]
+
+export const getWallMaterial = (id) => WALL_MATERIALS.find((m) => m.id === id) || WALL_MATERIALS[0]

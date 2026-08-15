@@ -5,7 +5,8 @@ import HeroRoom from './HeroRoom'
 import AddressField from './AddressField'
 import MoodPreview from './MoodPreview'
 import LightPreview from './LightPreview'
-import { PALETTES, MOODS, LIGHTING, ROOM_TYPES, rectShapeFromFeet, mToFt } from '../data/presets'
+import MaterialPreview from './MaterialPreview'
+import { PALETTES, MOODS, LIGHTING, WALL_MATERIALS, ROOM_TYPES, rectShapeFromFeet, mToFt } from '../data/presets'
 import { parsePrefurnished } from '../data/prefurnishedParser'
 import { byId } from '../data/catalog'
 import './Onboarding.css'
@@ -59,6 +60,13 @@ const STEPS = [
     options: LIGHTING,
     render: (l) => <LightPreview kelvin={l.kelvin} id={l.id} />,
   },
+  {
+    key: 'wallMaterial',
+    question: 'What are the walls made of?',
+    hint: "The surface, not the colour — exposed brick stays brick whatever you paint the room.",
+    options: WALL_MATERIALS,
+    render: (m) => <MaterialPreview id={m.id} />,
+  },
   { key: 'size', type: 'size', question: 'How big is the room?', hint: 'Start from a realistic size, then dial it in exactly.' },
 ]
 
@@ -98,6 +106,15 @@ export default function Onboarding() {
           <div className="welcome-actions">
             <button className="btn-primary" onClick={() => go(0)}>
               Start
+            </button>
+            {/* Every answer already has a sensible default, so the survey is a
+                way to get a better room rather than a gate in front of one.
+                Making someone answer six questions before they can see whether
+                the thing is worth their time is how you lose the ones who were
+                only curious. Everything here is changeable afterwards in the
+                Design panel. */}
+            <button className="btn-quiet" onClick={finish}>
+              Skip to the room
             </button>
           </div>
         </div>
@@ -152,6 +169,11 @@ export default function Onboarding() {
           {step === 0 ? 'Back' : 'Previous'}
         </button>
         <div className="nav-right">
+          {!isLast && (
+            <button className="btn-quiet" onClick={finish}>
+              Skip the rest
+            </button>
+          )}
           <button className="btn-primary" onClick={() => (isLast ? finish() : go(step + 1))}>
             {isLast ? 'Build my room' : 'Next'}
           </button>

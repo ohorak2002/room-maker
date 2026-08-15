@@ -9,6 +9,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { useRoomStore } from '../store/roomStore'
 import { byId, starterForRoom, ROOM_PACKS, resolveItem, footprintArea } from '../data/catalog'
+import { getWallMaterial } from '../data/presets'
 import { buildRoom } from '../three/buildRoom'
 import { buildHome, buildHomeLights } from '../three/buildHome'
 import { buildAtmosphere } from '../three/atmosphere'
@@ -32,6 +33,7 @@ export default function RoomCanvas() {
 
   const palette = useRoomStore((s) => s.palette)
   const lighting = useRoomStore((s) => s.lighting)
+  const wallMaterial = useRoomStore((s) => s.wallMaterial)
   const floorplan = useRoomStore((s) => s.floorplan)
   const customShape = useRoomStore((s) => s.customShape)
   const customDims = useRoomStore((s) => s.customDims)
@@ -283,6 +285,7 @@ export default function RoomCanvas() {
       colors,
       lighting,
       windows,
+      wallMaterial: getWallMaterial(wallMaterial),
       entries,
       placements,
     })
@@ -314,7 +317,7 @@ export default function RoomCanvas() {
     camera.position.set(dist * xBias, room.h * 0.78, dist * 0.86)
     controls.target.set(0, room.h * 0.4, -room.d * 0.1)
     controls.update()
-  }, [palette, lighting, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom, activeFloor])
+  }, [palette, lighting, wallMaterial, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom, activeFloor])
 
   // ---- home overview: hover + click a room to focus it --------------------
   useEffect(() => {

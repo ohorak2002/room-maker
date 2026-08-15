@@ -676,3 +676,20 @@
   .onboard { padding: 14px 20px; gap: 12px; }
   .prefurn-grid { gap: 6px; }
 }
+
+/* Wall-material swatches. Square and generous, because these are chosen on
+   texture rather than on name — a thumbnail too small to show the bond pattern
+   makes brick and concrete look identical. */
+.mat-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: 104px;
+  object-fit: cover;
+  border-radius: 3px;
+  display: block;
+  image-rendering: auto;
+}
+
+.mat-swatch-empty {
+  background: var(--surface-sunk);
+}

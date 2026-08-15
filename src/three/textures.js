@@ -195,6 +195,109 @@ const SURFACES = {
     }
   },
 
+  /**
+   * Brick, in a running bond.
+   *
+   * Three things separate convincing brick from a checkerboard, and all three
+   * matter more than the brick shape itself:
+   *
+   *   the offset — alternate courses shift by half a brick. Without it the
+   *   joints line up into a grid and it reads as tile, not masonry.
+   *
+   *   per-brick variation — real bricks are fired in batches and no two match.
+   *   A single albedo across every face is the clearest tell of a fake, so each
+   *   brick draws its own tint from its course and column index.
+   *
+   *   deep mortar — the joint is genuinely recessed, not just darker. Brick is
+   *   the one wall surface where you can see the relief from across a room, so
+   *   the height map does real work here rather than staying near-flat the way
+   *   plaster and wood do.
+   */
+  brick: (u, v) => {
+    const courses = 16
+    const row = Math.floor(v * courses)
+    const vIn = fract(v * courses)
+    // Half-brick offset on alternate courses.
+    const shift = row % 2 ? 0.5 : 0
+    const perRow = 5
+    const uShift = u * perRow + shift
+    const col = Math.floor(uShift)
+    const uIn = fract(uShift)
+
+    // Joint width, as a fraction of a brick. Wider vertically than horizontally
+    // because bed joints carry more mortar than perpends.
+    const bed = 0.1
+    const perp = 0.055
+    const inJoint = vIn < bed || vIn > 1 - bed || uIn < perp || uIn > 1 - perp
+
+    if (inJoint) {
+      const grit = fbm(u * 180, v * 180, 2)
+      return { h: 0.12 + grit * 0.1, a: 0.72 + grit * 0.1, r: 1.25 + grit * 0.1 }
+    }
+
+    // Each brick gets its own character from its position.
+    const tint = hash(col * 3.7, row * 8.1)
+    const face = fbm(u * 90 + col * 13, v * 90 + row * 7, 3)
+    const pit = fbm(u * 240, v * 240, 2)
+    // Bricks bow very slightly, catching light across the face.
+    const bow = Math.sin(uIn * Math.PI) * Math.sin(vIn * Math.PI)
+
+    return {
+      h: 0.62 + bow * 0.16 + face * 0.1 - pit * 0.08,
+      a: 0.78 + tint * 0.3 + face * 0.1 - pit * 0.06,
+      r: 1.0 - bow * 0.1 + pit * 0.18 + tint * 0.08,
+    }
+  },
+
+  /**
+   * Painted horizontal boarding — shiplap, the white-wood wall.
+   *
+   * The read is entirely in the groove between boards. Paint flattens the grain
+   * almost completely, so a shiplap wall that leans on wood figure looks like
+   * unpainted timber instead; what your eye actually uses is the line of shadow
+   * every few inches. Grain stays faint underneath, the way it does under a
+   * couple of coats of eggshell.
+   */
+  shiplap: (u, v) => {
+    const boards = 11
+    const vIn = fract(v * boards)
+    const row = Math.floor(v * boards)
+
+    // The V-groove, narrow and sharp.
+    const groove = vIn < 0.06 ? 1 - vIn / 0.06 : vIn > 0.965 ? (vIn - 0.965) / 0.035 : 0
+
+    const grain = fbm(u * 60, v * 200 + row * 11, 2, 16)
+    const brush = fbm(u * 12, v * 40, 2) // roller texture in the paint
+    const cup = Math.sin(vIn * Math.PI) // boards cup very slightly
+
+    return {
+      h: 0.66 + cup * 0.08 - groove * 0.6 + grain * 0.04,
+      a: 0.93 + cup * 0.05 + grain * 0.03 - groove * 0.35 + brush * 0.03,
+      r: 0.95 - cup * 0.04 + brush * 0.12 + groove * 0.2,
+    }
+  },
+
+  /**
+   * Board-formed concrete: the horizontal seams left by the timber shuttering,
+   * plus the tie holes. Without those marks concrete just reads as dirty
+   * plaster — the formwork is the whole character of the material.
+   */
+  concrete: (u, v) => {
+    const boards = 7
+    const vIn = fract(v * boards)
+    const seam = vIn < 0.035 || vIn > 0.965 ? 1 : 0
+
+    const mottle = fbm(u * 7, v * 7, 4)
+    const fine = fbm(u * 90, v * 90, 3)
+    const pinhole = fbm(u * 300, v * 300, 2) > 0.82 ? 1 : 0
+
+    return {
+      h: 0.55 - seam * 0.28 + mottle * 0.06 - pinhole * 0.14,
+      a: 0.86 + mottle * 0.16 - seam * 0.1 - pinhole * 0.08 + fine * 0.04,
+      r: 1.02 + mottle * 0.14 + pinhole * 0.2,
+    }
+  },
+
   /** Painted plaster on walls and ceilings. Deliberately very subtle. */
   plaster: (u, v) => {
     const tooth = fbm(u * 46, v * 46, 3)
@@ -242,6 +345,13 @@ const TUNING = {
   porcelain: { normalScale: 0.18, repeat: 1 },
   stone: { normalScale: 0.3, repeat: 1.4 },
   plaster: { normalScale: 0.35, repeat: 3 },
+  // Brick is the one surface here you can read from across a room, so its
+  // normal is by far the strongest in the table — the mortar joint is a real
+  // recess, not a shading trick, and at a weaker setting the wall flattens
+  // into a plain terracotta rectangle.
+  brick: { normalScale: 1.1, repeat: 2.4 },
+  shiplap: { normalScale: 0.55, repeat: 2 },
+  concrete: { normalScale: 0.4, repeat: 1.6 },
   plastic: { normalScale: 0.2, repeat: 1 },
   leaf: { normalScale: 0.5, repeat: 1 },
   paper: { normalScale: 0.3, repeat: 2 },
@@ -329,8 +439,19 @@ function generate(name, repeat) {
 // once per surface-and-repeat rather than once per object.
 const cache = new Map()
 
+/** Used when a surface exists but nobody gave it tuning. See below. */
+const DEFAULT_TUNING = { normalScale: 0.3, repeat: 2 }
+
 function surfaceMaps(name, repeatOverride) {
-  const tuning = TUNING[name]
+  // A surface with no TUNING entry used to return null here, and `applySurface`
+  // treats null as "leave the material alone" — so adding a generator to
+  // SURFACES and forgetting the tuning table produced a wall with the right
+  // colour, no texture, and no error anywhere. Falling back keeps a new surface
+  // visible while it is being tuned, which is when you most need to see it.
+  if (SURFACES[name] && !TUNING[name]) {
+    console.warn(`textures: surface "${name}" has no TUNING entry; using defaults`)
+  }
+  const tuning = TUNING[name] || (SURFACES[name] ? DEFAULT_TUNING : null)
   if (!tuning) return null
   const repeat = repeatOverride ?? tuning.repeat
   const key = `${name}@${repeat}`
@@ -355,3 +476,50 @@ export function applySurface(material, name, repeat) {
 }
 
 export const SURFACE_NAMES = Object.keys(SURFACES)
+
+/**
+ * A small lit preview of a surface, as a data URL.
+ *
+ * Drawn by the same generator the 3D scene uses, so the swatch in the survey
+ * cannot drift from the wall you end up with. A hand-drawn CSS approximation
+ * would look tidier and would start lying the moment either side changed.
+ *
+ * Shaded with a fixed diagonal light rather than shown flat, because these
+ * surfaces are mostly relief — brick and shiplap read as nothing at all
+ * without a highlight and a shadow on the same bump.
+ */
+export function surfacePreview(name, { size = 96, tint = '#d9d2c7', repeat = 1 } = {}) {
+  const fn = SURFACES[name]
+  if (!fn || typeof document === 'undefined') return null
+
+  const c = document.createElement('canvas')
+  c.width = c.height = size
+  const ctx = c.getContext('2d')
+  const img = ctx.createImageData(size, size)
+
+  const base = [
+    parseInt(tint.slice(1, 3), 16),
+    parseInt(tint.slice(3, 5), 16),
+    parseInt(tint.slice(5, 7), 16),
+  ]
+
+  const at = (x, y) => fn(((x / size) * repeat) % 1, ((y / size) * repeat) % 1)
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const s = at(x, y)
+      // Central difference on the height field gives a cheap surface normal.
+      const dx = at(Math.min(size - 1, x + 1), y).h - at(Math.max(0, x - 1), y).h
+      const dy = at(x, Math.min(size - 1, y + 1)).h - at(x, Math.max(0, y - 1)).h
+      const light = Math.max(0, 1 - (dx * 2.6 + dy * 2.6)) * 0.6 + 0.55
+
+      const i = (y * size + x) * 4
+      for (let k = 0; k < 3; k++) {
+        img.data[i + k] = Math.max(0, Math.min(255, base[k] * s.a * light))
+      }
+      img.data[i + 3] = 255
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+  return c.toDataURL()
+}
