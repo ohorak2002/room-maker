@@ -1,8 +1,30 @@
 import { useRef, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { TRACE_KINDS, kindLabel, scaleFrom, homeFromTrace } from '../data/tracePlan'
+import { detectRooms } from '../data/detectRooms'
 import { mToFt } from '../data/presets'
 import './FloorplanTracer.css'
+
+/**
+ * Guess which kind of room a rectangle is, from its proportions and size.
+ *
+ * Crude on purpose. The detector has no idea what it is looking at, and a wrong
+ * label the user can change in one click is far better than making them label
+ * eight rooms from scratch. Ordered so the most confident guesses win.
+ */
+function guessKind(r, mPerPx) {
+  if (!mPerPx) return 'bedroom'
+  const wM = r.w * mPerPx
+  const hM = r.h * mPerPx
+  const areaM2 = wM * hM
+  const long = Math.max(wM, hM)
+  const short = Math.min(wM, hM)
+
+  if (areaM2 < 2.2) return 'bath'
+  if (short < 1.4 && long / short > 2.6) return 'hallway'
+  if (areaM2 > 22) return 'living'
+  return 'bedroom'
+}
 
 /**
  * Trace a real floorplan into a real home.
@@ -29,8 +51,64 @@ export default function FloorplanTracer({ onDone, onCancel }) {
 
   const wrapRef = useRef(null)
   const startRef = useRef(null)
+  const imgRef = useRef(null)
+  const [detecting, setDetecting] = useState(false)
+  const [detectNote, setDetectNote] = useState(null)
 
   const mPerPx = scaleFrom(line, feet)
+
+  /**
+   * Read the rooms straight off the uploaded plan.
+   *
+   * Everything here already worked by hand; this only fills the rectangles in
+   * so there is something to correct instead of a blank drawing to start. The
+   * results go into the same `rects` state a person would have drawn, so every
+   * existing control — rename, re-kind, delete, assign a storey — still applies.
+   */
+  const detect = async () => {
+    const img = imgRef.current
+    if (!img?.naturalWidth) return
+    setDetecting(true)
+    setDetectNote(null)
+    // Yield a frame so the button can show its pending state before the main
+    // thread goes away for a moment.
+    await new Promise((r) => setTimeout(r, 30))
+
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      ctx.drawImage(img, 0, 0)
+      const found = detectRooms(ctx.getImageData(0, 0, canvas.width, canvas.height))
+
+      // The detector works in the image's own pixels; the overlay is drawn over
+      // the <img> at whatever size it is displayed.
+      const k = img.clientWidth / img.naturalWidth
+      const scaled = found.rooms.map((r, i) => ({
+        id: `auto-${Date.now()}-${i}`,
+        x: r.x * k,
+        y: r.y * k,
+        w: r.w * k,
+        h: r.h * k,
+        kind: guessKind({ w: r.w * k, h: r.h * k }, mPerPx),
+        floor: 0,
+        name: '',
+      }))
+
+      setRects(scaled)
+      setSelected(null)
+      setDetectNote(
+        scaled.length
+          ? `Found ${scaled.length} room${scaled.length === 1 ? '' : 's'}. Check the labels, drag any that are wrong, and draw anything it missed.`
+          : "Couldn't pick out any rooms — the walls may be too faint or the plan too busy. Draw them by hand instead."
+      )
+    } catch {
+      setDetectNote('Could not read that image. Draw the rooms by hand instead.')
+    } finally {
+      setDetecting(false)
+    }
+  }
 
   /** Pointer position in the image's own pixel space, not the page's. */
   const at = (e) => {
@@ -127,7 +205,7 @@ export default function FloorplanTracer({ onDone, onCancel }) {
         onPointerMove={onMove}
         onPointerUp={onUp}
       >
-        <img src={store.planImage} alt="Your floorplan" draggable={false} />
+        <img ref={imgRef} src={store.planImage} alt="Your floorplan" draggable={false} />
 
         <svg className="tracer-overlay">
           {rects.map((r) => (
@@ -168,11 +246,20 @@ export default function FloorplanTracer({ onDone, onCancel }) {
             <span>feet</span>
           </label>
           <button className="btn-primary" disabled={!mPerPx} onClick={() => setStep('rooms')}>
-            {mPerPx ? 'Scale set — draw rooms' : 'Drag a line first'}
+            {mPerPx ? 'Scale set — find rooms' : 'Drag a line first'}
           </button>
         </div>
       ) : (
         <div className="tracer-foot col">
+          <div className="tracer-row detect-row">
+            <button className="btn-primary" onClick={detect} disabled={detecting}>
+              {detecting ? 'Reading the plan…' : rects.length ? 'Find rooms again' : 'Find the rooms for me'}
+            </button>
+            <span className="tracer-hint inline">
+              {detectNote || 'Reads the walls straight off your image. Correct anything it gets wrong.'}
+            </span>
+          </div>
+
           <div className="tracer-row">
             <label className="tracer-field">
               <span>New rooms are</span>

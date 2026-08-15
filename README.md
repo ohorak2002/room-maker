@@ -161,10 +161,23 @@ What is real is the retailer and the search link, which opens that store's own
 search so you can check the current price. `src/data/catalog.js` is shaped so a
 real price feed can replace the static numbers without touching the UI.
 
-**No apartment floorplan lookup.** Property managers publish floorplans as marketing
-images with no structured data behind them, and a browser app can't scrape them
-anyway. Instead you enter exact dimensions and can upload your own floorplan image
-as a reference. The building-name field is stored locally and looks nothing up.
+**No apartment floorplan lookup by address.** Property managers publish floorplans
+as marketing images with no structured data behind them, and there is no API to
+ask. The building-name field is stored locally and looks nothing up.
+
+What *does* work is reading a floorplan you already have. Upload the image, set
+the scale by drawing a line of known length, and **Find the rooms for me** reads
+the walls off the picture — see `src/data/detectRooms.js`. An architectural
+drawing is already almost a segmentation: walls are the darkest ink on the page,
+and a room is any enclosed region that isn't wall. Threshold, flood the outside
+in from the border, label what's left, then discard the pockets too small, too
+thin or too ragged to be rooms — which is how text labels, door swings and
+appliance symbols get rejected.
+
+It is a first draft, not a survey. It has no idea which room is a kitchen, it
+merges rooms joined by a wide opening, and it reads a clean vector plan far
+better than a phone photo of a paper one. Everything it produces stays editable
+by hand, and anything it misses can still be drawn the old way.
 
 **No object recognition in photos.** Palette extraction is real and runs entirely
 in your browser. Identifying the actual chair or lamp in a photo needs a vision

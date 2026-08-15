@@ -231,3 +231,19 @@
   font-size: 0.88rem;
   color: var(--ink-soft);
 }
+
+/* The detect row leads the rooms step: it is the path most people should take,
+   so it sits above the manual controls and carries the primary button. */
+.detect-row {
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+
+.tracer-hint.inline {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
