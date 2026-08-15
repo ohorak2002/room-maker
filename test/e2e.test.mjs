@@ -4,6 +4,7 @@
 // becoming geometry.
 process.env.MESHY_API_KEY = 'test-key'
 process.env.MODEL_TRIANGLE_BUDGET = '3000'
+process.env.MODEL_PHOTO_TRIANGLE_BUDGET = '12000'
 
 
 
@@ -98,8 +99,11 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (u === 'https://api.meshy.ai/openapi/v1/image-to-3d' && opts.method === 'POST') {
     const body = JSON.parse(opts.body)
-    if (body.should_texture !== false) throw new Error('TEST FAIL: asked the provider for a texture')
-    if (body.target_polycount !== 3000) throw new Error('TEST FAIL: polycount not passed through')
+    // A pasted product page names one specific object, and the fabric in that
+    // photo is why it was pasted. This path is the only one that gets a texture
+    // — a piece described by name still comes back tintable. See _lib/glb.js.
+    if (body.should_texture !== true) throw new Error('TEST FAIL: a photo piece must ask for a texture')
+    if (body.target_polycount !== 12000) throw new Error('TEST FAIL: photo polycount not passed through')
     if (body.image_url !== CUTOUT) throw new Error('TEST FAIL: sent ' + body.image_url + ' instead of the cut-out')
     return json({ result: 'task-abc' })
   }

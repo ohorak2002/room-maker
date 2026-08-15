@@ -26,6 +26,42 @@ import { isUpgradable } from '../data/upgradable'
 const inflight = new Map()
 
 /**
+ * key -> spec, for the ones that came back. Separate from `inflight` because
+ * callers who must not start a job still need to know whether one has already
+ * finished — the shop's thumbnails, in particular. Asking `inflight` would mean
+ * creating the promise, and creating the promise means paying for a mesh
+ * because someone scrolled past a chair.
+ */
+const resolved = new Map()
+
+/** Notified with the cache key each time a spec lands. */
+const listeners = new Set()
+
+function keyFor(item) {
+  if (!item?.model) return null
+  return cacheKeyFor({
+    url: item.sourceUrl ? canonicalProductUrl(item.sourceUrl) : null,
+    name: item.name,
+    model: item.model,
+  })
+}
+
+/**
+ * The spec for this item if one has already arrived, otherwise null. Never
+ * starts work and never costs anything.
+ */
+export function peekUpgrade(item) {
+  const key = keyFor(item)
+  return (key && resolved.get(key)) || null
+}
+
+/** @returns an unsubscribe function. */
+export function onUpgradeResolved(fn) {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
+}
+
+/**
  * Set once the endpoint has told us it is not going to help — no provider
  * configured, or no endpoint at all because this is `vite dev` rather than
  * `vercel dev`. After that we stop asking for the rest of the session.
@@ -105,17 +141,27 @@ async function run(item) {
 export function requestUpgrade(item) {
   if (unavailable || !item?.model || !isUpgradable(item.model)) return Promise.resolve(null)
 
-  const key = cacheKeyFor({
-    url: item.sourceUrl ? canonicalProductUrl(item.sourceUrl) : null,
-    name: item.name,
-    model: item.model,
-  })
+  const key = keyFor(item)
   if (!key) return Promise.resolve(null)
 
   if (!inflight.has(key)) {
     // Never rejects. A failed upgrade is a non-event — the room is already
     // correct without it — so callers should not have to handle one.
-    inflight.set(key, run(item).catch(() => null))
+    inflight.set(
+      key,
+      run(item)
+        .catch(() => null)
+        .then((spec) => {
+          if (!spec) return null
+          resolved.set(key, spec)
+          // The room swaps its own geometry; this is for everything else
+          // showing the same product — thumbnails, mostly.
+          for (const fn of listeners) {
+            try { fn(key) } catch { /* a bad listener is not the mesh's problem */ }
+          }
+          return spec
+        })
+    )
   }
   return inflight.get(key)
 }

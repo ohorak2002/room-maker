@@ -89,5 +89,56 @@ try {
 const big = glbToSpec(makeGlb(gltf, bin), { triangleBudget: 4 })
 console.log(big.triangles <= 12 ? 'ok   decimator ran, tris:' : 'FAIL decimator', big.triangles)
 
+// --- texture mode ----------------------------------------------------------
+// A piece the user picked by product link keeps its photograph and drops out of
+// palette tinting. Everything else must keep behaving exactly as above.
+
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64'
+)
+
+// One UV per vertex, so the count lines up with POSITION.
+const uvBuf = Buffer.from(new Float32Array([0,0, 0,1, 1,0, 1,1, 0,0, 0,1, 1,0, 1,1]).buffer)
+const texBin = Buffer.concat([vBuf, iBuf, uvBuf, PNG])
+
+const texGltf = {
+  ...gltf,
+  meshes: [{ primitives: [{ attributes: { POSITION: 0, TEXCOORD_0: 2 }, indices: 1, material: 0 }] }],
+  materials: [{ pbrMetallicRoughness: { baseColorTexture: { index: 0 } } }],
+  textures: [{ source: 0 }],
+  images: [{ bufferView: 3, mimeType: 'image/png' }],
+  accessors: [
+    ...gltf.accessors,
+    { bufferView: 2, componentType: 5126, count: 8, type: 'VEC2' },
+  ],
+  bufferViews: [
+    ...gltf.bufferViews,
+    { buffer: 0, byteOffset: vBuf.length + iBuf.length, byteLength: uvBuf.length },
+    { buffer: 0, byteOffset: vBuf.length + iBuf.length + uvBuf.length, byteLength: PNG.length },
+  ],
+  buffers: [{ byteLength: texBin.length }],
+}
+
+const tex = glbToSpec(makeGlb(texGltf, texBin), { triangleBudget: 12000, keepTextures: true })
+if (!check('textured flag set', tex.textured, true)) fail++
+if (!check('not tintable', tex.materials.map((m) => m.tint), [false])) fail++
+if (!check('white so the map is not darkened', tex.materials[0].rgb, [255, 255, 255])) fail++
+if (!check('texture is a data uri', tex.texture.startsWith('data:image/png;base64,'), true)) fail++
+if (!check('one uv per vertex', tex.uvs.length, (tex.positions.length / 3) * 2)) fail++
+if (!check('geometry left alone', tex.triangles, 12)) fail++
+if (!check('still seated and normalised', [tex.heightM, tex.widthM, tex.depthM], [1, 0.5, 1.5])) fail++
+
+// The same file read without the flag must be byte-for-byte what it always was.
+const asBefore = glbToSpec(makeGlb(texGltf, texBin))
+if (!check('silhouette mode ignores the texture', asBefore.texture, undefined)) fail++
+if (!check('silhouette mode stays tintable', asBefore.materials.map((m) => m.tint), [true])) fail++
+
+// Asking for textures from a GLB that has none degrades rather than failing.
+const noTexture = glbToSpec(makeGlb(gltf, bin), { keepTextures: true })
+if (!check('untextured GLB falls back to tintable', noTexture.materials.map((m) => m.tint), [true])) fail++
+if (!check('and carries no texture field', noTexture.texture, undefined)) fail++
+
 console.log('\npayload bytes for 12 tris:', JSON.stringify(spec).length)
+console.log('payload bytes textured:  ', JSON.stringify(tex).length)
 console.log(fail ? `${fail} FAILURES` : 'all passed')

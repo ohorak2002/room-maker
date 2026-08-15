@@ -16,32 +16,75 @@ import { requestFacts, applyFacts } from '../data/productFacts'
  * Y-up, origin on the floor, centred on X and Z — so neither needs a special
  * case, and a third source later would not either.
  *
- * Vertex normals are computed here rather than shipped. Un-indexed data (the
- * fig) comes out flat-shaded per face; indexed data (a generated mesh) comes
- * out smooth across shared vertices, which is the right answer for the curved
- * silhouettes that are the only shapes we generate — see data/upgradable.js.
+ * Vertex normals are computed here unless the spec ships its own. Un-indexed
+ * data (the fig) comes out flat-shaded per face; indexed data (a generated
+ * mesh) comes out smooth across shared vertices, which is the right answer for
+ * the curved silhouettes that are the only shapes we generate — see
+ * data/upgradable.js. A textured piece keeps the provider's normals instead,
+ * because those were authored against the same UVs the photograph sits on.
  *
  * Materials marked `tint` are multiplied by the catalog colour, so the piece
  * still answers to the palette. The rest keep the colours they were authored
- * with — a terracotta pot shouldn't turn sage because the walls did.
+ * with — a terracotta pot shouldn't turn sage because the walls did. A piece
+ * carrying a real product photograph is never tinted: the fabric in that photo
+ * is the reason the user pasted the link.
  */
+
+/**
+ * One THREE.Texture per spec, not per piece. Eight dining chairs share one
+ * upgraded spec, and decoding the same base64 image eight times would cost
+ * eight uploads to the GPU for one picture.
+ */
+const specTextures = new WeakMap()
+
+function textureFor(spec) {
+  if (!spec.texture) return null
+  const cached = specTextures.get(spec)
+  if (cached) return cached
+
+  const tex = new THREE.TextureLoader().load(spec.texture)
+  // glTF UVs put the origin at the top left, which is the opposite of three's
+  // default. GLTFLoader sets this for the same reason; we read the raw UVs, so
+  // we have to set it ourselves or every product arrives upside down.
+  tex.flipY = false
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.anisotropy = 4
+  specTextures.set(spec, tex)
+  return tex
+}
+
 function sketchupMesh(spec, it) {
   const g = new THREE.Group()
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(spec.positions, 3))
+  if (spec.uvs) geo.setAttribute('uv', new THREE.Float32BufferAttribute(spec.uvs, 2))
   // Indexing has to be set before normals are computed, or the averaging has
   // no shared vertices to average across and every surface comes out faceted.
   if (spec.indices) geo.setIndex(spec.indices)
-  geo.computeVertexNormals()
+  if (spec.normals) geo.setAttribute('normal', new THREE.Float32BufferAttribute(spec.normals, 3))
+  else geo.computeVertexNormals()
 
   for (const [start, count, matIndex] of spec.groups) {
     geo.addGroup(start, count, matIndex)
   }
 
+  const map = textureFor(spec)
   const tinted = GENERATED_SURFACE[it.model] || FOLIAGE
   const mats = spec.materials.map((m) => {
     const [r, gg, b] = m.rgb
     const hex = `#${((1 << 24) + (r << 16) + (gg << 8) + b).toString(16).slice(1)}`
+    if (map) {
+      // The photograph already carries the product's own shading, so this stays
+      // matte and barely reflective. Letting the environment map play across it
+      // as well would light the same surface twice.
+      return new THREE.MeshStandardMaterial({
+        map,
+        color: new THREE.Color(hex),
+        roughness: 0.9,
+        metalness: 0.0,
+        envMapIntensity: 0.25,
+      })
+    }
     return m.tint ? tinted(it.color || hex) : mat(hex, 0.62, 0.0, 0.4, 'paper')
   })
 
@@ -66,6 +109,17 @@ function sketchupMesh(spec, it) {
 }
 
 /**
+ * The same node the room would show for an upgraded piece, built standalone.
+ *
+ * Exists so the shop's thumbnails can draw the mesh the room is drawing. A
+ * thumbnail that still shows the generic sofa after the real one has landed
+ * reads as a broken product, not as a pending one.
+ */
+export function upgradedNode(spec, item) {
+  return shadowed(sketchupMesh(spec, item))
+}
+
+/**
  * Replace a placed piece's geometry in situ, once a better model turns up.
  *
  * The node itself survives: it is what the drag layer raycasts against and
@@ -85,6 +139,9 @@ function swapGeometry(node, spec, item) {
     child.traverse?.((o) => {
       if (!o.isMesh) return
       o.geometry?.dispose()
+      // Materials only, never `material.map`. A product texture belongs to its
+      // spec and is shared by every copy of that product in the room — dispose
+      // it here and the other seven dining chairs go black.
       if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose())
       else o.material?.dispose()
     })
@@ -287,7 +344,35 @@ const DARK = '#2B2D31'
 // a metal's reflectivity looks like a beanbag wrapped in foil, and wood with
 // fabric roughness goes dead flat under the key light.
 //                      roughness, metalness, envIntensity
-const FABRIC = (c) => mat(c, 0.95, 0.0, 0.12, 'fabric')
+/**
+ * Cloth, and the one material here that is not a MeshStandardMaterial.
+ *
+ * Fabric is the surface people are most sensitive to getting wrong, because a
+ * sofa is the thing in the room they have touched most often. What a standard
+ * material cannot do is the pale rim that appears where upholstery turns away
+ * from the light — that is thousands of fibre ends catching it side-on, and
+ * without it velvet, linen and wool all resolve to the same soft rubber.
+ *
+ * `sheen` is three's model of exactly that, and it is why this one is Physical.
+ * Kept modest and broad: a high sheen with a tight roughness reads as satin,
+ * which is a different and much shinier material than most of the catalog.
+ */
+const FABRIC = (c) => {
+  const color = new THREE.Color(c)
+  const m = new THREE.MeshPhysicalMaterial({
+    color,
+    roughness: 0.95,
+    metalness: 0.0,
+    envMapIntensity: 0.12,
+    sheen: 0.6,
+    sheenRoughness: 0.75,
+    // Lifted toward white rather than a fixed highlight colour, so a charcoal
+    // sofa gets a grey rim and a sage one a pale green — a white rim on a dark
+    // fabric looks dusty.
+    sheenColor: color.clone().lerp(new THREE.Color(0xffffff), 0.55),
+  })
+  return applySurface(m, 'fabric')
+}
 const WOODEN = (c) => mat(c, 0.55, 0.0, 0.45, 'wood')
 const METAL = (c) => mat(c, 0.32, 0.88, 1.1, 'brushed')
 const PLASTIC = (c) => mat(c, 0.42, 0.0, 0.7, 'plastic')

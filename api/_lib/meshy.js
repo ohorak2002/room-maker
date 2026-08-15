@@ -8,13 +8,25 @@
  *
  * Two settings here are doing the important work:
  *
- *   should_texture: false   The photo must not end up baked into the albedo.
- *                           three multiplies material.color by the map, so a
- *                           textured mesh can never be re-tinted and the whole
- *                           palette stops reaching it.
- *   target_polycount        The app renders a whole room. A 30,000-triangle
- *                           sofa is invisible next to a 3,000-triangle one at
- *                           room distance and ten times the payload.
+ *   should_texture          Off by default, and for a long time off always. A
+ *                           textured mesh cannot be re-tinted — three multiplies
+ *                           material.color by the map — so texturing a piece
+ *                           takes it out of the palette permanently.
+ *
+ *                           That is the right trade for a generic catalog sofa,
+ *                           whose job is to sit in whatever room the palette
+ *                           describes. It is the wrong trade for a sofa the user
+ *                           picked by pasting its product page: they chose that
+ *                           fabric, and recolouring it to match the room throws
+ *                           away the entire reason they linked it. Those pieces
+ *                           ask for a texture and opt out of tinting.
+ *
+ *   target_polycount        The app renders a whole room, and at room distance a
+ *                           3,000-triangle sofa reads the same as a 30,000 one
+ *                           at a tenth the payload. That holds while the surface
+ *                           is flat colour. Once a photographic texture lands on
+ *                           it, the silhouette has to be good enough to deserve
+ *                           the detail, so photo pieces are given more room.
  *
  * Generation is genuinely slow — a minute or two — so nothing here waits for a
  * result. Create returns a task id, poll reports on it, and the caller decides
@@ -64,22 +76,27 @@ async function call(path, { method = 'GET', body } = {}) {
   return res.json()
 }
 
-/** @returns an opaque job handle the caller hands back to `poll`. */
-export async function createFromImage(imageUrl, { polycount = 3000 } = {}) {
+/**
+ * @param texture  Keep the product photo baked into the albedo. Only for a
+ *                 piece the user identified by product link — see the header.
+ * @returns an opaque job handle the caller hands back to `poll`.
+ */
+export async function createFromImage(imageUrl, { polycount = 3000, texture = false } = {}) {
   const out = await call('/v1/image-to-3d', {
     method: 'POST',
     body: {
       image_url: imageUrl,
       ai_model: 'latest',
-      // The silhouette is the entire reason we are here. See the file header.
-      should_texture: false,
+      should_texture: texture,
       should_remesh: true,
       topology: 'triangle',
       target_polycount: polycount,
     },
   })
   if (!out?.result) throw new ProviderError('provider accepted the job but returned no id')
-  return `img:${out.result}`
+  // The handle records whether a texture is coming, because the reader has to
+  // know before it opens the GLB and the job id is all the client sends back.
+  return `img${texture ? 't' : ''}:${out.result}`
 }
 
 /**
@@ -103,18 +120,20 @@ export async function createFromText(prompt, { polycount = 3000 } = {}) {
   return `txt:${out.result}`
 }
 
-/** @returns {{ state: 'pending'|'ready'|'failed', progress, glbUrl, reason }} */
+/** @returns {{ state: 'pending'|'ready'|'failed', progress, glbUrl, textured, reason }} */
 export async function poll(job) {
   const [kind, id] = String(job).split(':')
-  if (!id || (kind !== 'img' && kind !== 'txt')) throw new ProviderError('malformed job handle')
+  if (!id || (kind !== 'img' && kind !== 'imgt' && kind !== 'txt')) {
+    throw new ProviderError('malformed job handle')
+  }
 
-  const path = kind === 'img' ? `/v1/image-to-3d/${id}` : `/v2/text-to-3d/${id}`
+  const path = kind === 'txt' ? `/v2/text-to-3d/${id}` : `/v1/image-to-3d/${id}`
   const task = await call(path)
 
   if (task.status === 'SUCCEEDED') {
     const glbUrl = task.model_urls?.glb
     if (!glbUrl) return { state: 'failed', reason: 'provider finished without a GLB' }
-    return { state: 'ready', glbUrl, progress: 100 }
+    return { state: 'ready', glbUrl, textured: kind === 'imgt', progress: 100 }
   }
   if (task.status === 'FAILED' || task.status === 'CANCELED') {
     return { state: 'failed', reason: task.task_error?.message || task.status.toLowerCase() }

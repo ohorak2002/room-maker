@@ -7,19 +7,33 @@
  * shape drops into `sketchupMesh()` with no special case, which means the
  * generated sofa and the hand-modelled fig travel the same code path.
  *
- * Two things are deliberately thrown away.
+ * There are two modes, and the default throws almost everything away.
  *
- * The textures. An image-to-3D service bakes the product photo into the albedo,
- * and three multiplies `material.color` by that map — so a photo of a charcoal
- * sofa can never be tinted lighter, and the palette stops reaching it. That is
- * exactly how the downloaded-model experiment failed the first time. We ask the
- * provider not to texture at all, and if one arrives anyway it is dropped here.
+ * ── Silhouette mode (default) ───────────────────────────────────────────────
+ *
+ * Textures are dropped. An image-to-3D service bakes the product photo into the
+ * albedo, and three multiplies `material.color` by that map — so a photo of a
+ * charcoal sofa can never be tinted lighter, and the palette stops reaching it.
+ * That is exactly how the downloaded-model experiment failed the first time.
  * What we want from these services is the silhouette; the app already knows how
  * to light and colour a surface.
  *
- * The material split. Everything becomes one tintable group. Guessing which
- * generated submesh is "the wooden leg" from a texture we just discarded would
- * be inventing information.
+ * The material split goes too. Everything becomes one tintable group. Guessing
+ * which generated submesh is "the wooden leg" from a texture we just discarded
+ * would be inventing information.
+ *
+ * ── Texture mode (`keepTextures`) ───────────────────────────────────────────
+ *
+ * For a piece the user identified by pasting its product page, the fabric is
+ * the point. Tinting it to the room palette discards the one thing they asked
+ * for. Those meshes keep their UVs, their baseColor image and their normals,
+ * and are marked `tint: false` so the palette leaves them alone.
+ *
+ * Decimation is skipped in this mode. Vertex clustering invents new vertices at
+ * cell centres, and a UV is a property of a vertex that existed — there is no
+ * honest way to carry one across. Instead the provider is asked for a workable
+ * polycount up front and anything wildly over the ceiling falls back to
+ * silhouette mode, which can always be decimated.
  *
  * No dependencies on purpose. A serverless function that pulls in a full glTF
  * loader for a parse this narrow pays the cold-start cost on every request.
@@ -42,6 +56,21 @@ const COMPONENTS_PER = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 }
 
 /** Compressed geometry needs a decoder we're not shipping. Say so precisely. */
 const UNSUPPORTED = ['KHR_draco_mesh_compression', 'EXT_meshopt_compression', 'KHR_mesh_quantization']
+
+/**
+ * A textured spec carries its image inline as base64, which costs a third again
+ * on top of the raw bytes and lands in the JSON the client downloads. Past this
+ * the piece is not worth the wait, so it degrades to silhouette mode rather than
+ * shipping a room that takes ten seconds to populate.
+ */
+const MAX_TEXTURE_BYTES = 3 * 1024 * 1024
+
+/**
+ * Texture mode cannot decimate, so this is the point at which a provider that
+ * ignored the requested polycount stops being usable and we fall back to the
+ * mode that can.
+ */
+const TEXTURED_TRIANGLE_CEILING = 60_000
 
 export class GlbError extends Error {}
 
@@ -222,25 +251,91 @@ function cluster(positions, indices, budget) {
   return { positions, indices }
 }
 
+// --- textures ---------------------------------------------------------------
+
+/**
+ * The baseColour image, as a data URI the client can hand straight to
+ * TextureLoader.
+ *
+ * Returns null for every case we cannot honour rather than throwing: a missing
+ * or awkward texture should cost the piece its texture, not its mesh.
+ *
+ * @returns {{ uri: string, bytes: number } | null}
+ */
+function baseColorImage(gltf, bin) {
+  const material = (gltf.materials || []).find(
+    (m) => m?.pbrMetallicRoughness?.baseColorTexture?.index != null
+  )
+  const ref = material?.pbrMetallicRoughness?.baseColorTexture
+  if (!ref) return null
+
+  // We only read TEXCOORD_0. A texture pointing at a second UV set would be
+  // sampled with the wrong coordinates, which looks worse than no texture.
+  if (ref.texCoord) return null
+
+  const source = gltf.textures?.[ref.index]?.source
+  if (source == null) return null
+
+  const image = gltf.images?.[source]
+  if (!image) return null
+
+  let bytes = null
+  let mime = image.mimeType || 'image/png'
+
+  if (image.bufferView != null) {
+    const view = gltf.bufferViews?.[image.bufferView]
+    if (!view || !bin) return null
+    const start = view.byteOffset || 0
+    bytes = bin.subarray(start, start + view.byteLength)
+  } else if (typeof image.uri === 'string' && image.uri.startsWith('data:')) {
+    const comma = image.uri.indexOf(',')
+    const header = image.uri.slice(5, comma)
+    if (!header.includes('base64')) return null
+    mime = header.split(';')[0] || mime
+    bytes = Buffer.from(image.uri.slice(comma + 1), 'base64')
+  } else {
+    // An external file the provider expects us to fetch separately. Not worth
+    // a second network hop inside an already slow request.
+    return null
+  }
+
+  if (!bytes?.length || bytes.length > MAX_TEXTURE_BYTES) return null
+
+  return {
+    uri: `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`,
+    bytes: bytes.length,
+  }
+}
+
 // --- public ---------------------------------------------------------------
 
 /**
  * @param buffer    ArrayBuffer of a GLB
  * @param triangleBudget  hard ceiling; over it the mesh is clustered down
+ * @param keepTextures    keep UVs, normals and the baseColour image, and mark
+ *                        the result untintable. Falls back to silhouette mode
+ *                        if the GLB has no usable texture.
  * @returns the same object shape as src/three/meshes/fiddleFig.js
  */
-export function glbToSpec(buffer, { triangleBudget = 4000, name = 'Body' } = {}) {
+export function glbToSpec(buffer, { triangleBudget = 4000, name = 'Body', keepTextures = false } = {}) {
   const { gltf, bin } = splitChunks(buffer)
 
   const required = gltf.extensionsRequired || []
   const blocked = required.filter((e) => UNSUPPORTED.includes(e))
   if (blocked.length) throw new GlbError(`compressed geometry (${blocked.join(', ')}) needs a decoder this reader does not ship`)
 
+  // Resolve the texture before walking the scene: no image means silhouette
+  // mode, and that decides whether the walk needs to collect UVs at all.
+  const image = keepTextures ? baseColorImage(gltf, bin) : null
+  const textured = Boolean(image)
+
   // Walk the scene so node transforms are honoured. Providers routinely export
   // the model parented under a rotated or scaled root, and ignoring that gives
   // you a sofa lying on its side.
   const positions = []
   const indices = []
+  const uvs = textured ? [] : null
+  const normals = textured ? [] : null
   const scene = gltf.scenes?.[gltf.scene ?? 0]
   const roots = scene?.nodes ?? gltf.nodes?.map((_, i) => i) ?? []
   const seen = new Set()
@@ -260,6 +355,7 @@ export function glbToSpec(buffer, { triangleBudget = 4000, name = 'Body' } = {})
 
         const raw = readAccessor(gltf, bin, prim.attributes.POSITION)
         const first = positions.length / 3
+        const count = raw.length / 3
 
         for (let i = 0; i < raw.length; i += 3) {
           const [x, y, z] = [raw[i], raw[i + 1], raw[i + 2]]
@@ -270,11 +366,46 @@ export function glbToSpec(buffer, { triangleBudget = 4000, name = 'Body' } = {})
           )
         }
 
+        if (textured) {
+          // Every vertex needs an entry whether or not this primitive supplies
+          // one, or the arrays stop lining up with `positions` and the whole
+          // mesh samples the texture at the wrong place.
+          const uvIndex = prim.attributes.TEXCOORD_0
+          if (uvIndex != null) {
+            const acc = gltf.accessors?.[uvIndex]
+            // Normalized integer UVs are legal and Meshy has shipped them.
+            const k = acc?.normalized ? (acc.componentType === 5121 ? 1 / 255 : 1 / 65535) : 1
+            const uv = readAccessor(gltf, bin, uvIndex)
+            for (let i = 0; i < count * 2; i += 2) uvs.push(uv[i] * k, uv[i + 1] * k)
+          } else {
+            for (let i = 0; i < count; i++) uvs.push(0, 0)
+          }
+
+          const nIndex = prim.attributes.NORMAL
+          if (nIndex != null) {
+            const n = readAccessor(gltf, bin, nIndex)
+            for (let i = 0; i < count * 3; i += 3) {
+              // Upper 3x3 only — translation must not move a direction. This is
+              // exact for rotation and uniform scale, which is what providers
+              // export; a non-uniformly scaled node would want the inverse
+              // transpose, and would be skewed slightly here.
+              const x = world[0] * n[i] + world[4] * n[i + 1] + world[8] * n[i + 2]
+              const y = world[1] * n[i] + world[5] * n[i + 1] + world[9] * n[i + 2]
+              const z = world[2] * n[i] + world[6] * n[i + 1] + world[10] * n[i + 2]
+              const len = Math.hypot(x, y, z) || 1
+              normals.push(x / len, y / len, z / len)
+            }
+          } else {
+            // Absent normals are legal; the client computes them.
+            for (let i = 0; i < count; i++) normals.push(0, 0, 0)
+          }
+        }
+
         if (prim.indices != null) {
           const idx = readAccessor(gltf, bin, prim.indices)
           for (let i = 0; i < idx.length; i++) indices.push(first + idx[i])
         } else {
-          for (let i = 0; i < raw.length / 3; i++) indices.push(first + i)
+          for (let i = 0; i < count; i++) indices.push(first + i)
         }
       }
     }
@@ -286,7 +417,14 @@ export function glbToSpec(buffer, { triangleBudget = 4000, name = 'Body' } = {})
 
   if (indices.length < 3) throw new GlbError('GLB contained no triangles')
 
-  const decimated = cluster(Float64Array.from(positions), Uint32Array.from(indices), triangleBudget)
+  // A provider that blew past the requested polycount loses its texture rather
+  // than its usability: silhouette mode can always be decimated, texture mode
+  // cannot. See the header.
+  const withTexture = textured && indices.length / 3 <= TEXTURED_TRIANGLE_CEILING
+
+  const decimated = withTexture
+    ? { positions: Float64Array.from(positions), indices: Uint32Array.from(indices) }
+    : cluster(Float64Array.from(positions), Uint32Array.from(indices), triangleBudget)
   const p = decimated.positions
 
   // Seat it the way every procedural builder is seated: floor at y=0, centred
@@ -316,6 +454,12 @@ export function glbToSpec(buffer, { triangleBudget = 4000, name = 'Body' } = {})
   }
 
   const triangles = decimated.indices.length / 3
+
+  // All-zero normals mean no primitive supplied any, which is legal glTF. Say
+  // nothing rather than shipping a field of zeros — the client computes better
+  // ones than that.
+  const hasNormals = withTexture && normals.some((n) => n !== 0)
+
   return {
     unit: 'metres',
     heightM: 1,
@@ -326,9 +470,23 @@ export function glbToSpec(buffer, { triangleBudget = 4000, name = 'Body' } = {})
     depthM: +((max[2] - min[2]) * s).toFixed(3),
     triangles,
     groups: [[0, decimated.indices.length, 0]],
-    // Light and neutral, so `material.color` still decides the hue. See the
-    // note at the top of this file for why this is not negotiable.
-    materials: [{ name, rgb: [222, 218, 212], tint: true }],
+    materials: [
+      withTexture
+        // White, because three multiplies `material.color` by the map and any
+        // other value darkens the photograph.
+        ? { name, rgb: [255, 255, 255], tint: false }
+        // Light and neutral, so `material.color` still decides the hue.
+        : { name, rgb: [222, 218, 212], tint: true },
+    ],
+    ...(withTexture
+      ? {
+          textured: true,
+          texture: image.uri,
+          textureBytes: image.bytes,
+          uvs: uvs.map((v) => +v.toFixed(4)),
+          ...(hasNormals ? { normals: normals.map((v) => +v.toFixed(3)) } : {}),
+        }
+      : {}),
     positions: out,
     indices: Array.from(decimated.indices),
   }

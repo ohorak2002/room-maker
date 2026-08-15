@@ -1,14 +1,22 @@
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { builders } from './buildRoom'
+import { builders, upgradedNode } from './buildRoom'
+import { peekUpgrade } from './modelUpgrade'
 
 /**
  * Renders a catalog item to a small PNG using the exact same geometry the room
  * uses. That's the point: the thumbnail is not an approximation of the product,
  * it *is* the object you're about to place, so what you preview is what you get.
  *
- * One shared offscreen renderer handles every item and results are cached by id,
- * so browsing the catalog costs one draw per item for the life of the page.
+ * That promise is why this reads `peekUpgrade` rather than `requestUpgrade`. If
+ * a real model for the product has already arrived, the thumbnail shows it —
+ * but browsing the shop must never *start* a generation, or scrolling past a
+ * row of chairs would bill for a row of chairs. The room places pieces and pays
+ * for them; this window only looks.
+ *
+ * One shared offscreen renderer handles every item. Results are cached per item
+ * and per source of the geometry, so the arrival of a real model produces one
+ * new draw rather than a stale picture.
  */
 
 let ctx = null
@@ -46,15 +54,19 @@ function getContext() {
 
 /** @returns {string|null} a data: URL, or null if the item has no builder */
 export function renderThumbnail(item) {
-  if (cache.has(item.id)) return cache.get(item.id)
+  const spec = peekUpgrade(item)
+  // Two entries per item at most: the built-in shape, and the real product once
+  // it exists. Keying on both is what lets the second one replace the first.
+  const id = `${item.id}:${spec ? 'model' : 'builtin'}`
+  if (cache.has(id)) return cache.get(id)
 
   const build = builders[item.model]
-  if (!build) return null
+  if (!build && !spec) return null
 
   let url = null
   try {
     const { renderer, scene, camera } = getContext()
-    const node = build(item)
+    const node = spec ? upgradedNode(spec, item) : build(item)
     scene.add(node)
 
     // Frame whatever we just built, whatever its proportions.
@@ -83,7 +95,7 @@ export function renderThumbnail(item) {
     console.warn('thumbnail failed for', item.id, err)
   }
 
-  cache.set(item.id, url)
+  cache.set(id, url)
   return url
 }
 

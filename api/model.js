@@ -5,7 +5,14 @@
  * types maps onto one of them. That works, and for boxy furniture it works
  * well, but it means every sofa in the app is the same sofa. This endpoint is
  * the way out: paste a link to the sofa you actually want, and the mesh that
- * comes back is that sofa's silhouette rather than the generic one.
+ * comes back is that sofa rather than the generic one.
+ *
+ * How much of "that sofa" survives depends on how it was asked for. A pasted
+ * product page gives us a photograph of one specific object, so that mesh keeps
+ * its texture and drops out of palette tinting — the fabric they picked is the
+ * reason they pasted the link. A piece described only by name is a guess at a
+ * category, so it comes back as an untextured silhouette the palette can still
+ * colour. See _lib/glb.js for the two modes.
  *
  * ── Why it answers before it has an answer ──────────────────────────────────
  *
@@ -48,8 +55,21 @@ import { pickProductPhoto, isAllowedProductHost } from './_lib/photo.js'
 import { createFromImage, createFromText, poll, hasCredentials, ProviderError } from './_lib/meshy.js'
 
 const TRIANGLE_BUDGET = Number(process.env.MODEL_TRIANGLE_BUDGET || 3000)
+// A photo piece keeps its texture, and a photograph stretched over a silhouette
+// coarse enough to be free is worse than either half on its own — the seams
+// land in the wrong places and the folds read as creases in a sheet. Detail has
+// to be worth the texture before the texture is worth having.
+const PHOTO_TRIANGLE_BUDGET = Number(process.env.MODEL_PHOTO_TRIANGLE_BUDGET || 12000)
 const JOBS_PER_HOUR = Number(process.env.MODEL_MAX_JOBS_PER_HOUR || 40)
 const MAX_GLB_BYTES = 25 * 1024 * 1024
+
+/**
+ * Bumped whenever the shape of a spec changes. It rides along in the cache key
+ * so a deploy that adds a field cannot serve last week's meshes to a client
+ * that now expects it — the old entries simply stop being found and are
+ * regenerated once.
+ */
+const SPEC_FORMAT = 2
 
 // A day at the edge for a finished mesh. It is derived from a product photo
 // that does not change, so there is nothing to go stale.
@@ -76,7 +96,7 @@ const send = (res, status, body, cacheControl = NO_CACHE) => {
 }
 
 /** Download the finished GLB and turn it into geometry this app can draw. */
-async function fetchSpec(glbUrl) {
+async function fetchSpec(glbUrl, { textured = false } = {}) {
   // The URL came out of an authenticated provider response, not from the user,
   // so this is not the request that needs an allowlist — the product page fetch
   // in _lib/photo.js is. Size and time are still capped.
@@ -89,7 +109,10 @@ async function fetchSpec(glbUrl) {
   const buffer = await res.arrayBuffer()
   if (buffer.byteLength > MAX_GLB_BYTES) throw new Error('generated model is too large')
 
-  return glbToSpec(buffer, { triangleBudget: TRIANGLE_BUDGET })
+  return glbToSpec(buffer, {
+    triangleBudget: textured ? PHOTO_TRIANGLE_BUDGET : TRIANGLE_BUDGET,
+    keepTextures: textured,
+  })
 }
 
 export default async function handler(req, res) {
@@ -118,6 +141,10 @@ export default async function handler(req, res) {
   const key = cacheKeyFor({ url: source, name, model })
   if (!key) return send(res, 400, { status: 'failed', reason: 'need a product name or URL' })
 
+  // The client is told the product key; storage uses the versioned one. Keeping
+  // them separate means a format bump does not change what the client sees.
+  const storeKey = `${key}.v${SPEC_FORMAT}`
+
   // --- polling an existing job --------------------------------------------
   if (job) {
     let state
@@ -140,8 +167,8 @@ export default async function handler(req, res) {
     }
 
     try {
-      const mesh = await fetchSpec(state.glbUrl)
-      await writeCached(key, mesh)
+      const mesh = await fetchSpec(state.glbUrl, { textured: state.textured })
+      await writeCached(storeKey, mesh)
       return send(res, 200, { status: 'ready', key, mesh }, READY_CACHE)
     } catch (err) {
       // A GLB we cannot read is a dead end for this product, not a transient
@@ -152,7 +179,7 @@ export default async function handler(req, res) {
   }
 
   // --- first request -------------------------------------------------------
-  const cached = await readCached(key)
+  const cached = await readCached(storeKey)
   if (cached) {
     return send(res, 200, { status: 'ready', key, cached: cached.layer, mesh: cached.spec }, READY_CACHE)
   }
@@ -171,7 +198,13 @@ export default async function handler(req, res) {
       // a model of the room. See _lib/photo.js.
       const photo = await pickProductPhoto(source)
       if (photo.url) {
-        handle = await createFromImage(photo.url, { polycount: TRIANGLE_BUDGET })
+        // A pasted product page is the user naming one specific object. Keep
+        // its texture and give it the detail to carry one — this is the only
+        // path where we know which sofa they mean.
+        handle = await createFromImage(photo.url, {
+          polycount: PHOTO_TRIANGLE_BUDGET,
+          texture: true,
+        })
         from = 'photo'
       } else {
         note = 'the product page had no plain product shot, only styled scenes'

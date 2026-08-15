@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { renderThumbnail } from '../three/thumbnail'
+import { onUpgradeResolved } from '../three/modelUpgrade'
 
 /**
  * A 3D preview of a catalog item. Renders lazily — only once the row scrolls
@@ -32,6 +33,15 @@ export default function ItemThumb({ item, size = 46 }) {
     // Yield a frame so a burst of newly visible rows doesn't block scrolling.
     const id = requestAnimationFrame(() => setUrl(renderThumbnail(item)))
     return () => cancelAnimationFrame(id)
+  }, [seen, item])
+
+  // A real model for a placed piece can land minutes after this drew, and when
+  // it does the room and the shop row are showing two different sofas. Redraw.
+  // Every thumbnail hears every upgrade, but a redraw is a cache lookup for all
+  // but the one that changed.
+  useEffect(() => {
+    if (!seen) return
+    return onUpgradeResolved(() => setUrl(renderThumbnail(item)))
   }, [seen, item])
 
   return (
