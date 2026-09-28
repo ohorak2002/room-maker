@@ -2,7 +2,7 @@
 
 ## Project location (2026-09-28)
 
-Moved from `C:\Users\orenh\OneDrive\Desktop\Nested\nested-desktop` to `C:\dev\nested-desktop` to stop syncing build dependencies to OneDrive. Copied with robocopy (11,738 files, 0 failures). In the new location, `git fsck` was clean, HEAD matched (`04742d7`), and `npm test`, `npm run build` and `npm run test:desktop` passed before the OneDrive copy was removed. There is no off-computer backup until the branch is pushed.
+Moved from `C:\Users\orenh\OneDrive\Desktop\Nested\nested-desktop` to `C:\dev\nested-desktop` to stop syncing build dependencies to OneDrive. Copied with robocopy (11,738 files, 0 failures). In the new location, `git fsck` was clean, HEAD matched (`04742d7`), and `npm test`, `npm run build` and `npm run test:desktop` passed before the OneDrive copy was removed. The branch was then pushed to GitHub as `origin/codex/nested-desktop-foundation`, which is now the off-computer copy (`main` on GitHub is unchanged).
 
 ## Desktop-only cleanup (Claude Code, 2026-09-28)
 
