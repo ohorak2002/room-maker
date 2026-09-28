@@ -4,14 +4,14 @@
 
 Update (Claude Code, later on 2026-09-28): milestone 3 work is committed on this branch after `2b0be17`. It adds private GLB import, project format v2, the rendering-defect fixes and performance changes. `docs/progress.md` records exactly what was verified and measured. The recommended milestone below is now partly done; the progress file's "Next work" list supersedes it.
 
-Active working copy: `C:\dev\nested-desktop`. It was moved out of OneDrive on 2026-09-28 to save cloud storage, so OneDrive no longer backs it up. The branch is pushed to GitHub (`origin/codex/nested-desktop-foundation`, first pushed 2026-09-28); push new commits to keep that copy current. The untouched prototype `room-maker-main` remains at `C:\Users\orenh\OneDrive\Desktop\Nested\room-maker-main`.
-Branch: `codex/nested-desktop-foundation`.
+Active working copy: `C:\dev\nested-desktop`. It was moved out of OneDrive on 2026-09-28 to save cloud storage, so OneDrive no longer backs it up. GitHub `main` is the off-computer copy; push new commits to keep it current. The untouched prototype `room-maker-main` remains at `C:\Users\orenh\OneDrive\Desktop\Nested\room-maker-main`.
+Branch: `main`. On 2026-09-28 the desktop work (developed on `codex/nested-desktop-foundation`) was fast-forwarded into `main` at the user's request: Nested is desktop-only and the browser prototype is not maintained. The prototype remains in history at `cc9ca25`.
 Desktop implementation checkpoint: `f4a60f4`.
 GitHub remote: `https://github.com/ohorak2002/room-maker`.
 
 The original `room-maker-main` sibling folder is the untouched prototype, not the current implementation. The two Downloads ZIPs are preserved originals. All 92 ZIP files were compared with the extraction; the GitHub baseline matched after line-ending normalization. See docs/audit.md for hashes and baseline commit.
 
-The branch `codex/nested-desktop-foundation` is on GitHub; `main` there is still the untouched prototype baseline. On another computer, clone the repository and check out this branch (`node_modules`, `release` and `artifacts` are not in Git; run `npm ci`).
+On another computer, clone the repository (`main`); `node_modules`, `release` and `artifacts` are not in Git, so run `npm ci`.
 
 ## Product decisions and collaboration preferences
 
