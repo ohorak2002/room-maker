@@ -1,5 +1,9 @@
 # Progress — 2026-09-28
 
+## Project location (2026-09-28)
+
+Moved from `C:\Users\orenh\OneDrive\Desktop\Nested\nested-desktop` to `C:\dev\nested-desktop` to stop syncing build dependencies to OneDrive. Copied with robocopy (11,738 files, 0 failures). In the new location, `git fsck` was clean, HEAD matched (`04742d7`), and `npm test`, `npm run build` and `npm run test:desktop` passed before the OneDrive copy was removed. There is no off-computer backup until the branch is pushed.
+
 ## Desktop-only cleanup (Claude Code, 2026-09-28)
 
 At the user's request Nested is now only a downloadable application. Removed, all recoverable from Git history before this commit:

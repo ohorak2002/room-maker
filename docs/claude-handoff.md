@@ -4,7 +4,7 @@
 
 Update (Claude Code, later on 2026-09-28): milestone 3 work is committed on this branch after `2b0be17`. It adds private GLB import, project format v2, the rendering-defect fixes and performance changes. `docs/progress.md` records exactly what was verified and measured. The recommended milestone below is now partly done; the progress file's "Next work" list supersedes it.
 
-Active working copy: `C:\Users\orenh\OneDrive\Desktop\Nested\nested-desktop`.
+Active working copy: `C:\dev\nested-desktop`. It was moved out of OneDrive on 2026-09-28 to save cloud storage, so OneDrive no longer backs it up; push the branch to GitHub for an off-computer copy. The untouched prototype `room-maker-main` remains at `C:\Users\orenh\OneDrive\Desktop\Nested\room-maker-main`.
 Branch: `codex/nested-desktop-foundation`.
 Desktop implementation checkpoint: `f4a60f4`.
 GitHub remote: `https://github.com/ohorak2002/room-maker`.
