@@ -86,9 +86,7 @@ export default function ShopPanel() {
                 <p className="item-meta">
                   <span className="item-price">{formatUSD(item.price)}</span>
                   <span className="item-sep">·</span>
-                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="item-store">
-                    {item.retailerName}
-                  </a>
+                  <span className="item-store">{item.retailerName}</span>
                 </p>
                 {cheaper && (
                   <button

@@ -128,7 +128,7 @@ export default function Workspace() {
         <div className="brand">
           <PillowMark size={30} />
           <span className="brand-name">Nested</span>
-          {window.nestedDesktop && <span className="tool-note">Concept furniture · approximate dimensions</span>}
+          <span className="tool-note">Concept furniture · approximate dimensions</span>
         </div>
 
         <div className="topbar-actions">

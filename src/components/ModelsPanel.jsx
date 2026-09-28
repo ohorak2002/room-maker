@@ -31,17 +31,11 @@ export default function ModelsPanel() {
   useEffect(() => subscribeAssetStatus(() => setTick((t) => t + 1)), [])
   useEffect(() => {
     const ids = Object.keys(assets)
-    if (!api || !ids.length) return
+    if (!ids.length) return
     let live = true
     unwrap(api.assetStatus(ids)).then((r) => live && setFiles(r)).catch((err) => setMessage(err.message))
     return () => { live = false }
   }, [assets])
-
-  if (!api) {
-    return <div className="models"><section className="models-section"><h3>Your models</h3>
-      <p className="models-note">Importing private GLB models needs the Nested desktop app, which keeps them on this computer.</p>
-    </section></div>
-  }
 
   const importModel = async () => {
     setBusy(true); setMessage('')

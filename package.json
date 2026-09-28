@@ -3,12 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "try-model": "node scripts/try-model.mjs",
     "test": "node test/run.mjs",
-    "test:offline": "node test/run.mjs --offline",
+    "test:offline": "node test/run.mjs",
     "desktop:start": "npm run build && electron .",
     "desktop:pack": "npm run build && electron-builder --win --dir",
     "desktop:dist": "npm run build && electron-builder --win nsis --arm64 --x64",
@@ -18,7 +15,6 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/lora": "^5.3.0",
-    "jpeg-js": "^0.4.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.160.0",
@@ -31,8 +27,7 @@
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3",
     "playwright": "^1.63.0",
-    "vite": "^5.1.0",
-    "@vercel/blob": "^0.27.0"
+    "vite": "^5.1.0"
   },
   "main": "desktop/main.mjs",
   "description": "Nested interior design desktop workspace",

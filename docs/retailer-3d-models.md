@@ -1,5 +1,7 @@
 # Can we fetch retailers' own 3D models?
 
+> Historical research note. The server API it mentions (`api/model.js`, Meshy generation) was removed on 2026-09-28 when Nested became desktop-only. The conclusion still stands: real product models need authorized sources or partnerships, not scraping.
+
 Short answer: **no, not as a server-side feature.** This note records what was
 actually tested, so the question doesn't get re-opened from memory and answered
 wrong a second time.

@@ -1,15 +1,9 @@
 /**
  * Run every test file and report once.
  *
- * Plain Node, no framework. These tests exist to catch the specific ways this
- * app has actually broken — a mis-parsed measurement, a GLB that will not seat
- * on the floor, a cache key that changes when a tracking parameter does — and
- * none of that needs a runner.
- *
- * Some tests reach the live internet on purpose (the dimension parser is only
- * meaningful against real retailer markup, and that markup changes without
- * warning). Those are marked, and `--offline` skips them so a flaky connection
- * or a redesigned shop cannot fail a build.
+ * Plain Node, no framework, and entirely offline. `--offline` is still accepted
+ * by `npm run test:offline` for older instructions and changes nothing. Real
+ * Electron checks live in scripts/desktop-smoke.mjs (`npm run test:desktop`).
  */
 import { readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -17,8 +11,6 @@ import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const NETWORKED = new Set(['dimensions.test.mjs'])
-const offline = process.argv.includes('--offline')
 
 const files = readdirSync(HERE)
   .filter((f) => f.endsWith('.test.mjs'))
@@ -35,14 +27,10 @@ const run = (file) =>
 
 let failed = 0
 for (const file of files) {
-  if (offline && NETWORKED.has(file)) {
-    console.log(`\x1b[2m—  ${file} (skipped, needs the network)\x1b[0m`)
-    continue
-  }
   const { code, out } = await run(file)
   const ok = code === 0 && !/FAIL|problems/.test(out)
   if (!ok) failed++
-  console.log(`${ok ? '\x1b[32mok\x1b[0m' : '\x1b[31mFAIL\x1b[0m'} ${file}${NETWORKED.has(file) ? ' \x1b[2m(live)\x1b[0m' : ''}`)
+  console.log(`${ok ? '\x1b[32mok\x1b[0m' : '\x1b[31mFAIL\x1b[0m'} ${file}`)
   if (!ok) console.log(out.split('\n').map((l) => '     ' + l).join('\n'))
 }
 

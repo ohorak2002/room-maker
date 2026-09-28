@@ -53,15 +53,10 @@ export default function RoomCanvas() {
         composer.render()
         png = renderer.domElement.toDataURL('image/png')
       } finally { outline.visible = visible[0]; ghost.visible = visible[1] }
-      if (window.nestedDesktop) {
-        const result = await window.nestedDesktop.exportImage(png)
-        if (!result.ok) throw new Error(result.error)
-        if (!result.value) return
-        setImageStatus('Room image saved'); setHasExport(true)
-      } else {
-        const a = document.createElement('a'); a.href = png; a.download = 'nested-room.png'; a.click()
-        setImageStatus('Room image exported')
-      }
+      const result = await window.nestedDesktop.exportImage(png)
+      if (!result.ok) throw new Error(result.error)
+      if (!result.value) return
+      setImageStatus('Room image saved'); setHasExport(true)
     } catch (err) { setImageStatus(`Image export failed: ${err.message}`) }
   }
 
@@ -246,8 +241,8 @@ export default function RoomCanvas() {
     frame = requestAnimationFrame(tick)
 
     engineRef.current = { scene, camera, renderer, composer, controls, outline, ghost, room: null, atmosphere: null, mount, noteInput }
-    // Dev server or an explicit VITE_NESTED_DEBUG=1 build only (scripts/scene-debug.mjs).
-    if (import.meta.env.DEV || import.meta.env.VITE_NESTED_DEBUG === '1') window.__nestedEngine = engineRef.current
+    // Explicit VITE_NESTED_DEBUG=1 builds only (scripts/scene-debug.mjs).
+    if (import.meta.env.VITE_NESTED_DEBUG === '1') window.__nestedEngine = engineRef.current
 
     return () => {
       cancelAnimationFrame(frame)
@@ -834,12 +829,10 @@ export default function RoomCanvas() {
             ← Whole place
           </button>
           <span className="focus-name">{activeRoom.name}</span>
-          {/* Everything is already written to the browser as you go, so this
-              doesn't perform a save — it confirms one and takes you back. A
-              button that implied work was happening would be a lie; what was
-              actually missing was any sign that the work had been kept. */}
+          {/* Returns to the whole place. It does not save a project file —
+              Save in the project bar does that — so it must not claim to. */}
           <button className="focus-save" onClick={() => store.exitRoom()}>
-            {saved > 0 ? `Saved · ${saved} ${saved === 1 ? 'piece' : 'pieces'}` : 'Nothing in here yet'}
+            {saved > 0 ? `Done · ${saved} ${saved === 1 ? 'piece' : 'pieces'}` : 'Nothing in here yet'}
           </button>
         </div>
       )}

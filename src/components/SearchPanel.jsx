@@ -2,96 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { formatUSD } from '../data/catalog'
 import { synthesize, synthesizeFromUrl, catalogMatches, EXAMPLE_QUERIES } from '../data/synth'
-import { requestFacts, applyFacts } from '../data/productFacts'
-import { checkFit } from '../data/fit'
 import ItemThumb from './ItemThumb'
 import './SearchPanel.css'
 
 /**
- * The retailer's real measurements for a pasted link.
- *
- * Fetched here as well as at render time in the room, because this is where
- * someone decides whether to add the thing. Being told a sofa is 30cm too wide
- * before you place it is useful; being told after is a chore.
+ * A pasted link becomes a conceptual piece at a typical size for its kind.
+ * Nested does not read retailer pages, so the real product's size is unknown
+ * until someone enters it — say so before anyone relies on the drawing.
  */
-function useProductFacts(spec) {
-  const [state, setState] = useState({ status: 'idle', facts: null })
-
-  useEffect(() => {
-    if (!spec?.sourceUrl) {
-      setState({ status: 'idle', facts: null })
-      return
-    }
-    let live = true
-    setState({ status: 'loading', facts: null })
-    requestFacts(spec).then((facts) => {
-      if (!live) return
-      setState({ status: facts ? 'ok' : 'unmeasured', facts })
-    })
-    return () => {
-      live = false
-    }
-  }, [spec?.sourceUrl, spec?.model])
-
-  return state
-}
-
-/**
- * What we know about the real product, and whether it goes in the room.
- *
- * Three states worth distinguishing, because they mean different things to
- * someone about to spend money:
- *
- *   measured   - the shop published a size, the piece is drawn at it, and the
- *                fit verdict below is arithmetic rather than a guess
- *   unmeasured - the shop refused us or published nothing usable, so the piece
- *                is at catalog-estimate size and we say so plainly
- *   loading    - a second, quietly
- */
-function FitNote({ spec }) {
-  const { status, facts } = useProductFacts(spec)
-  const shape = useRoomStore((s) => s.shape())
-  const ceiling = shape?.h
-
-  if (status === 'idle') return null
-  if (status === 'loading') {
-    return <p className="spec-note measuring">Checking the shop for the real size…</p>
-  }
-
-  if (status === 'unmeasured') {
-    return (
-      <p className="spec-note warn">
-        <strong>Not scaled to the real product.</strong> This shop doesn't let us read its pages, so
-        the size here is a typical figure for this kind of piece — the real one may be noticeably
-        bigger or smaller. Check the listing's own measurements before you buy.
-      </p>
-    )
-  }
-
-  const measured = applyFacts(spec, facts)
-  const fit = checkFit(measured, shape, ceiling)
-  const cm = (m) => `${Math.round(m * 100)}cm`
-  const size = [
-    measured.wM && `${cm(measured.wM)} wide`,
-    measured.dM && `${cm(measured.dM)} deep`,
-    measured.h && `${cm(measured.h)} tall`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
-
+function FitNote() {
   return (
-    <>
-      {size && (
-        <p className="spec-note measured">
-          <strong>Real size from the shop:</strong> {size}. Drawn at that size in your room.
-        </p>
-      )}
-      {fit && (
-        <p className={`spec-note ${fit.level === 'blocked' ? 'blocked' : 'warn'}`}>
-          <strong>{fit.level === 'blocked' ? "Won't fit." : 'Tight.'}</strong> {fit.message}
-        </p>
-      )}
-    </>
+    <p className="spec-note warn">
+      <strong>Not scaled to the real product.</strong> The size here is a typical figure for this
+      kind of piece. Check the listing's own measurements before relying on it.
+    </p>
   )
 }
 
@@ -238,19 +162,16 @@ export default function SearchPanel() {
               <button className="btn-primary" onClick={() => store.addSynthetic(spec)}>
                 Put it in the room
               </button>
-              <a className="btn-quiet bordered" href={spec.url} target="_blank" rel="noopener noreferrer">
-                Find it at {spec.retailerName}
-              </a>
             </div>
 
             {spec.generic && (
               <p className="spec-note">
                 No model of this yet, so it goes in as a plain box at roughly the right size. It
-                still moves, prices and links like anything else.
+                still moves and prices like anything else.
               </p>
             )}
 
-            {spec.fromUrl && <FitNote spec={spec} />}
+            {spec.fromUrl && <FitNote />}
 
             <p className="spec-disclaimer">
               {spec.fromUrl ? (
@@ -273,17 +194,14 @@ export default function SearchPanel() {
           <div className="ladder">
             <h4>What more or less money buys</h4>
             {spec.ladder.map((rung) => (
-              <a
+              <div
                 key={rung.name}
                 className={`ladder-row ${rung.name === spec.tier ? 'current' : ''}`}
-                href={rung.url}
-                target="_blank"
-                rel="noopener noreferrer"
               >
                 <span className="ladder-tier">{rung.name}</span>
                 <span className="ladder-store">{rung.store}</span>
                 <span className="ladder-price mono">{formatUSD(rung.price)}</span>
-              </a>
+              </div>
             ))}
           </div>
         </>
@@ -300,9 +218,7 @@ export default function SearchPanel() {
                 <p className="already-meta">
                   <span className="item-price">{formatUSD(item.price)}</span>
                   <span className="item-sep">·</span>
-                  <a href={item.url} target="_blank" rel="noopener noreferrer">
-                    {item.retailerName}
-                  </a>
+                  <span>{item.retailerName}</span>
                 </p>
               </div>
               <button className="add-btn" onClick={() => store.addItem(item.id)}>

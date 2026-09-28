@@ -267,3 +267,13 @@ button {
     gap: 10px;
   }
 }
+
+.desktop-required {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  min-height: 100vh;
+  padding: 24px;
+  text-align: center;
+  color: var(--ink-soft);
+}

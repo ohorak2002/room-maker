@@ -20,7 +20,7 @@ The implementation and this handoff are local. Nothing was pushed to GitHub duri
 - Improve interactive rendering first. No required Blender installation, cloud rendering or expensive rendering on furniture moves. Optional final rendering is a later separate job.
 - No visual reference images have been supplied for the new direction. Neutral, reversible aesthetics until then. The screenshot evidence below is the prototype output, not a user-approved visual target.
 - Real products need exact variants, source/dimension/material evidence and permissions. Unknowns remain unknown. Private designer uploads are separate from a shared commercial catalog; photo/feed access does not imply AI-processing or model redistribution rights.
-- Preserve original materials for faithful assets. The legacy converter intentionally drops textures/material groups and Meshy requests untextured models. Keep conceptual/AI geometry clearly labeled; do not automatically recolor retail finishes.
+- Preserve original materials for faithful assets. (The prototype's converter dropped textures/material groups and its Meshy integration requested untextured models; both were removed with the server API.) Keep conceptual/AI geometry clearly labeled; do not automatically recolor retail finishes.
 - Continue authorized reversible work without repeatedly asking permission. Ask only when missing information materially affects an important decision. Use plain language and report measured evidence, failed checks and unverified areas honestly.
 
 ## Current implementation map
@@ -33,7 +33,7 @@ The implementation and this handoff are local. Nothing was pushed to GitHub duri
 - `src/store/roomStore.js`: preserved editor store; defaults now come from shared/project.mjs.
 - `src/components/RoomCanvas.jsx`: interactive renderer, camera, placement UI and PNG export.
 - `src/three/buildRoom.js`, `textures.js`, `atmosphere.js`: room/furniture/material/lighting implementation.
-- `src/three/modelUpgrade.js`, `src/data/productFacts.js`: automatic online requests disabled in desktop.
+- Online model generation, retailer size lookup and the server API were removed (desktop-only decision); imported models go through `src/three/assetLoader.js` and `shared/assets.mjs`.
 - `test/project.test.mjs`, `scripts/desktop-smoke.mjs`: persistence and real Electron smoke checks. The latter stubs native dialog selections, uses a temporary user-data folder and verifies restart recovery.
 
 ## Evidence available to you

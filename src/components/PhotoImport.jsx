@@ -112,16 +112,12 @@ export default function PhotoImport() {
                     <p className="match-meta">
                       <span className="match-price">{formatUSD(item.price)}</span>
                       <span className="dot">·</span>
-                      <a href={item.url} target="_blank" rel="noopener noreferrer">
-                        {item.retailerName}
-                      </a>
+                      <span>{item.retailerName}</span>
                     </p>
                     {cheaper && (
                       <p className="match-cheaper">
                         Cheapest similar: {formatUSD(cheaper.price)} at{' '}
-                        <a href={cheaper.url} target="_blank" rel="noopener noreferrer">
-                          {cheaper.retailerName}
-                        </a>
+                        <span>{cheaper.retailerName}</span>
                       </p>
                     )}
                   </div>

@@ -1,5 +1,17 @@
 # Progress — 2026-09-28
 
+## Desktop-only cleanup (Claude Code, 2026-09-28)
+
+At the user's request Nested is now only a downloadable application. Removed, all recoverable from Git history before this commit:
+
+- The Vercel server API (`api/`: Meshy AI model generation, retailer page/dimension reading, photo colour sampling, Blob cache, legacy tintable GLB converter), `vercel.json`, `.env.example`, `scripts/try-model.mjs`, and their tests (`e2e`, `glb`, `dimensions`, `pid`). Also removed the dev-server plugin that emulated the API, `@vercel/blob` and `jpeg-js`.
+- Renderer code that called it: background model upgrades, retailer size lookup (`modelUpgrade.js`, `productFacts.js`, `productId.js`, `upgradable.js`, `fit.js`). Pasted product links still create conceptual pieces and say the real size is unknown.
+- Online address autocomplete (sent typed text to photon.komoot.io; the desktop CSP already blocked it), replaced by a plain local field.
+- Browser behaviour: `localStorage` persistence (the desktop project/recovery files are the only save mechanism), the browser download fallback for images, web page metadata and favicon, `npm run dev`/`preview`, browser preview configs. Without the Electron bridge the page now only says Nested is a desktop app. Retailer links, which the app already blocked, are plain text.
+- In a focused whole-home room, the button reads "Done · N pieces" instead of "Saved", because it does not save a file.
+
+Verified after the change: `npm test` (3 offline test files) passes; `npm run test:desktop` passes in real Electron (all save/open/recovery/export/import checks; median frame interval 8.4 ms, p95 50 ms, 120 frames, under automation). Installer rebuilt with `npm run desktop:dist` (`release/Nested Setup 0.1.0.exe`, 224 MB, ARM64 + x64, unsigned). Both packaged builds launched via new `scripts/packaged-check.mjs` (ARM64 natively, x64 under emulation): `app.isPackaged` true, loads `nested://app/index.html`, narrow bridge, no Node in the renderer. The package contains no `api/`, `.env`, `vercel.json` or removed modules. The onboarding address step was not exercised by the automated tests. Unpacked build folders were deleted afterwards to save space; `npm run desktop:pack` recreates them.
+
 ## Milestone 3 (in progress): material-preserving imports and rendering fixes
 
 Session by Claude Code on `codex/nested-desktop-foundation`, continuing from `2b0be17`.
@@ -22,7 +34,7 @@ Session by Claude Code on `codex/nested-desktop-foundation`, continuing from `2b
 
 ### Verified (2026-09-28, this machine)
 
-- `npm run test:offline`: six files pass, including new `assets.test.mjs` (fixture inspection, bounds through node transforms, rejection of truncated/external/Draco/non-2.0/meshless files, unit and rotation maths, dimension comparison with unknown axes, record validation, v2 round trip, orphan/rekeyed rejection, v1 migration, future-version refusal). Live retailer tests skipped.
+- `npm run test:offline`: six files passed at the time (three were later removed with the server API), including new `assets.test.mjs` (fixture inspection, bounds through node transforms, rejection of truncated/external/Draco/non-2.0/meshless files, unit and rotation maths, dimension comparison with unknown axes, record validation, v2 round trip, orphan/rekeyed rejection, v1 migration, future-version refusal). Live retailer tests skipped.
 - `npm run test:desktop` in actual Electron 44.4.5, Windows ARM64: all previous checks, plus: import fixture → file present in private library → placed size 60.0 × 60.0 × 50.0 cm → runtime reports 3 materials, 2 textures, 1 transmissive, 6 parts from the loaded three.js objects → centimetre correction changes placed size → product dimensions stored and difference reported → saved file contains the asset record and imported item → fresh process reloads the model from the library → moved library file produces the missing-model warning without page errors. Dialog selections remain stubbed.
 - Visual inspection of real Electron captures: `references/milestone-3/` (overview, eye level, corner, imported model in room, workspace). These are evidence, not an approved visual direction.
 
@@ -55,7 +67,7 @@ The desktop smoke sample (120 frames, imported model present, run under automati
 2. Portable project packages (project + referenced models) so files move between computers.
 3. Replace or re-author the weakest procedural pieces (coffee table grain, plain rug, missing glass object) or use permitted demo assets with documented provenance; review from all three views.
 4. Finer room dimensions than the 0.5 m grid.
-5. Rebuild installers (`npm run desktop:dist`) and re-check packaged launch with the new asset protocol route.
+5. Manually import a model in the installed app (installer install/uninstall still untested).
 
 ## Foundation milestone (earlier, Codex)
 

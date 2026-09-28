@@ -5,23 +5,19 @@ import { floorRuns, wallRuns, windowWall } from './shapeGeom'
 import { shapeBounds } from '../data/presets'
 import { applySurface } from './textures'
 import { FIDDLE_FIG } from './meshes/fiddleFig'
-import { requestUpgrade } from './modelUpgrade'
-import { requestFacts, applyFacts } from '../data/productFacts'
 import { loadAsset, instantiate, placeholder } from './assetLoader'
 import { placedDimensions } from '../../shared/assets.mjs'
 
 /**
  * Build a mesh that arrived as raw geometry rather than as code.
  *
- * Two things come through here now: the SketchUp fig, and whatever /api/model
- * generates from a product photo. They share a format on purpose — metres,
- * Y-up, origin on the floor, centred on X and Z — so neither needs a special
- * case, and a third source later would not either.
+ * Used for the SketchUp fig: metres, Y-up, origin on the floor, centred on X
+ * and Z. Private imported models do not come through here — they keep their
+ * own materials (see assetLoader.js).
  *
  * Vertex normals are computed here rather than shipped. Un-indexed data (the
- * fig) comes out flat-shaded per face; indexed data (a generated mesh) comes
- * out smooth across shared vertices, which is the right answer for the curved
- * silhouettes that are the only shapes we generate — see data/upgradable.js.
+ * fig) comes out flat-shaded per face; indexed data comes out smooth across
+ * shared vertices.
  *
  * Materials marked `tint` are multiplied by the catalog colour, so the piece
  * still answers to the palette. The rest keep the colours they were authored
@@ -40,7 +36,7 @@ function sketchupMesh(spec, it) {
     geo.addGroup(start, count, matIndex)
   }
 
-  const tinted = GENERATED_SURFACE[it.model] || FOLIAGE
+  const tinted = FOLIAGE
   const mats = spec.materials.map((m) => {
     const [r, gg, b] = m.rgb
     const hex = `#${((1 << 24) + (r << 16) + (gg << 8) + b).toString(16).slice(1)}`
@@ -51,49 +47,9 @@ function sketchupMesh(spec, it) {
   // Height is baked in, so honour the catalog's size by scaling uniformly.
   let s = it.h ? it.h / spec.heightM : 1
 
-  // A generated mesh reports its own proportions, and they are the product's,
-  // not the catalog's. A three-seater standing in for a loveseat would keep its
-  // real width once scaled to the right height and shoulder its way through the
-  // neighbours, because the layout solver placed the piece using the catalog's
-  // footprint. Give it a quarter more room than that and no more.
-  if (spec.widthM && it.fp) {
-    const half = (spec.widthM * s) / 2
-    const allowed = it.fp * 1.25
-    if (half > allowed) s *= allowed / half
-  }
-
   mesh.scale.setScalar(s)
   g.add(mesh)
   return g
-}
-
-/**
- * Replace a placed piece's geometry in situ, once a better model turns up.
- *
- * The node itself survives: it is what the drag layer raycasts against and
- * what holds the key the store writes positions back under. Only its contents
- * change, so a piece being upgraded mid-drag keeps following the pointer.
- */
-function swapGeometry(node, spec, item) {
-  const replacement = shadowed(sketchupMesh(spec, item))
-
-  for (const child of [...node.children]) {
-    // Lamps carry a PointLight, and that light is the piece's actual job. The
-    // generated mesh is geometry only, so throwing the whole subtree away would
-    // swap a better-looking lamp in and switch the room's lighting off with it.
-    if (child.isLight) continue
-
-    node.remove(child)
-    child.traverse?.((o) => {
-      if (!o.isMesh) return
-      o.geometry?.dispose()
-      if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose())
-      else o.material?.dispose()
-    })
-  }
-
-  for (const child of [...replacement.children]) node.add(child)
-  node.userData.upgraded = true
 }
 
 // ---------------------------------------------------------------------------
@@ -296,40 +252,6 @@ const PLASTIC = (c) => mat(c, 0.42, 0.0, 0.7, 'plastic')
 const CERAMIC = (c) => mat(c, 0.22, 0.0, 0.95, 'porcelain')
 const FOLIAGE = (c) => mat(c, 0.72, 0.0, 0.2, 'leaf')
 const PAPERY = (c) => mat(c, 0.88, 0.0, 0.2, 'paper')
-
-/**
- * What a generated mesh should be made of.
- *
- * A model that arrives from /api/model is one undivided surface — the provider
- * is asked not to texture it, and without a texture there is nothing to tell
- * the arm of a chair from its legs. So the material comes from what the piece
- * is rather than from anything in the file.
- *
- * Getting this wrong is not subtle. The fig's tinted group is foliage and uses
- * the leaf surface; run a sofa through the same default and it renders
- * upholstered in leaves.
- */
-const GENERATED_SURFACE = {
-  sofa: FABRIC,
-  armchair: FABRIC,
-  chair: FABRIC,
-  beanbag: FABRIC,
-  pouf: FABRIC,
-  diningchair: WOODEN,
-  stool: WOODEN,
-  // Not METAL: a lamp mesh is mostly shade, and chroming the whole thing to get
-  // the base right costs more than it wins.
-  floorlamp: PAPERY,
-  desklamp: PAPERY,
-  pendant: PAPERY,
-  palm: FOLIAGE,
-  plant: FOLIAGE,
-  smallplant: FOLIAGE,
-  hanging: FOLIAGE,
-  vase: CERAMIC,
-  bathtub: CERAMIC,
-  toilet: CERAMIC,
-}
 
 // Shower screens and appliance doors. Transparency alone reads as a hole in the
 // wall; it's the near-zero roughness plus a strong env response that makes it
@@ -1930,69 +1852,6 @@ function buildLights(scene, { shape, h, lighting, windows }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Instantiate every entry at the coordinates the caller resolved. Each node is
- * tagged with the data the drag layer needs to move it and write it back.
- *
- * `live` is how a scene that has been torn down refuses a late upgrade. Rooms
- * are rebuilt on every palette, light and layout change, and a mesh requested
- * by the room before last can still be in the air — adding it to a disposed
- * group would leak the geometry and show nothing.
- */
-/**
- * Rebuild a piece at the size the retailer says it is.
- *
- * Rebuilt rather than scaled: scaling a bookcase to 80cm wide would stretch its
- * boards and its board *thickness* with it. The builders already take `h` and
- * `fp`, so handing them the measured values and swapping the result keeps every
- * proportion the builder knows about intact.
- *
- * The node itself is never replaced, only its contents — it carries the drag
- * state and the selection, and the user may already have moved it.
- */
-function resize(node, item, facts) {
-  const measured = applyFacts(item, facts)
-  const build = builders[item.model]
-  if (!build) return
-
-  // Nothing worth a rebuild: no size, and a colour close enough to see no
-  // difference. Recolouring in place is far cheaper than rebuilding.
-  const sized = measured.h !== item.h || measured.fp !== item.fp
-  if (!sized) {
-    if (facts.colour) {
-      node.traverse((child) => {
-        if (child.isMesh && child.material?.color && child.userData.tintable !== false) {
-          child.material.color.set(facts.colour)
-        }
-      })
-    }
-    return
-  }
-
-  let replacement
-  try {
-    replacement = shadowed(build(measured))
-  } catch {
-    return // A builder that cannot take these numbers keeps the estimate.
-  }
-
-  for (const child of [...node.children]) {
-    // Lights belong to the piece, not the geometry — a lamp that gets resized
-    // must not switch off. Same reasoning as swapGeometry.
-    if (child.isLight) continue
-    node.remove(child)
-    child.traverse?.((n) => {
-      n.geometry?.dispose?.()
-      if (Array.isArray(n.material)) n.material.forEach((m) => m.dispose())
-      else n.material?.dispose?.()
-    })
-  }
-  for (const child of [...replacement.children]) node.add(child)
-
-  node.userData.radius = measured.fp || node.userData.radius
-  node.userData.measured = true
-}
-
-/**
  * A private imported model. The node appears at once with a footprint
  * placeholder; the faithful model replaces it when loaded. Never recoloured,
  * resized from retailer facts or swapped for a generated mesh.
@@ -2035,6 +1894,15 @@ function disposeTree(root) {
   })
 }
 
+/**
+ * Instantiate every entry at the coordinates the caller resolved. Each node is
+ * tagged with the data the drag layer needs to move it and write it back.
+ *
+ * `live` is how a scene that has been torn down refuses a late model load.
+ * Rooms are rebuilt on every palette, light and layout change, and an imported
+ * model requested by the room before last can still be loading — adding it to
+ * a disposed group would leak the geometry and show nothing.
+ */
 function placeItems(group, entries, placements, live, assets = {}, onChange) {
   const handles = []
 
@@ -2066,19 +1934,6 @@ function placeItems(group, entries, placements, live, assets = {}, onChange) {
       handles.push(node)
       continue
     }
-
-    // The procedural piece is on screen from this frame. If a generated model
-    // of the actual product exists or can be made, it takes over later.
-    requestUpgrade(item).then((spec) => {
-      if (spec && live.ok) { swapGeometry(node, spec, item); onChange?.() }
-    })
-
-    // The retailer's own measurements, which land in about a second and matter
-    // whether or not a better mesh ever arrives. A bookcase keeps its
-    // procedural geometry and still becomes exactly 80cm wide.
-    requestFacts(item).then((facts) => {
-      if (facts && live.ok) { resize(node, item, facts); onChange?.() }
-    })
 
     group.add(node)
     handles.push(node)

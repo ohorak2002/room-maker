@@ -2,7 +2,6 @@ import { useRef, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import PillowMark from './PillowMark'
 import HeroRoom from './HeroRoom'
-import AddressField from './AddressField'
 import MoodPreview from './MoodPreview'
 import LightPreview from './LightPreview'
 import MaterialPreview from './MaterialPreview'
@@ -258,16 +257,18 @@ function ResidenceStep({ store }) {
     <div className="residence">
       <label className="field">
         <span className="field-label">Address, apartment complex, etc.</span>
-        <AddressField
+        <input
+          className="residence-input"
+          type="text"
           value={store.residence}
-          onChange={(v) => store.set('residence', v)}
-          placeholder="Start typing an address or building name"
+          onChange={(e) => store.set('residence', e.target.value)}
+          placeholder="Address or building name"
+          autoComplete="off"
         />
       </label>
 
       <p className="privacy-note">
-        Stays on your device. Address suggestions come from a public map service as you type; nothing
-        else about you is ever sent anywhere.
+        Saved only in this project on your computer. Nested does not look addresses up online.
       </p>
 
       <fieldset className="prefurn">

@@ -693,3 +693,13 @@
 .mat-swatch-empty {
   background: var(--surface-sunk);
 }
+
+.residence-input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.95rem;
+}

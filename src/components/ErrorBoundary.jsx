@@ -34,19 +34,18 @@ export default class ErrorBoundary extends Component {
           </p>
           {webglMissing ? (
             <>
-              <h1>This browser can't render 3D.</h1>
+              <h1>3D graphics aren't available.</h1>
               <p>
-                Nested needs WebGL to draw your room. It's usually switched off rather than
-                missing — try turning on hardware acceleration in your browser settings, or open the
-                site in Chrome, Edge, Safari, or Firefox.
+                Nested needs GPU acceleration to draw your room. Updating the graphics driver
+                usually fixes this; remote-desktop sessions often have it switched off.
               </p>
             </>
           ) : (
             <>
               <h1>Something broke.</h1>
               <p>
-                An unexpected error stopped the page. Your design is saved in this browser, so
-                reloading usually gets you back to where you were.
+                An unexpected error stopped the editor. A recovery copy of your project is kept on
+                this computer, and reloading offers to restore it.
               </p>
               <pre className="crash-detail">{String(error?.message || error)}</pre>
             </>
@@ -55,15 +54,6 @@ export default class ErrorBoundary extends Component {
           <div className="crash-actions">
             <button className="btn-primary" onClick={() => window.location.reload()}>
               Reload
-            </button>
-            <button
-              className="btn-quiet"
-              onClick={() => {
-                localStorage.removeItem('room-maker-v1')
-                window.location.reload()
-              }}
-            >
-              Reset my design and reload
             </button>
           </div>
         </div>
