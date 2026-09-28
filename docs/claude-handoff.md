@@ -1,0 +1,55 @@
+# Claude Code handoff — 2026-09-28
+
+## Where to continue
+
+Active working copy: `C:\Users\orenh\OneDrive\Desktop\Nested\nested-desktop`.
+Branch: `codex/nested-desktop-foundation`.
+Desktop implementation checkpoint: `f4a60f4`.
+GitHub remote: `https://github.com/ohorak2002/room-maker`.
+
+The original `room-maker-main` sibling folder is the untouched prototype, not the current implementation. The two Downloads ZIPs are preserved originals. All 92 ZIP files were compared with the extraction; the GitHub baseline matched after line-ending normalization. See docs/audit.md for hashes and baseline commit.
+
+The implementation and this handoff are local. Nothing was pushed to GitHub during this handoff. A fresh remote clone will not contain this work until the branch is pushed. On this computer, open this existing working folder. On another computer, transfer this repository including its Git history or explicitly arrange to push the branch first.
+
+## Product decisions and collaboration preferences
+
+- Nested is a downloadable desktop application for interior designers and their clients, separate from CardWise. Windows first; keep future macOS feasible.
+- Controlled restart, preserving useful React/Vite/Three.js/Zustand work. Electron was selected and implemented. Do not restart the architecture debate or rewrite the editor without concrete evidence.
+- Improve interactive rendering first. No required Blender installation, cloud rendering or expensive rendering on furniture moves. Optional final rendering is a later separate job.
+- No visual reference images have been supplied for the new direction. Neutral, reversible aesthetics until then. The screenshot evidence below is the prototype output, not a user-approved visual target.
+- Real products need exact variants, source/dimension/material evidence and permissions. Unknowns remain unknown. Private designer uploads are separate from a shared commercial catalog; photo/feed access does not imply AI-processing or model redistribution rights.
+- Preserve original materials for faithful assets. The legacy converter intentionally drops textures/material groups and Meshy requests untextured models. Keep conceptual/AI geometry clearly labeled; do not automatically recolor retail finishes.
+- Continue authorized reversible work without repeatedly asking permission. Ask only when missing information materially affects an important decision. Use plain language and report measured evidence, failed checks and unverified areas honestly.
+
+## Current implementation map
+
+- `desktop/main.mjs`: Electron window, local protocol/CSP, narrow IPC, native dialogs, recovery, close handling. No Node in renderer. App-ready work must be in a callback, not top-level await, to avoid the observed ESM startup deadlock.
+- `desktop/preload.cjs`: isolated renderer bridge.
+- `desktop/files.mjs`: atomic save replacement, previous-save backup, bounded read.
+- `shared/project.mjs`: defaults, project schema/validation, serialization; inspect compatibility before changing saved fields.
+- `src/components/DesktopProjects.jsx`: project/client fields and save/open/recovery UI.
+- `src/store/roomStore.js`: preserved editor store; defaults now come from shared/project.mjs.
+- `src/components/RoomCanvas.jsx`: interactive renderer, camera, placement UI and PNG export.
+- `src/three/buildRoom.js`, `textures.js`, `atmosphere.js`: room/furniture/material/lighting implementation.
+- `src/three/modelUpgrade.js`, `src/data/productFacts.js`: automatic online requests disabled in desktop.
+- `test/project.test.mjs`, `scripts/desktop-smoke.mjs`: persistence and real Electron smoke checks. The latter stubs native dialog selections, uses a temporary user-data folder and verifies restart recovery.
+
+## Evidence available to you
+
+Tracked copies in `references/desktop-baseline/`: `desktop-workspace.png`, `desktop-room.png`, `desktop-validation.json`. These are evidence from the final implementation smoke test, not reference inspiration. Original generated versions also remain in ignored `artifacts/` locally.
+
+Local ignored build output: `release/Nested Setup 0.1.0.exe` and ARM64/x64 unpacked executables. Installer is unsigned. Both packaged executables launched; install/uninstall and clean-machine behavior remain unverified. Rebuild with `npm run desktop:dist` when needed. `node_modules`, `dist`, `release` and `artifacts` are not transferred by Git.
+
+The 120-frame sample was collected while packaging was running. Do not present it as an isolated performance benchmark. Actual images show a dark rectangular artifact, opaque-looking window, strong ceiling highlight and obvious floor texture repetition. No convincing-room quality milestone has been claimed.
+
+## Recommended next bounded milestone
+
+Read the original brief, progress and audit, then inspect the baseline images. Implement a material-preserving private GLB path with standard GLTFLoader, local asset persistence and explicit authored units/orientation handling. Preserve UVs, textures, separate material groups and PBR properties; do not route faithful assets through the tintable converter. Verify loading and saving/reopening a project offline with its imported asset. Use an authorized or original test fixture and record provenance.
+
+Then fix the observed visual defects and review a small room containing upholstery, wood, metal, patterned rug and glass from multiple angles. Improve measured precision beyond the inherited half-metre grid before claiming exact room dimensions. Run targeted tests and inspect images. Keep subsequent catalog partnerships, client sharing, signing/updates and optional final rendering scoped to later work.
+
+## Continuity limits
+
+This is a factual handoff, not an import of Codex's live conversation or private internal state. The original user brief is copied verbatim to docs/original-user-brief.md; project decisions and results are in these files. Tool access, credentials, plugin installations, user-level instructions and model behavior may differ in Claude Code. Discover available capabilities; do not assume Codex tools exist there. No credentials were exported.
+
+The local Git installation had no author identity configured. The implementation checkpoint used a per-command Codex identity; no global Git configuration was changed. Avoid assuming the user's desired commit author identity is configured.
