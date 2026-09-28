@@ -1,3 +1,23 @@
+# Desktop restart (Windows first)
+
+The active desktop foundation is on `codex/nested-desktop-foundation`. See [product direction](docs/product-brief.md), [baseline audit](docs/audit.md), and [verified progress / limitations](docs/progress.md). The original prototype documentation follows below and includes features that have not all been independently verified.
+
+```sh
+npm ci
+npm run desktop:start
+npm run test:offline
+npm run test:desktop
+npm run desktop:dist
+```
+
+`desktop:start` builds and launches the local editor. `desktop:dist` builds a Windows NSIS development installer containing ARM64 and x64 versions in `release/`. It is unsigned; public release signing and updates are not configured. The desktop runtime excludes provider APIs and credentials.
+
+Use the top project bar for client/project names, New, Open, Save and Save as. A `.nested` file stores the editable project; `.nested.bak` keeps the previous save. Local recovery is written separately in Electron's user-data folder after 500 ms without changes, and flushed on ordinary close. Restore is offered on the next launch. `Export image` writes a PNG through a native dialog; `Show image file` reveals it in Explorer. `Export shopping list` remains a separate prototype summary.
+
+Save as is the first way to keep design alternatives. Full material-preserving furniture imports, exact measured geometry, a verified commercial catalog, polished rendering and client feedback are later milestones.
+
+---
+
 # Nested
 
 Describe what you like — colors, feeling, light, size — and get a 3D room built from

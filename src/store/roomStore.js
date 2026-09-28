@@ -2,45 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getPalette, getShape, shapeBounds } from '../data/presets'
 
-const initial = {
-  onboarded: false,
+import { ROOM_DEFAULTS } from '../../shared/project.mjs'
 
-  // 'room'  — design one room, the original behavior
-  // 'home'  — generate a whole floorplan, then focus one room at a time
-  scope: 'room',
-  home: null, // { beds, baths, sqft, storeys, rooms: [...], w, d, h } from generateHome()
-  focusedRoom: null, // room id being edited while in home scope
-  activeFloor: 0, // storey shown in the whole-home views
-
-
-  // Where you live. Optional, free text, never leaves the browser — see the
-  // note in the onboarding step. We store a building name only, never a unit.
-  residence: '',
-  prefurnished: [], // ids of pieces the unit already came with
-
-  palette: 'clay',
-  mood: 'cozy',
-  lighting: 'natural',
-  wallMaterial: 'plaster',
-  floorplan: 'bedroom',
-  // A hand-edited cell mask, when the user has painted their own footprint.
-  // Null means "use the preset named by floorplan".
-  customShape: null,
-  customDims: null, // legacy; ceiling height override lives here as { h }
-  planImage: null, // dataUrl of an uploaded floorplan, kept as a reference image
-  windows: true,
-  wallOverride: null,
-  floorOverride: null,
-
-  items: [], // [{ id, qty }]
-  // Pieces generated from a search query rather than picked from the catalog.
-  // Stored whole, since there's no catalog entry to look them up in later.
-  synthetics: {}, // { [id]: item }
-  placements: {}, // { [instanceKey]: { x, y, z, ry, zone } } — user-dragged only
-  layoutRev: 0, // bumped to force a scene rebuild after auto-arrange
-
-  photo: null, // { dataUrl, palette: [hex] } from an imported room photo
-}
+const initial = ROOM_DEFAULTS
 
 // Fields worth restoring on undo. Deliberately excludes onboarding answers and
 // the photo — undo is for room edits, not for rewinding the whole session.

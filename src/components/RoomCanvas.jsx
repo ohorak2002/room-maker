@@ -30,6 +30,31 @@ export default function RoomCanvas() {
   // The flat plan is the default overview: it shows every room's name, size and
   // contents at once, which the 3D view can't. The 3D stays a toggle away.
   const [planView, setPlanView] = useState(true)
+  const [imageStatus, setImageStatus] = useState('')
+  const [hasExport, setHasExport] = useState(false)
+  const exportImage = async () => {
+    const engine = engineRef.current
+    if (!engine) return
+    try {
+      const { outline, ghost, composer, renderer } = engine
+      const visible = [outline.visible, ghost.visible]
+      let png
+      try {
+        outline.visible = false; ghost.visible = false
+        composer.render()
+        png = renderer.domElement.toDataURL('image/png')
+      } finally { outline.visible = visible[0]; ghost.visible = visible[1] }
+      if (window.nestedDesktop) {
+        const result = await window.nestedDesktop.exportImage(png)
+        if (!result.ok) throw new Error(result.error)
+        if (!result.value) return
+        setImageStatus('Room image saved'); setHasExport(true)
+      } else {
+        const a = document.createElement('a'); a.href = png; a.download = 'nested-room.png'; a.click()
+        setImageStatus('Room image exported')
+      }
+    } catch (err) { setImageStatus(`Image export failed: ${err.message}`) }
+  }
 
   const palette = useRoomStore((s) => s.palette)
   const lighting = useRoomStore((s) => s.lighting)
@@ -795,6 +820,9 @@ export default function RoomCanvas() {
       )}
 
       <div className="canvas-tools">
+        <button className="tool-btn" onClick={exportImage}>Export image</button>
+        {hasExport && <button className="tool-btn" onClick={() => window.nestedDesktop.showExport()}>Show image file</button>}
+        {imageStatus && <span className="tool-note" role="status">{imageStatus}</span>}
         <button
           className="tool-btn"
           onClick={() => store.undo()}

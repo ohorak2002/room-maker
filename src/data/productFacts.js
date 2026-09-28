@@ -23,6 +23,7 @@ const inFlight = new Map()
  * @returns {Promise<{dimensions,colour,photo}|null>}
  */
 export function requestFacts(item) {
+  if (typeof window !== 'undefined' && window.nestedDesktop) return Promise.resolve(null)
   const source = item?.sourceUrl
   if (!source) return Promise.resolve(null)
 

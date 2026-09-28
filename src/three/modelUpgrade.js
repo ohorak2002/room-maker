@@ -103,6 +103,7 @@ async function run(item) {
  *          piece keeps the procedural model it already has.
  */
 export function requestUpgrade(item) {
+  if (typeof window !== 'undefined' && window.nestedDesktop) return Promise.resolve(null)
   if (unavailable || !item?.model || !isUpgradable(item.model)) return Promise.resolve(null)
 
   const key = cacheKeyFor({

@@ -15,3 +15,7 @@ yarn-error.log*
 
 # Meshes pulled down by scripts/try-model.mjs
 scripts/out/
+
+# Desktop build and local validation artifacts
+release/
+artifacts/
