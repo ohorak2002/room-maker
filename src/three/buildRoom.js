@@ -7,6 +7,8 @@ import { applySurface } from './textures'
 import { FIDDLE_FIG } from './meshes/fiddleFig'
 import { requestUpgrade } from './modelUpgrade'
 import { requestFacts, applyFacts } from '../data/productFacts'
+import { loadAsset, instantiate, placeholder } from './assetLoader'
+import { placedDimensions } from '../../shared/assets.mjs'
 
 /**
  * Build a mesh that arrived as raw geometry rather than as code.
@@ -268,8 +270,8 @@ const sphere = (r, material, seg = 24) => new THREE.Mesh(new THREE.SphereGeometr
 const shadowed = (group) => {
   group.traverse((o) => {
     if (o.isMesh) {
-      o.castShadow = true
-      o.receiveShadow = true
+      o.castShadow = !o.userData.noCast
+      o.receiveShadow = !o.userData.noReceive
     }
   })
   return group
@@ -1618,45 +1620,72 @@ export const builders = {
 // Room shell
 // ---------------------------------------------------------------------------
 
+/**
+ * Planar UVs in metres: one texture tile covers `tile` metres of surface.
+ *
+ * Box UVs run 0..1 per face, which made texture scale a function of room size —
+ * floorboards got wider as the room got bigger, and a 7 m floor showed the same
+ * two tiles stretched across it. Projecting world position instead keeps each
+ * surface at its physical size and continuous across neighbouring slabs. Call
+ * after the mesh is positioned; the shell's boxes are translated, never rotated.
+ */
+function worldUV(mesh, tile) {
+  const { position: pos, normal: nor, uv } = mesh.geometry.attributes
+  const o = mesh.position
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i) + o.x
+    const y = pos.getY(i) + o.y
+    const z = pos.getZ(i) + o.z
+    const ax = Math.abs(nor.getX(i))
+    const ay = Math.abs(nor.getY(i))
+    const az = Math.abs(nor.getZ(i))
+    if (ay >= ax && ay >= az) uv.setXY(i, x / tile, z / tile)
+    else if (ax >= az) uv.setXY(i, z / tile, y / tile)
+    else uv.setXY(i, x / tile, y / tile)
+  }
+  uv.needsUpdate = true
+  return mesh
+}
+
+// Physical sizes of the shell's texture tiles, in metres.
+const FLOOR_TILE = 2.4
+const CEILING_TILE = 1.5
+
 function buildShell({ shape, h, colors, windows, wallMaterial }) {
   // Architecture wants crisp corners — a bevelled wall reads as a mistake, and
   // rounding the shell would also leave visible seams where planes meet.
-  const box = hardBox
   const g = new THREE.Group()
   // Architectural surfaces barely reflect. Left at the default envMapIntensity
   // the environment map floods them and every palette washes out to white.
   //
-  // Box UVs run 0..1 per face, so `repeat` here is "tiles across this whole
-  // surface" rather than tiles per metre. Walls and floors are the largest
-  // things in the scene and need far more repeats than a nightstand does.
   // The wall's construction, chosen in the survey. Brick and concrete carry
   // their own colour rather than taking the palette's wall paint — an "exposed
   // brick" wall that turns mint green in a cool palette is not exposed brick.
   // Plaster and painted boarding do take the paint, because that is what they
   // are: a surface with a colour chosen for it.
-  const wm = wallMaterial || { surface: 'plaster', repeat: 5 }
-  const wallMat = mat(
-    wm.tint || colors.wall,
-    wm.roughness ?? 0.96,
-    0.0,
-    0.12,
-    wm.surface || 'plaster',
-    wm.repeat || 5
-  )
-  const floorMat = mat(colors.floor, 0.72, 0.0, 0.3, 'plank', 2)
-  const trimMat = mat(colors.trim, 0.7, 0.0, 0.18, 'plaster', 2)
-  const ceilMat = mat(colors.trim, 0.98, 0.0, 0.1, 'plaster', 5)
+  const wm = wallMaterial || { surface: 'plaster', tile: 1.5 }
+  const wallTile = wm.tile || 1.5
+  const wallMat = mat(wm.tint || colors.wall, wm.roughness ?? 0.96, 0.0, 0.12, wm.surface || 'plaster', 1)
+  const floorMat = mat(colors.floor, 0.72, 0.0, 0.3, 'plank', 1)
+  const trimMat = mat(colors.trim, 0.7, 0.0, 0.18, 'plaster', 1)
+  // More environment response than the walls: a ceiling is lit almost
+  // entirely by bounce, which the environment map is standing in for.
+  const ceilMat = mat(colors.trim, 0.98, 0.0, 0.45, 'plaster', 1)
   const t = 0.12
+  const box = (w, hh, d, material, tile) => {
+    const m = hardBox(w, hh, d, material)
+    m.userData.tile = tile
+    return m
+  }
 
   // --- floor and ceiling, from merged cell runs --------------------------
   for (const run of floorRuns(shape)) {
-    const slab = box(run.w, t, run.d, floorMat)
+    const slab = box(run.w, t, run.d, floorMat, FLOOR_TILE)
     slab.position.set(run.x, -t / 2, run.z)
-    slab.receiveShadow = true
-    slab.castShadow = false
+    slab.userData.noCast = true
     g.add(slab)
 
-    const cap = box(run.w, t, run.d, ceilMat)
+    const cap = box(run.w, t, run.d, ceilMat, CEILING_TILE)
     cap.position.set(run.x, h + t / 2, run.z)
     g.add(cap)
   }
@@ -1678,17 +1707,21 @@ function buildShell({ shape, h, colors, windows, wallMaterial }) {
     const along = seg.axis === 'x' ? [seg.len, h, t] : [t, h, seg.len]
 
     if (!isWindowWall) {
-      const wall = box(...along, wallMat)
+      const wall = box(...along, wallMat, wallTile)
       wall.position.set(seg.x, h / 2, seg.z)
       g.add(wall)
     } else {
-      addWindowedWall(g, seg, h, t, { wallMat, trimMat })
+      addWindowedWall(g, seg, h, t, {
+        wallMat,
+        trimMat,
+        box: (w, hh, d, m) => box(w, hh, d, m, m === wallMat ? wallTile : 1),
+      })
     }
 
     // Baseboard hugging the inside face of every wall.
     const bbLen = seg.len
     const bb =
-      seg.axis === 'x' ? box(bbLen, 0.09, 0.035, trimMat) : box(0.035, 0.09, bbLen, trimMat)
+      seg.axis === 'x' ? box(bbLen, 0.09, 0.035, trimMat, 1) : box(0.035, 0.09, bbLen, trimMat, 1)
     bb.position.set(
       seg.x + (seg.axis === 'z' ? seg.facing * (t / 2 + 0.018) : 0),
       0.045,
@@ -1697,12 +1730,41 @@ function buildShell({ shape, h, colors, windows, wallMaterial }) {
     g.add(bb)
   }
 
+  g.traverse((o) => {
+    if (o.isMesh && o.userData.tile) worldUV(o, o.userData.tile)
+  })
   return g
 }
 
-/** A wall run with a window opening cut into it, plus frame, glass and sky. */
-function addWindowedWall(g, seg, h, t, { wallMat, trimMat }) {
-  const box = hardBox
+/** A painted exterior seen through the glass: sky over a soft distant band. */
+let viewTexture = null
+function windowView() {
+  if (viewTexture) return viewTexture
+  const c = document.createElement('canvas')
+  c.width = 4
+  c.height = 256
+  const ctx = c.getContext('2d')
+  const grad = ctx.createLinearGradient(0, 0, 0, 256)
+  grad.addColorStop(0, '#9fbfd6')
+  grad.addColorStop(0.55, '#d6e4ec')
+  grad.addColorStop(0.72, '#e9eee9')
+  grad.addColorStop(0.74, '#aeb7a8')
+  grad.addColorStop(1, '#8f9887')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, 4, 256)
+  viewTexture = new THREE.CanvasTexture(c)
+  viewTexture.colorSpace = THREE.SRGBColorSpace
+  return viewTexture
+}
+
+/**
+ * A wall run with a window opening cut into it, plus frame, glass and view.
+ *
+ * Neither the glass nor the view casts a shadow. When they did, the painted
+ * view blocked the sun completely and the glass printed a dark translucent
+ * slab into the room — the "dark rectangle" in the baseline screenshots.
+ */
+function addWindowedWall(g, seg, h, t, { wallMat, trimMat, box }) {
   const ww = Math.min(2.4, seg.len * 0.62)
   const sill = 0.9
   const top = Math.min(h - 0.45, sill + 1.6)
@@ -1723,35 +1785,57 @@ function addWindowedWall(g, seg, h, t, { wallMat, trimMat }) {
     g.add(pier)
   }
 
+  // A frame, not a slab: four members and a mullion around the opening, so the
+  // glass and the view behind it are actually visible.
   const midY = sill + (top - sill) / 2
-  const frame = box(ww + 0.1, top - sill + 0.1, t * 0.6, trimMat)
-  frame.position.set(seg.x, midY, seg.z + seg.facing * 0.02)
-  g.add(frame)
+  const fw = 0.05
+  const inset = seg.z + seg.facing * 0.02
+  const members = [
+    [ww + fw * 2, fw, 0, top + fw / 2],
+    [ww + fw * 2, fw, 0, sill - fw / 2],
+    [fw, top - sill, -(ww / 2 + fw / 2), midY],
+    [fw, top - sill, ww / 2 + fw / 2, midY],
+    [0.035, top - sill, 0, midY],
+  ]
+  for (const [w, hh, dx, y] of members) {
+    const m = box(w, hh, t * 0.6, trimMat)
+    m.position.set(seg.x + dx, y, inset)
+    g.add(m)
+  }
 
+  // No transmission: it adds a full extra scene render every frame, and against
+  // a flat backdrop it read as frosted white. Low opacity plus environment
+  // reflection reads as clear glass at interactive cost.
   const pane = new THREE.Mesh(
-    new THREE.BoxGeometry(ww - 0.06, top - sill - 0.06, 0.02),
+    new THREE.PlaneGeometry(ww, top - sill),
     new THREE.MeshPhysicalMaterial({
-      color: 0xdcecf7,
-      transmission: 0.85,
-      transparent: true,
-      opacity: 0.32,
-      roughness: 0.05,
+      color: 0xeef4f7,
+      roughness: 0.04,
       metalness: 0,
+      transparent: true,
+      opacity: 0.14,
+      envMapIntensity: 0.5,
+      depthWrite: false,
+      side: THREE.DoubleSide,
     })
   )
   pane.position.set(seg.x, midY, seg.z)
+  pane.userData.noCast = true
   g.add(pane)
 
-  // Sky card behind the glass, sized to the opening so it never peeks past the
-  // wall from an exterior camera angle.
-  const sky = new THREE.Mesh(
-    new THREE.PlaneGeometry(ww - 0.02, top - sill - 0.02),
-    new THREE.MeshBasicMaterial({ color: 0xbdd9ec })
+  // The view sits well outside the wall, so parallax as the camera moves makes
+  // the window read as an opening onto distance rather than a picture.
+  const view = new THREE.Mesh(
+    new THREE.PlaneGeometry(ww * 2.2, (top - sill) * 2.2),
+    new THREE.MeshBasicMaterial({ map: windowView(), fog: false })
   )
-  sky.position.set(seg.x, midY, seg.z - seg.facing * 0.12)
-  sky.rotation.y = seg.facing > 0 ? 0 : Math.PI
-  g.add(sky)
+  view.position.set(seg.x, midY, seg.z - seg.facing * 0.9)
+  view.rotation.y = seg.facing > 0 ? 0 : Math.PI
+  view.userData.noCast = true
+  view.userData.noReceive = true
+  g.add(view)
 }
+
 
 // ---------------------------------------------------------------------------
 // Lighting
@@ -1779,26 +1863,33 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   // deliberately keeps its high ambient and low key, because "flat, soft,
   // shadowless grey" is what that rig is *for* — it is the one place the old
   // balance was correct.
+  //
+  // `top` is the overhead light that replaced a point light hung 30 cm under
+  // the ceiling. That point light's inverse-square falloff painted a blown-out
+  // hotspot on the ceiling and did nothing for the floor. Most furniture sits in
+  // the window wall's shadow, so without a soft light from above nothing had a
+  // contact shadow and every piece floated.
   const rigs = {
-    natural: { amb: 0.1, ambColor: 0xf3f1ea, sun: 3.0, sunColor: 0xfff6e8, fill: 0.06 },
-    warm: { amb: 0.09, ambColor: 0xffd9a8, sun: 1.9, sunColor: 0xffb865, fill: 0.11 },
-    cool: { amb: 0.11, ambColor: 0xe4edf7, sun: 2.6, sunColor: 0xd2e4ff, fill: 0.05 },
-    moody: { amb: 0.03, ambColor: 0x5b5266, sun: 1.0, sunColor: 0xffa055, fill: 0.14 },
-    golden: { amb: 0.08, ambColor: 0xffd9a0, sun: 3.4, sunColor: 0xffb95e, fill: 0.07 },
-    overcast: { amb: 0.34, ambColor: 0xe8ebee, sun: 1.2, sunColor: 0xdfe6ec, fill: 0.04 },
+    natural: { amb: 0.1, ambColor: 0xf3f1ea, sun: 3.0, sunColor: 0xfff6e8, top: 0.9 },
+    warm: { amb: 0.09, ambColor: 0xffd9a8, sun: 1.9, sunColor: 0xffb865, top: 0.75 },
+    cool: { amb: 0.11, ambColor: 0xe4edf7, sun: 2.6, sunColor: 0xd2e4ff, top: 0.9 },
+    moody: { amb: 0.03, ambColor: 0x5b5266, sun: 1.0, sunColor: 0xffa055, top: 0.25 },
+    golden: { amb: 0.08, ambColor: 0xffd9a0, sun: 3.4, sunColor: 0xffb95e, top: 0.7 },
+    overcast: { amb: 0.34, ambColor: 0xe8ebee, sun: 1.2, sunColor: 0xdfe6ec, top: 1.2 },
   }
   const rig = rigs[lighting] || rigs.natural
 
   add(new THREE.AmbientLight(rig.ambColor, rig.amb))
-  add(new THREE.HemisphereLight(rig.ambColor, 0x4a4238, rig.amb * 0.4))
+  // The lower hemisphere stands in for light bounced off the floor. It was a
+  // dark brown, which left every ceiling a muddy unlit slab.
+  add(new THREE.HemisphereLight(rig.ambColor, 0xc9bba6, rig.amb * 2.5))
 
   // Key light: through the window when there is one, from above when there isn't.
   const sun = new THREE.DirectionalLight(rig.sunColor, rig.sun)
   sun.position.set(windows ? -w * 0.2 : w * 0.4, h * 1.4, windows ? -d * 1.4 : d * 0.5)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)
-  sun.shadow.radius = 6
-  sun.shadow.blurSamples = 16
+  sun.shadow.radius = 3
   sun.shadow.bias = -0.0006
   sun.shadow.normalBias = 0.02
   sun.shadow.camera.near = 0.5
@@ -1810,9 +1901,26 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   sun.shadow.camera.bottom = -span
   add(sun)
 
-  const fill = new THREE.PointLight(rig.sunColor, rig.fill * 12, Math.max(w, d) * 2, 2)
-  fill.position.set(0, h - 0.3, d * 0.2)
-  add(fill)
+  // Diffuse daylight off the ceiling, approximated as a soft, nearly vertical
+  // light. It sits just under the ceiling so the ceiling falls behind its
+  // shadow camera and cannot block it, while the ceiling still shadows the sun.
+  // Tilting it slightly toward the back wall puts contact shadows where the
+  // default camera can see them.
+  const top = new THREE.DirectionalLight(rig.ambColor, rig.top)
+  top.position.set(w * 0.02, h - 0.02, d * 0.06)
+  top.castShadow = true
+  top.shadow.mapSize.set(2048, 2048)
+  top.shadow.radius = 8
+  top.shadow.bias = -0.0004
+  top.shadow.normalBias = 0.02
+  top.shadow.camera.near = 0.01
+  top.shadow.camera.far = h + 1
+  const half = span / 2 + 0.5
+  top.shadow.camera.left = -half
+  top.shadow.camera.right = half
+  top.shadow.camera.top = half
+  top.shadow.camera.bottom = -half
+  add(top)
 
   return () => added.forEach((l) => scene.remove(l))
 }
@@ -1884,40 +1992,92 @@ function resize(node, item, facts) {
   node.userData.measured = true
 }
 
-function placeItems(group, entries, placements, live) {
+/**
+ * A private imported model. The node appears at once with a footprint
+ * placeholder; the faithful model replaces it when loaded. Never recoloured,
+ * resized from retailer facts or swapped for a generated mesh.
+ */
+function assetNode(item, record, live, onChange) {
+  const node = shadowed(placeholder(record))
+  loadAsset(record.id).then(
+    (loaded) => {
+      if (!live.ok) return
+      clearChildren(node)
+      node.add(instantiate(loaded, record))
+      node.userData.assetState = 'loaded'
+      onChange?.()
+    },
+    () => {
+      if (!live.ok) return
+      clearChildren(node)
+      node.add(shadowed(placeholder(record, true)))
+      node.userData.assetState = 'missing'
+      onChange?.()
+    }
+  )
+  return node
+}
+
+function clearChildren(node) {
+  for (const child of [...node.children]) {
+    node.remove(child)
+    disposeTree(child)
+  }
+}
+
+/** Dispose GPU resources a subtree owns. Cached imported models are shared, not owned. */
+function disposeTree(root) {
+  root.traverse((o) => {
+    if (!(o.isMesh || o.isLineSegments) || o.userData.sharedAsset) return
+    o.geometry?.dispose()
+    if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose())
+    else o.material?.dispose()
+  })
+}
+
+function placeItems(group, entries, placements, live, assets = {}, onChange) {
   const handles = []
 
   for (const { key, item } of entries) {
+    const record = item.model === 'asset' ? assets[item.assetId] : null
     const build = builders[item.model]
-    if (!build) continue
+    if (!build && !record) continue
 
     const p = placements[key]
     if (!p) continue
 
-    const node = shadowed(build(item))
+    const node = record ? assetNode(item, record, live, onChange) : shadowed(build(item))
     node.position.set(p.x, p.y || 0, p.z)
     node.rotation.y = p.ry || 0
+    const size = record && placedDimensions(record.size, record.units, record.rotateY)
     node.userData = {
+      ...node.userData,
       key,
       itemId: item.id,
       name: item.name,
       model: item.model,
       zone: p.zone || zoneOf(item.model),
-      radius: item.fp || 0.35,
+      radius: size ? Math.max(size.w, size.d) / 2 : item.fp || 0.35,
       draggable: true,
+    }
+
+    if (record) {
+      group.add(node)
+      handles.push(node)
+      continue
     }
 
     // The procedural piece is on screen from this frame. If a generated model
     // of the actual product exists or can be made, it takes over later.
     requestUpgrade(item).then((spec) => {
-      if (spec && live.ok) swapGeometry(node, spec, item)
+      if (spec && live.ok) { swapGeometry(node, spec, item); onChange?.() }
     })
 
     // The retailer's own measurements, which land in about a second and matter
     // whether or not a better mesh ever arrives. A bookcase keeps its
     // procedural geometry and still becomes exactly 80cm wide.
     requestFacts(item).then((facts) => {
-      if (facts && live.ok) resize(node, item, facts)
+      if (facts && live.ok) { resize(node, item, facts); onChange?.() }
     })
 
     group.add(node)
@@ -1940,7 +2100,7 @@ export function buildRoom(scene, config) {
   // Flipped by dispose(), and read by any model still being generated.
   const live = { ok: true }
 
-  const handles = placeItems(group, config.entries, config.placements, live)
+  const handles = placeItems(group, config.entries, config.placements, live, config.assets, config.onChange)
   scene.add(group)
 
   const disposeLights = buildLights(scene, config)
@@ -1949,13 +2109,7 @@ export function buildRoom(scene, config) {
     live.ok = false
     disposeLights()
     scene.remove(group)
-    group.traverse((o) => {
-      if (o.isMesh) {
-        o.geometry?.dispose()
-        if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose())
-        else o.material?.dispose()
-      }
-    })
+    disposeTree(group)
   }
 
   return { dispose, handles, group }

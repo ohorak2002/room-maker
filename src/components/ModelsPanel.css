@@ -1,0 +1,141 @@
+.models {
+  display: flex;
+  flex-direction: column;
+}
+
+.models-section {
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.models-section h3 {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.models-section > .btn-primary {
+  align-self: flex-start;
+}
+
+.models-note,
+.asset-file,
+.asset-runtime,
+.asset-size {
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.models-message {
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.asset-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.asset-name {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.asset-tag {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.asset-file {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.asset-size {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.asset-warning {
+  color: var(--danger);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.asset-match {
+  color: var(--accent);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.asset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.asset-grid label,
+.asset-field,
+.asset-spec label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.asset-grid select,
+.asset-field input,
+.asset-spec input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 400;
+}
+
+/* A fieldset defaults to min-width: min-content, which pushed the panel into
+   sideways scrolling as soon as three inputs sat in a row. */
+.asset-spec {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.asset-spec legend {
+  grid-column: 1 / -1;
+  margin-bottom: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.asset-place {
+  align-self: flex-start;
+}

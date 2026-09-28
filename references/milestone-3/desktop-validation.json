@@ -1,0 +1,15 @@
+{
+  "runtime": "actual Electron on Windows",
+  "architecture": "arm64",
+  "rendererViewport": {
+    "width": 1427,
+    "height": 727,
+    "devicePixelRatio": 2
+  },
+  "frameSampleCount": 120,
+  "medianFrameIntervalMs": 8.399999999999636,
+  "p95FrameIntervalMs": 50,
+  "note": "Single baseline room; requestAnimationFrame intervals, not GPU timings or a general performance guarantee. Native dialog selections are stubbed; filesystem and IPC are real.",
+  "errors": [],
+  "userData": "C:\\Users\\orenh\\AppData\\Local\\Temp\\nested-electron-test-Ak3PJi"
+}

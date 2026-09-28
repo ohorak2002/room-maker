@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('nestedDesktop', {
   newProject: () => ipcRenderer.invoke('project:new'),
   exportImage: (dataUrl) => ipcRenderer.invoke('image:export', dataUrl),
   showExport: () => ipcRenderer.invoke('image:show'),
+  importAsset: () => ipcRenderer.invoke('asset:import'),
+  assetStatus: (ids) => ipcRenderer.invoke('asset:status', ids),
 })

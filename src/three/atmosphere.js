@@ -34,7 +34,9 @@ import * as THREE from 'three'
  * competes with it, and the piece being designed loses.
  */
 const RIG_SKY = {
-  natural: { deep: '#7d9db4', mid: '#b4cbd9', glow: '#f2e4cd', horizon: '#e8dcc8', ground: '#6f7f6c', rim: '#4a5748' },
+  // Neutral ground: no visual direction has been chosen yet, and a green lawn
+  // read as a toy diorama rather than a presentation backdrop.
+  natural: { deep: '#7d9db4', mid: '#b4cbd9', glow: '#f2e4cd', horizon: '#e8dcc8', ground: '#8a8680', rim: '#5d5a55' },
   warm: { deep: '#8a6242', mid: '#c99a6f', glow: '#f7d9a8', horizon: '#eccfa4', ground: '#63523c', rim: '#42361f' },
   cool: { deep: '#6d87a3', mid: '#a8c0d4', glow: '#dfe9f1', horizon: '#cfdde8', ground: '#66707a', rim: '#3f4750' },
   moody: { deep: '#0d0e14', mid: '#1c1d28', glow: '#453247', horizon: '#2e2634', ground: '#15131a', rim: '#08070b' },

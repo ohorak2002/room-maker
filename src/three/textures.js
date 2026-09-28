@@ -19,7 +19,8 @@ import * as THREE from 'three'
 // 256 is enough for grain and weave at the distances this camera sits at, and
 // keeps generation under a frame. Detail here comes from the normal map, not
 // from resolution.
-const SIZE = 256
+const BASE_SIZE = 256
+const SIZE = BASE_SIZE
 
 // ---------------------------------------------------------------------------
 // Noise
@@ -110,28 +111,36 @@ const SURFACES = {
    * what the ring pattern alone produced.
    */
   plank: (u, v) => {
-    // Eight courses, one board each. Proportion is what sells it: a board that
-    // is only three times longer than it is wide reads as floor tile, so each
-    // one spans the full width and the courses are kept narrow.
-    const rows = 8
+    // One tile is 2.4 m square (see FLOOR_TILE in buildRoom): fifteen 160 mm
+    // courses, each holding two boards whose butt joints fall at a different
+    // place on every course. The old tile was eight full-width courses with one
+    // joint each, stretched over whatever size the floor was — at room scale its
+    // joints lined up into an obvious lattice of dark dashes.
+    const rows = 15
     const row = Math.floor(v * rows)
     const vIn = fract(v * rows)
 
-    // Offset each course so the butt joints don't line up into a grid.
-    const uu = fract(u + hash(row, 17))
+    const start = hash(row, 17)
+    const split = 0.35 + hash(row, 29) * 0.3
+    const along = fract(u - start)
+    const board = along < split ? 0 : 1
+    const bu = board ? (along - split) / (1 - split) : along / split
+    const len = board ? 1 - split : split
 
     // The long edge between courses is a real gap; the butt joint is a hairline.
     const edge = Math.min(vIn, 1 - vIn)
-    const butt = Math.min(uu, 1 - uu)
-    if (edge < 0.028 || butt < 0.005) return { h: 0.06, a: 0.64, r: 1.3 }
+    const butt = Math.min(bu, 1 - bu) * len
+    if (edge < 0.035 || butt < 0.0012) return { h: 0.06, a: 0.66, r: 1.3 }
 
-    // Boards are cut from different parts of the log, so each gets its own tone.
-    const tone = hash(row * 13, row * 7 + 3)
-    const grain = fbm(uu * 6, vIn * 3 + row * 9, 3)
-    const fibre = fbm(uu * 3, vIn * 36 + row * 5, 2, 16)
+    // Boards are cut from different parts of the log, so each gets its own tone
+    // and its own grain offset.
+    const id = row * 2 + board
+    const tone = hash(id * 13.1, id * 7.7 + 3)
+    const grain = fbm(bu * 5 + id * 3.7, vIn * 1.5 + id * 1.3, 3, 32)
+    const fibre = fbm(bu * 12 + id, vIn * 24, 2, 64)
     return {
       h: 0.7 + grain * 0.2 + fibre * 0.1,
-      a: 0.8 + tone * 0.13 + grain * 0.08 + fibre * 0.04,
+      a: 0.84 + tone * 0.1 + grain * 0.07 + fibre * 0.03,
       r: 0.92 + grain * 0.16,
     }
   },
@@ -334,7 +343,7 @@ const SURFACES = {
 // grain looks like corduroy; fabric weave needs a high one or it looks knitted.
 const TUNING = {
   wood: { normalScale: 0.07, repeat: 2.2 },
-  plank: { normalScale: 0.3, repeat: 1 },
+  plank: { normalScale: 0.3, repeat: 1, size: 1024 },
   // Upholstery weave was reading as corduroy: the relief was far too deep and
   // the tile too large, so at close range a sofa looked ribbed. Real weave is
   // almost flat — it's a sheen difference more than a bumpy surface — so the
@@ -344,7 +353,9 @@ const TUNING = {
   brushed: { normalScale: 0.25, repeat: 1 },
   porcelain: { normalScale: 0.18, repeat: 1 },
   stone: { normalScale: 0.3, repeat: 1.4 },
-  plaster: { normalScale: 0.35, repeat: 3 },
+  // Painted plaster is nearly smooth; stronger relief read as embossed wallpaper
+  // once the shell was mapped at physical scale.
+  plaster: { normalScale: 0.12, repeat: 3 },
   // Brick is the one surface here you can read from across a room, so its
   // normal is by far the strongest in the table — the mortar joint is a real
   // recess, not a shading trick, and at a weaker setting the wall flattens
@@ -361,15 +372,20 @@ const TUNING = {
 // Generation
 // ---------------------------------------------------------------------------
 
-function textureFrom(data, { srgb = false, repeat = 1 }) {
+function textureFrom(data, { srgb = false, repeat = 1, size = SIZE }) {
   // DataTexture wants a plain Uint8Array for UnsignedByteType; the clamped
   // array we filled shares the same buffer, so this is a view, not a copy.
-  const tex = new THREE.DataTexture(new Uint8Array(data.buffer), SIZE, SIZE, THREE.RGBAFormat)
+  const tex = new THREE.DataTexture(new Uint8Array(data.buffer), size, size, THREE.RGBAFormat)
   tex.wrapS = THREE.RepeatWrapping
   tex.wrapT = THREE.RepeatWrapping
   tex.repeat.set(repeat, repeat)
   tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace
-  tex.anisotropy = 4
+  tex.anisotropy = 8
+  tex.generateMipmaps = true
+  // DataTexture defaults to nearest filtering with no mipmaps, which made
+  // floor grain shimmer and sparkle at a distance.
+  tex.minFilter = THREE.LinearMipmapLinearFilter
+  tex.magFilter = THREE.LinearFilter
   tex.needsUpdate = true
   return tex
 }
@@ -382,7 +398,7 @@ function textureFrom(data, { srgb = false, repeat = 1 }) {
  */
 function generate(name, repeat) {
   const fn = SURFACES[name]
-  const { normalScale } = TUNING[name]
+  const { normalScale, size: SIZE = BASE_SIZE } = TUNING[name] || DEFAULT_TUNING
 
   const n = SIZE * SIZE
   const height = new Float32Array(n)
@@ -429,9 +445,9 @@ function generate(name, repeat) {
   }
 
   return {
-    map: textureFrom(albedo, { srgb: true, repeat }),
-    normalMap: textureFrom(normal, { repeat }),
-    roughnessMap: textureFrom(rough, { repeat }),
+    map: textureFrom(albedo, { srgb: true, repeat, size: SIZE }),
+    normalMap: textureFrom(normal, { repeat, size: SIZE }),
+    roughnessMap: textureFrom(rough, { repeat, size: SIZE }),
   }
 }
 

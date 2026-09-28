@@ -1,9 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain, protocol, net, shell, session } from 'electron'
-import { join, resolve, sep } from 'node:path'
+import { basename, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { mkdir, copyFile } from 'node:fs/promises'
+import { mkdir, copyFile, readFile, stat, access } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { atomicWrite, readProject, writeProject } from './files.mjs'
 import { stringifyProject, projectIdentity } from '../shared/project.mjs'
+import { ASSET_ID, MAX_ASSET_BYTES, inspectGlb } from '../shared/assets.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const origin = 'nested://app'
@@ -15,6 +17,10 @@ let recovery, recoveryTimer, recoveryError = null, busy = false, closing = false
 let writeQueue = Promise.resolve()
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus() } })
 const recoveryPath = () => join(app.getPath('userData'), 'recovery.nested')
+// Private imported models, named by SHA-256 so identical files are stored once
+// and a project can reference an asset without embedding it.
+const assetDir = () => join(app.getPath('userData'), 'assets')
+const assetPath = (id) => join(assetDir(), `${id}.glb`)
 const dirty = () => currentDoc && projectIdentity(currentDoc) !== savedIdentity
 const queueRecovery = (doc) => {
   writeQueue = writeQueue.catch(() => {}).then(() => writeProject(recoveryPath(), doc))
@@ -63,11 +69,17 @@ app.whenReady().then(async () => {
 // Local-only app content. Server-side retailer/model APIs are not shipped.
 protocol.handle('nested', async (request) => {
   const url = new URL(request.url)
+  const asset = url.host === 'app' && /^\/user-assets\/([a-f0-9]{64})\.glb$/.exec(url.pathname)
+  if (asset) {
+    try {
+      return new Response(await readFile(assetPath(asset[1])), { headers: { 'Content-Type': 'model/gltf-binary', 'Cache-Control': 'no-store' } })
+    } catch { return new Response('Not found', { status: 404 }) }
+  }
   const base = resolve(root, 'dist')
   const path = resolve(base, `.${decodeURIComponent(url.pathname)}`)
   if (url.host !== 'app' || !path.startsWith(base + sep)) return new Response('Not found', { status: 404 })
   const response = await net.fetch(pathToFileURL(path).href)
-  response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'")
+  response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-src 'none'")
   return response
 })
 session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
@@ -118,6 +130,22 @@ handle('image:export', dataUrl => exclusive(async () => {
   return { path }
 }))
 handle('image:show', () => { if (exportedPath) shell.showItemInFolder(exportedPath) })
+handle('asset:import', () => exclusive(async () => {
+  const result = await dialog.showOpenDialog(win, { title: 'Import GLB model', filters: [{ name: 'Binary glTF model', extensions: ['glb'] }], properties: ['openFile'] })
+  if (result.canceled) return null
+  const source = result.filePaths[0]
+  if ((await stat(source)).size > MAX_ASSET_BYTES) throw new Error('Unsupported GLB: file exceeds 100 MB')
+  const bytes = await readFile(source)
+  const inspection = inspectGlb(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength))
+  const id = createHash('sha256').update(bytes).digest('hex')
+  // Content-addressed: an existing file with this name already holds these bytes.
+  try { await access(assetPath(id)) } catch { await atomicWrite(assetPath(id), bytes, { backup: false }) }
+  return { id, fileName: basename(source).slice(0, 260), bytes: bytes.length, inspection }
+}))
+handle('asset:status', async ids => {
+  if (!Array.isArray(ids) || ids.length > 1000 || ids.some(id => typeof id !== 'string' || !ASSET_ID.test(id))) throw new Error('Invalid asset list')
+  return Object.fromEntries(await Promise.all(ids.map(async id => [id, await access(assetPath(id)).then(() => true, () => false)])))
+})
 await mkdir(app.getPath('userData'), { recursive: true })
 win = new BrowserWindow({ title: 'Nested', width: 1440, height: 960, minWidth: 1000, minHeight: 700,
   show: false, backgroundColor: '#f4f3f0',

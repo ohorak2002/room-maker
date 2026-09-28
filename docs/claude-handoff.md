@@ -2,6 +2,8 @@
 
 ## Where to continue
 
+Update (Claude Code, later on 2026-09-28): milestone 3 work is committed on this branch after `2b0be17`. It adds private GLB import, project format v2, the rendering-defect fixes and performance changes. `docs/progress.md` records exactly what was verified and measured. The recommended milestone below is now partly done; the progress file's "Next work" list supersedes it.
+
 Active working copy: `C:\Users\orenh\OneDrive\Desktop\Nested\nested-desktop`.
 Branch: `codex/nested-desktop-foundation`.
 Desktop implementation checkpoint: `f4a60f4`.

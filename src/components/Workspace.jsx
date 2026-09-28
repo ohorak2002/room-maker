@@ -6,6 +6,7 @@ import ShopPanel from './ShopPanel'
 import SearchPanel from './SearchPanel'
 import HomePanel from './HomePanel'
 import PhotoImport from './PhotoImport'
+import ModelsPanel from './ModelsPanel'
 import Shortcuts from './Shortcuts'
 import PillowMark from './PillowMark'
 import './Workspace.css'
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'shop', label: 'Shop' },
   { id: 'search', label: 'Search' },
   { id: 'photo', label: 'Photo' },
+  { id: 'models', label: 'Models' },
 ]
 
 export default function Workspace() {
@@ -183,6 +185,7 @@ export default function Workspace() {
               {tab === 'shop' && <ShopPanel />}
               {tab === 'search' && <SearchPanel />}
               {tab === 'photo' && <PhotoImport />}
+              {tab === 'models' && <ModelsPanel />}
             </div>
           </aside>
         )}

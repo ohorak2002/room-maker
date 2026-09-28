@@ -3,14 +3,34 @@ import { persist } from 'zustand/middleware'
 import { getPalette, getShape, shapeBounds } from '../data/presets'
 
 import { ROOM_DEFAULTS } from '../../shared/project.mjs'
+import { placedDimensions } from '../../shared/assets.mjs'
 
 const initial = ROOM_DEFAULTS
 
 // Fields worth restoring on undo. Deliberately excludes onboarding answers and
 // the photo — undo is for room edits, not for rewinding the whole session.
-const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customShape', 'customDims', 'windows', 'wallOverride', 'floorOverride', 'home', 'scope', 'focusedRoom', 'activeFloor']
+const TRACKED = ['items', 'placements', 'palette', 'lighting', 'floorplan', 'customShape', 'customDims', 'windows', 'wallOverride', 'floorOverride', 'home', 'scope', 'focusedRoom', 'activeFloor', 'assets', 'synthetics']
 
 const snapshot = (s) => Object.fromEntries(TRACKED.map((k) => [k, s[k]]))
+
+export const assetItemId = (assetId) => `asset-${assetId.slice(0, 16)}`
+
+/** The placeable piece for an imported model. Price and retailer are unknown. */
+export function assetItem(record) {
+  const { w, d, h } = placedDimensions(record.size, record.units, record.rotateY)
+  return {
+    id: assetItemId(record.id),
+    assetId: record.id,
+    name: record.name,
+    model: 'asset',
+    cat: 'imported',
+    h,
+    fp: Math.max(w, d) / 2,
+    area: w * d,
+    price: null,
+    retailerName: 'Private model',
+  }
+}
 
 export const useRoomStore = create(
   persist(
@@ -141,6 +161,34 @@ export const useRoomStore = create(
           else next = [...next, { id: toId, qty: from.qty }]
           return next
         })
+      },
+
+      // --- private imported models ------------------------------------------
+      // The record holds provenance and the authored units/orientation; the
+      // placeable piece is a synthetic item pointing at it by checksum.
+      addAsset: (record) => {
+        get().pushHistory()
+        set((s) => ({ assets: { ...s.assets, [record.id]: record } }))
+      },
+
+      updateAsset: (id, patch) => {
+        const current = get().assets[id]
+        if (!current) return
+        get().pushHistory()
+        const record = { ...current, ...patch }
+        const itemId = assetItemId(id)
+        set((s) => ({
+          assets: { ...s.assets, [id]: record },
+          synthetics: s.synthetics[itemId]
+            ? { ...s.synthetics, [itemId]: assetItem(record) }
+            : s.synthetics,
+          layoutRev: s.layoutRev + 1,
+        }))
+      },
+
+      placeAsset: (id) => {
+        const record = get().assets[id]
+        if (record) get().addSynthetic(assetItem(record))
       },
 
       clearAll: () => {

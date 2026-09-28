@@ -31,6 +31,15 @@ export default function RoomCanvas() {
   // contents at once, which the 3D view can't. The 3D stays a toggle away.
   const [planView, setPlanView] = useState(true)
   const [imageStatus, setImageStatus] = useState('')
+  const showView = (name) => {
+    const engine = engineRef.current
+    if (!engine?.roomDims) return
+    const view = viewFor(name, engine.roomDims, engine.camera)
+    engine.camera.position.copy(view.position)
+    engine.controls.target.copy(view.target)
+    engine.controls.update()
+    engine.noteInput?.()
+  }
   const [hasExport, setHasExport] = useState(false)
   const exportImage = async () => {
     const engine = engineRef.current
@@ -71,6 +80,7 @@ export default function RoomCanvas() {
   const home = useRoomStore((s) => s.home)
   const focusedRoom = useRoomStore((s) => s.focusedRoom)
   const activeFloor = useRoomStore((s) => s.activeFloor)
+  const assets = useRoomStore((s) => s.assets)
 
   // ---- engine (once) -----------------------------------------------------
   useEffect(() => {
@@ -86,8 +96,14 @@ export default function RoomCanvas() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.shadowMap.enabled = true
-    // VSM gives genuinely soft shadow edges rather than PCF's speckled fringe.
-    renderer.shadowMap.type = THREE.VSMShadowMap
+    // PCF with a filter radius. VSM gave softer edges but bled light through the
+    // thin shell and printed translucent slabs where the window glass shadowed.
+    renderer.shadowMap.type = THREE.PCFShadowMap
+    // The lights never move, so shadow maps are redrawn only when geometry
+    // does: a rebuild, a drag, a nudge, a model arriving. Redrawing two 2048²
+    // maps every frame cost ~8 ms a frame on the reference machine.
+    renderer.shadowMap.autoUpdate = false
+    renderer.shadowMap.needsUpdate = true
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.1
     mount.appendChild(renderer.domElement)
@@ -121,8 +137,24 @@ export default function RoomCanvas() {
     // is for. Blend at half strength because the environment map is already
     // doing some of this work, and doubling up reads as grime.
     const gtao = new GTAOPass(scene, camera, 1, 1)
+    // Half resolution: at full resolution AO alone took the frame from 8 to
+    // 17 ms on the reference machine (docs/progress.md). Occlusion is a soft,
+    // low-frequency term, and the blend pass upsamples it with linear filtering.
+    const setGtaoSize = gtao.setSize.bind(gtao)
+    gtao.setSize = (w, h) => setGtaoSize(Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2)))
     gtao.blendIntensity = 0.5
     gtao.updateGtaoMaterial({ radius: 0.25, distanceExponent: 1, thickness: 0.5, scale: 1, samples: 16 })
+    // GTAOPass renders its normal buffer with the scene's background still
+    // attached, so the sky texture overwrote normals across the middle of the
+    // frame. The occlusion shader then printed a dark translucent slab into the
+    // room — the "dark rectangle" in the baseline screenshots. Hide the
+    // background for that one render; the pass's own clear colour stands in.
+    const renderOverride = gtao.renderOverride.bind(gtao)
+    gtao.renderOverride = (...args) => {
+      const background = scene.background
+      scene.background = null
+      try { renderOverride(...args) } finally { scene.background = background }
+    }
     composer.addPass(gtao)
 
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.82)
@@ -213,7 +245,9 @@ export default function RoomCanvas() {
     }
     frame = requestAnimationFrame(tick)
 
-    engineRef.current = { scene, camera, renderer, composer, controls, outline, ghost, room: null, atmosphere: null, mount }
+    engineRef.current = { scene, camera, renderer, composer, controls, outline, ghost, room: null, atmosphere: null, mount, noteInput }
+    // Dev server or an explicit VITE_NESTED_DEBUG=1 build only (scripts/scene-debug.mjs).
+    if (import.meta.env.DEV || import.meta.env.VITE_NESTED_DEBUG === '1') window.__nestedEngine = engineRef.current
 
     return () => {
       cancelAnimationFrame(frame)
@@ -259,6 +293,8 @@ export default function RoomCanvas() {
         floorY: 0,
       })
       engine.homeLights = buildHomeLights(scene, { span })
+      engine.roomDims = null
+      engine.renderer.shadowMap.needsUpdate = true
       engine.room = buildHome(scene, {
         home: store.home,
         palette: colors,
@@ -304,6 +340,7 @@ export default function RoomCanvas() {
       floorY: 0,
     })
 
+    engine.renderer.shadowMap.needsUpdate = true
     engine.room = buildRoom(scene, {
       shape,
       ...room,
@@ -313,36 +350,21 @@ export default function RoomCanvas() {
       wallMaterial: getWallMaterial(wallMaterial),
       entries,
       placements,
+      assets: store.assets,
+      onChange: () => { engine.renderer.shadowMap.needsUpdate = true },
     })
 
-    // Fit the room's bounding sphere against whichever field of view is tighter.
-    // Fitting width and height separately broke on short-wide canvases (panel
-    // open on a laptop): the horizontal fit went small and the camera ended up
-    // inside the furniture.
-    const vHalf = (camera.fov * Math.PI) / 360
-    const hHalf = Math.atan(Math.tan(vHalf) * Math.max(camera.aspect, 0.35))
-    const radius = Math.hypot(room.w / 2, room.d / 2, room.h / 2)
-
-    // 0.7 crops in for a tighter shot, which flatters a living room and ruins a
-    // bathroom — at that distance the camera sits level with the side walls.
-    // Ease back toward a full fit as the room gets smaller.
-    const snug = THREE.MathUtils.clamp(Math.min(room.w, room.d) / 4.5, 0, 1)
-    const crop = THREE.MathUtils.lerp(1.08, 0.7, snug)
-    const fit = (radius / Math.sin(Math.min(vHalf, hHalf))) * crop
-    // Stand off far enough to clear the footprint no matter how small the room.
-    const dist = Math.max(fit, room.d / 2 + 1.7)
-
-    // Only the near wall is left off, so the view has to enter through that
-    // opening. A fixed swing to the side works until the room is narrower than
-    // it is deep — then the sight line crosses a side wall instead, which is
-    // exactly what a small bathroom or a galley kitchen is. Straighten up as
-    // the room narrows.
-    const xBias = 0.5 * Math.min(1, room.w / Math.max(room.d, 0.01))
-
-    camera.position.set(dist * xBias, room.h * 0.78, dist * 0.86)
-    controls.target.set(0, room.h * 0.4, -room.d * 0.1)
+    // A finish change or an added piece rebuilds the scene; it must not throw
+    // away the angle the designer was looking from. Reframe only when the room
+    // itself changed size (or we just left the whole-home overview).
+    const prev = engine.roomDims
+    engine.roomDims = room
+    if (prev && prev.w === room.w && prev.d === room.d && prev.h === room.h) return
+    const view = viewFor('overview', room, camera)
+    camera.position.copy(view.position)
+    controls.target.copy(view.target)
     controls.update()
-  }, [palette, lighting, wallMaterial, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom, activeFloor])
+  }, [palette, lighting, wallMaterial, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom, activeFloor, assets])
 
   // ---- home overview: hover + click a room to focus it --------------------
   useEffect(() => {
@@ -533,6 +555,7 @@ export default function RoomCanvas() {
       ghost.scale.setScalar(Math.max(r / 0.33, 0.6))
       ghost.visible = active.zone !== 'wall' && active.zone !== 'window'
       outline.setFromObject(active.node)
+      renderer.shadowMap.needsUpdate = true
       el.style.cursor = 'grabbing'
       setDragging(true)
     }
@@ -602,6 +625,7 @@ export default function RoomCanvas() {
       if (!handled) return
       e.preventDefault()
       const snap = clampToShape(store.shape(), p.x, p.z)
+      renderer.shadowMap.needsUpdate = true
       p.x = snap.x
       p.z = snap.z
       outline.setFromObject(outlineTarget)
@@ -685,6 +709,7 @@ export default function RoomCanvas() {
       node.position.z = 0
     }
     engine.outline.setFromObject(node)
+    engine.renderer.shadowMap.needsUpdate = true
     store.setPlacement(ctx.key, {
       x: node.position.x,
       y: node.position.y,
@@ -820,6 +845,11 @@ export default function RoomCanvas() {
       )}
 
       <div className="canvas-tools">
+        <span className="view-toggle" role="group" aria-label="Camera view">
+          {VIEWS.map(([id, label]) => (
+            <button key={id} className="view-btn" onClick={() => showView(id)}>{label}</button>
+          ))}
+        </span>
         <button className="tool-btn" onClick={exportImage}>Export image</button>
         {hasExport && <button className="tool-btn" onClick={() => window.nestedDesktop.showExport()}>Show image file</button>}
         {imageStatus && <span className="tool-note" role="status">{imageStatus}</span>}
@@ -892,3 +922,50 @@ export default function RoomCanvas() {
 }
 
 const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)))
+
+const VIEWS = [['overview', 'Overview'], ['eye', 'Eye level'], ['corner', 'Corner']]
+
+/** Repeatable camera positions, so views can be compared between designs. */
+function viewFor(name, room, camera) {
+  if (name === 'eye') {
+    // Standing just inside the open side, eyes at 1.55 m.
+    return {
+      position: new THREE.Vector3(room.w * 0.18, 1.55, room.d / 2 - 0.25),
+      target: new THREE.Vector3(0, 1.0, -room.d * 0.3),
+    }
+  }
+  if (name === 'corner') {
+    // High in the open front corner, looking across the room's diagonal.
+    return {
+      position: new THREE.Vector3(-room.w / 2 + 0.35, Math.min(2.1, room.h - 0.4), room.d / 2 - 0.2),
+      target: new THREE.Vector3(room.w * 0.18, 0.55, -room.d * 0.15),
+    }
+  }
+  // Fit the room's bounding sphere against whichever field of view is tighter.
+  // Fitting width and height separately broke on short-wide canvases (panel
+  // open on a laptop): the horizontal fit went small and the camera ended up
+  // inside the furniture.
+  const vHalf = (camera.fov * Math.PI) / 360
+  const hHalf = Math.atan(Math.tan(vHalf) * Math.max(camera.aspect, 0.35))
+  const radius = Math.hypot(room.w / 2, room.d / 2, room.h / 2)
+
+  // 0.7 crops in for a tighter shot, which flatters a living room and ruins a
+  // bathroom — at that distance the camera sits level with the side walls.
+  // Ease back toward a full fit as the room gets smaller.
+  const snug = THREE.MathUtils.clamp(Math.min(room.w, room.d) / 4.5, 0, 1)
+  const crop = THREE.MathUtils.lerp(1.08, 0.7, snug)
+  const fit = (radius / Math.sin(Math.min(vHalf, hHalf))) * crop
+  // Stand off far enough to clear the footprint no matter how small the room.
+  const dist = Math.max(fit, room.d / 2 + 1.7)
+
+  // Only the near wall is left off, so the view has to enter through that
+  // opening. A fixed swing to the side works until the room is narrower than
+  // it is deep — then the sight line crosses a side wall instead, which is
+  // exactly what a small bathroom or a galley kitchen is. Straighten up as
+  // the room narrows.
+  const xBias = 0.5 * Math.min(1, room.w / Math.max(room.d, 0.01))
+  return {
+    position: new THREE.Vector3(dist * xBias, room.h * 0.78, dist * 0.86),
+    target: new THREE.Vector3(0, room.h * 0.4, -room.d * 0.1),
+  }
+}

@@ -344,6 +344,9 @@ export const WALL_MATERIALS = [
     blurb: 'Smooth painted drywall — most flats and new builds',
     surface: 'plaster',
     repeat: 5,
+    // Metres covered by one texture tile. The shell maps textures in world
+    // units, so a brick stays brick-sized whatever the wall length.
+    tile: 1.5,
   },
   {
     id: 'brick',
@@ -351,6 +354,7 @@ export const WALL_MATERIALS = [
     blurb: 'Warehouse conversions, older terraces, loft walls',
     surface: 'brick',
     repeat: 3,
+    tile: 1.2, // 16 courses of 75 mm
     // Brick keeps its own colour rather than taking the wall paint, or an
     // "exposed brick" wall comes out mint green in a cool palette.
     tint: '#9c6650',
@@ -362,6 +366,7 @@ export const WALL_MATERIALS = [
     blurb: 'Horizontal boarding — cottages, cabins, coastal',
     surface: 'shiplap',
     repeat: 4,
+    tile: 1.54, // 11 boards of 140 mm
   },
   {
     id: 'concrete',
@@ -369,6 +374,7 @@ export const WALL_MATERIALS = [
     blurb: 'Board-formed, industrial, minimalist new build',
     surface: 'concrete',
     repeat: 3,
+    tile: 1.2, // 7 shuttering boards
     tint: '#9a9791',
     roughness: 1.05,
   },

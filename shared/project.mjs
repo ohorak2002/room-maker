@@ -1,4 +1,7 @@
-export const PROJECT_VERSION = 1
+import { validateAssetRecord } from './assets.mjs'
+
+// v2 added `assets`: private imported models referenced by checksum.
+export const PROJECT_VERSION = 2
 export const MAX_PROJECT_BYTES = 32 * 1024 * 1024
 export const ROOM_DEFAULTS = {
   onboarded: false, scope: 'room', home: null, focusedRoom: null, activeFloor: 0,
@@ -6,6 +9,7 @@ export const ROOM_DEFAULTS = {
   wallMaterial: 'plaster', floorplan: 'bedroom', customShape: null, customDims: null,
   planImage: null, windows: true, wallOverride: null, floorOverride: null,
   items: [], synthetics: {}, placements: {}, layoutRev: 0, photo: null,
+  assets: {},
 }
 const fail = (message) => { throw new Error(`Invalid Nested project: ${message}`) }
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -50,6 +54,10 @@ export function validateProject(doc) {
     if (!object(p) || ['x', 'y', 'z', 'ry'].some(k => p[k] !== undefined && !finite(p[k]))) fail('invalid placement')
   }
   for (const i of Object.values(s.synthetics)) if (!object(i) || typeof i.id !== 'string' || typeof i.name !== 'string' || typeof i.model !== 'string') fail('invalid custom furniture')
+  for (const [id, record] of Object.entries(s.assets)) if (validateAssetRecord(record).id !== id) fail('asset key does not match its checksum')
+  // An imported piece is only meaningful with its asset record: that record
+  // carries the authored units and orientation it must be placed with.
+  for (const i of Object.values(s.synthetics)) if (i.model === 'asset' && !Object.hasOwn(s.assets, i.assetId)) fail('imported furniture references a missing asset record')
   if (s.home !== null) {
     if (!object(s.home) || !Array.isArray(s.home.rooms) || s.home.rooms.length > 200 || ['w', 'd', 'h'].some(k => !finite(s.home[k]) || s.home[k] <= 0)) fail('invalid home')
     for (const r of s.home.rooms) { shape(r); items(r.items || []); if (typeof r.id !== 'string' || typeof r.name !== 'string' || !finite(r.ox) || !finite(r.oz)) fail('invalid home room') }
@@ -64,9 +72,16 @@ export function createProject(state, details = {}) {
     state: structuredClone(Object.fromEntries(Object.keys(ROOM_DEFAULTS).map(k => [k, state[k] ?? ROOM_DEFAULTS[k]]))),
   })
 }
+/** Bring an older saved file up to the current version, without guessing data. */
+export function migrateProject(doc) {
+  if (object(doc) && doc.format === 'nested-project' && doc.version === 1 && object(doc.state) && !('assets' in doc.state)) {
+    return { ...doc, version: PROJECT_VERSION, state: { ...doc.state, assets: {} } }
+  }
+  return doc
+}
 export function parseProject(text) {
   if (new TextEncoder().encode(text).length > MAX_PROJECT_BYTES) fail('file exceeds 32 MB')
-  return validateProject(JSON.parse(text))
+  return validateProject(migrateProject(JSON.parse(text)))
 }
 export function stringifyProject(doc) {
   const text = JSON.stringify(validateProject(doc), null, 2)

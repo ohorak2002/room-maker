@@ -162,8 +162,11 @@ export const cheapestSubstitute = (id) => {
 export const footprintArea = (item) =>
   item.area ?? Math.PI * (item.fp || 0.35) ** 2
 
+// Unknown prices stay unknown — imported private models have none.
 export const formatUSD = (n) =>
-  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+  Number.isFinite(n)
+    ? n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+    : 'Price unknown'
 
 // Rooms whose contents are decided by plumbing and gas lines rather than taste.
 // A bathroom doesn't want a "cozy" sofa recommendation, it wants a toilet.

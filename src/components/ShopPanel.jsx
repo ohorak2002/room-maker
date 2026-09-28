@@ -140,7 +140,7 @@ export default function ShopPanel() {
                   {item.name}
                   {entry.qty > 1 && <span className="basket-qty"> ×{entry.qty}</span>}
                 </span>
-                <span className="basket-price">{formatUSD(item.price * entry.qty)}</span>
+                <span className="basket-price">{formatUSD(item.price == null ? null : item.price * entry.qty)}</span>
               </div>
             )
           })}
