@@ -1,4 +1,4 @@
-import { CELL, hasCell, shapeBounds } from '../data/presets'
+import { CELL, hasCell, shapeBounds, pointInShape } from '../data/presets'
 
 /**
  * Turn a cell mask into the runs of floor and wall a room needs.
@@ -139,7 +139,7 @@ export function clampToShape(shape, x, z, radius = 0) {
     const r = Math.floor((pz + d / 2) / CELL)
     return hasCell(shape, c, r)
   }
-  if (inside(x, z)) return { x, z }
+  if (shape.footprint ? pointInShape(shape, x, z) : inside(x, z)) return { x, z }
 
   // Otherwise snap to the nearest cell centre.
   let best = cells[0]
@@ -155,4 +155,4 @@ export function clampToShape(shape, x, z, radius = 0) {
 }
 
 /** Total floor area in m², for the crowding check. */
-export const shapeArea = (shape) => shape.cells.length * CELL * CELL
+export const shapeArea = (shape) => shape.area ?? shape.cells.length * CELL * CELL

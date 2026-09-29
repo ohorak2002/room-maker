@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { CELL } from '../data/presets'
+import { buildMeasuredHome } from './measuredShell'
 import { ROOM_KIND_COLORS, roomSqft } from '../data/homeLayout'
 import { floorRuns, wallRuns } from './shapeGeom'
 import { builders } from './buildRoom'
@@ -26,6 +27,32 @@ import { resolveItem } from '../data/catalog'
 const WALL_H = 0.55 // low enough to see the whole plan from a shallow angle
 
 export function buildHome(scene, { home, palette, floor = 0, synthetics = {}, placements = {} }) {
+  // A home measured from an official Brief: exact footprints and openings. It
+  // shows only what the designer has placed; nothing is furnished for them.
+  if (home.measured) {
+    return buildMeasuredHome(scene, {
+      home,
+      floor,
+      addContents: (group, room) => {
+        const entries = []
+        for (const entry of room.items || []) {
+          const item = resolveItem(entry.id, synthetics)
+          if (!item || !builders[item.model] || !['floor', 'center'].includes(zoneOf(item.model))) continue
+          for (let n = 0; n < entry.qty; n++) entries.push({ key: instanceKey(item.id, n), item })
+        }
+        const solved = autoArrange(entries, { w: room.exactW, d: room.exactD, h: room.h, shape: room })
+        for (const { key, item } of entries) {
+          const p = placements[`${room.id}:${key}`] || solved[key]
+          if (!p) continue
+          const node = builders[item.model](item)
+          node.position.set(p.x, p.y || 0, p.z)
+          node.rotation.y = p.ry || 0
+          node.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true } })
+          group.add(node)
+        }
+      },
+    })
+  }
   const group = new THREE.Group()
   const pickables = []
 

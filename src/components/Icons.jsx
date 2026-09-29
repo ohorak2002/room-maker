@@ -28,6 +28,7 @@ const PATHS = {
   sunset: <><path d="M4 18h16M7 14a5 5 0 0 1 10 0M12 4v3M5 8l2 2M19 8l-2 2" /></>,
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
   bookmark: <><path d="M6 4h12v17l-6-4-6 4z" /><path d="M12 8v5M9.5 10.5h5" /></>,
+  brief: <><path d="M6 3h9l4 4v14H6z" /><path d="M14 3v5h5M9 13h7M9 17h7" /></>,
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></>,
 }
 

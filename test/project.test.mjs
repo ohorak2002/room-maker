@@ -55,7 +55,8 @@ assert.deepEqual(parseProject(stringifyProject(studioDoc)).state.views, studioSt
 assert.deepEqual(parseProject(stringifyProject(studioDoc)).state.studio, studioState.studio)
 const v2file = structuredClone(studioDoc); v2file.version = 2; delete v2file.state.studio; delete v2file.state.views
 const migratedStudio = parseProject(JSON.stringify(v2file))
-assert.equal(migratedStudio.version, 3)
+assert.equal(migratedStudio.version, 4)
+assert.equal(migratedStudio.state.brief, null)
 assert.deepEqual(migratedStudio.state.studio, ROOM_DEFAULTS.studio)
 assert.deepEqual(migratedStudio.state.views, [])
 for (const mutate of [d => d.state.studio.brightness = 500, d => d.state.studio.sun = 120, d => d.state.studio.accent = 'yes', d => d.state.views[0].fov = 500, d => d.state.views[0].position = [1, 2], d => d.state.views[0].mode = 'orbit', d => d.state.views[1].id = 'v1', d => d.state.views[0].thumb = 'http://example.com/x.jpg', d => d.state.views[0].name = '']) {

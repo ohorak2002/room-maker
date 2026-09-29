@@ -1,3 +1,4 @@
+import { pointInPolygon } from '../../shared/briefGeometry.mjs'
 // Onboarding option data: palettes, moods, light, room shapes.
 // Each palette carries the actual hexes used to paint the 3D room. `secondary`
 // is a second accent — most real rooms lean on two accent colors, not one, so
@@ -305,7 +306,9 @@ export const FLOORPLANS = ROOM_SHAPES
 
 /** Metric bounds of a cell mask, in metres. */
 export function shapeBounds(shape) {
-  return { w: shape.cols * CELL, d: shape.rows * CELL, h: shape.h }
+  // Rooms from a Brief carry their measured size; the cell grid is only a
+  // placement aid there and never decides the room's dimensions.
+  return { w: shape.exactW ?? shape.cols * CELL, d: shape.exactD ?? shape.rows * CELL, h: shape.h }
 }
 
 export const hasCell = (shape, c, r) => shape.cells.includes(`${c},${r}`)
@@ -318,6 +321,7 @@ export function cellCenter(shape, c, r) {
 
 /** Is this world-space point inside the room footprint? */
 export function pointInShape(shape, x, z) {
+  if (shape.footprint) return pointInPolygon(shape.footprint, x, z)
   const { w, d } = shapeBounds(shape)
   const c = Math.floor((x + w / 2) / CELL)
   const r = Math.floor((z + d / 2) / CELL)

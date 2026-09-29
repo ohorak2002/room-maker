@@ -1,8 +1,10 @@
 import { validateAssetRecord } from './assets.mjs'
+import { validateBrief, compileBrief, MAX_BRIEF_BYTES } from './brief.mjs'
 
 // v2 added `assets`: private imported models referenced by checksum.
 // v3 added `studio` (brightness, sun height, accent lights) and `views` (saved cameras).
-export const PROJECT_VERSION = 3
+// v4 added `brief`: the official Upload Brief the project's measured rooms came from.
+export const PROJECT_VERSION = 4
 export const MAX_PROJECT_BYTES = 32 * 1024 * 1024
 export const ROOM_DEFAULTS = {
   onboarded: false, scope: 'room', home: null, focusedRoom: null, activeFloor: 0,
@@ -14,6 +16,9 @@ export const ROOM_DEFAULTS = {
   // sun: null = the room's own default sun height; otherwise degrees above the horizon.
   studio: { brightness: 100, sun: null, accent: true },
   views: [],
+  // null = a project without an official Brief (rooms from earlier versions).
+  // Otherwise { fingerprint, source }: `source` is the verified brief document.
+  brief: null,
 }
 export const MAX_VIEWS = 40
 export const VIEW_MODES = ['overview', 'eye', 'corner']
@@ -58,6 +63,23 @@ function views(value) {
     if (v.thumb !== null && (typeof v.thumb !== 'string' || !v.thumb.startsWith('data:image/jpeg;base64,') || v.thumb.length > 120000)) fail('invalid saved view preview')
   }
 }
+// A measured home must be exactly what its verified Brief compiles to; only the
+// furniture lists (`items`) may differ. Nothing else about the shell is trusted.
+const withoutItems = (rooms) => JSON.stringify(rooms.map(({ items, ...geometry }) => geometry))
+function briefRecord(s) {
+  const b = s.brief
+  if (b === null) {
+    if (s.home?.measured) fail('measured rooms need their official Brief')
+    return
+  }
+  if (!object(b) || Object.keys(b).some(k => !['fingerprint', 'source'].includes(k)) || typeof b.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(b.fingerprint)) fail('invalid Brief record')
+  if (new TextEncoder().encode(JSON.stringify(b.source)).length > MAX_BRIEF_BYTES) fail('Brief exceeds 8 MB')
+  const { errors } = validateBrief(b.source)
+  if (errors.length) fail(`the stored Brief is not valid (${errors[0]})`)
+  if (!s.home?.measured || s.scope !== 'home') fail('a Brief project needs its measured home')
+  const compiled = compileBrief(b.source)
+  if (['w', 'd', 'h', 'storeys', 'beds', 'baths', 'sqft'].some(k => s.home[k] !== compiled[k]) || withoutItems(s.home.rooms) !== withoutItems(compiled.rooms)) fail('measured rooms do not match the stored Brief')
+}
 export function validateProject(doc) {
   if (!object(doc) || doc.format !== 'nested-project' || doc.version !== PROJECT_VERSION) fail('unsupported format or version')
   safeTree(doc)
@@ -72,6 +94,7 @@ export function validateProject(doc) {
   items(s.items)
   studio(s.studio)
   views(s.views)
+  briefRecord(s)
   if (!['room', 'home'].includes(s.scope)) fail('invalid scope')
   if (s.customShape) shape(s.customShape)
   if (s.customDims !== null && (!object(s.customDims) || !finite(s.customDims.h) || s.customDims.h <= 0)) fail('invalid dimensions')
@@ -108,6 +131,7 @@ export function migrateProject(doc) {
   // Each step only fills in what its version introduced; nothing is guessed.
   if (next.version === 1) next = { ...next, version: 2, state: { ...next.state, assets: next.state.assets ?? {} } }
   if (next.version === 2) next = { ...next, version: 3, state: { ...next.state, studio: next.state.studio ?? structuredClone(ROOM_DEFAULTS.studio), views: next.state.views ?? [] } }
+  if (next.version === 3) next = { ...next, version: 4, state: { ...next.state, brief: next.state.brief ?? null } }
   return next
 }
 export function parseProject(text) {

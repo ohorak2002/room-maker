@@ -23,6 +23,12 @@ export const useUiStore = create((set) => ({
   // Catalog id of the piece selected in the room, so its Shop card can show it.
   selectedItemId: null,
   setSelectedItemId: (selectedItemId) => set({ selectedItemId }),
+  // Bumped to ask the project bar to start a new project (which asks about
+  // unsaved changes first) and so return to Upload Brief.
+  newProjectRequests: 0,
+  requestNewProject: () => set((s) => ({ newProjectRequests: s.newProjectRequests + 1 })),
+  briefStatus: '',
+  setBriefStatus: (briefStatus) => set({ briefStatus }),
   setPanelOpen: (panelOpen) => set({ panelOpen }),
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
   /** Show a panel; choosing the one already showing collapses the inspector. */

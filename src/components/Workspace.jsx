@@ -8,6 +8,7 @@ import PiecesPanel from './studio/PiecesPanel'
 import FinishesPanel from './studio/FinishesPanel'
 import LightPanel from './studio/LightPanel'
 import ViewsPanel from './studio/ViewsPanel'
+import BriefPanel from './BriefPanel'
 import Filmstrip from './studio/Filmstrip'
 import Shortcuts from './Shortcuts'
 import './Workspace.css'
@@ -24,6 +25,8 @@ const PANELS = [
   { id: 'light', label: 'Light', title: 'Light & atmosphere', icon: 'light', View: LightPanel },
   { id: 'views', label: 'Views', title: 'Camera & views', icon: 'views', View: ViewsPanel },
 ]
+// Only projects that came from an official Brief have one to show.
+const BRIEF_PANEL = { id: 'brief', label: 'Brief', title: 'Design Brief', icon: 'brief', View: BriefPanel }
 
 // The project bar (DesktopProjects) sits above this and carries the totals and
 // file actions. The workspace is a tool rail, the room, an inspector, and the
@@ -38,6 +41,7 @@ export default function Workspace() {
   const shortcutsOpen = useUiStore((s) => s.shortcutsOpen)
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
   const count = useRoomStore((s) => projectTotals(s).count)
+  const hasBrief = useRoomStore((s) => Boolean(s.brief))
   const inOverview = useRoomStore((s) => s.scope === 'home' && Boolean(s.home) && !s.focusedRoom)
 
   // "?" opens the shortcuts sheet, "P" toggles presentation, Escape leaves it.
@@ -62,7 +66,8 @@ export default function Workspace() {
     return () => window.removeEventListener('keydown', onKey)
   }, [setShortcutsOpen, setPresenting])
 
-  const active = PANELS.find((p) => p.id === activePanel) || PANELS[1]
+  const panels = hasBrief ? [BRIEF_PANEL, ...PANELS] : PANELS
+  const active = panels.find((p) => p.id === activePanel) || PANELS[1]
   const showStrip = !inOverview
 
   return (
@@ -70,7 +75,7 @@ export default function Workspace() {
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <nav className="rail" aria-label="Room tools">
-        {PANELS.map((p) => (
+        {panels.map((p) => (
           <button key={p.id} className="rail-btn" aria-pressed={panelOpen && activePanel === p.id} aria-label={p.label} title={p.title} onClick={() => choosePanel(p.id)}>
             <Icon name={p.icon} size={20} />
             <span>{p.label}</span>

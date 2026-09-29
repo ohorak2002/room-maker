@@ -10,6 +10,7 @@
     "desktop:pack": "npm run build && electron-builder --win --dir",
     "desktop:dist": "npm run build && electron-builder --win nsis --arm64 --x64",
     "test:desktop": "npm run build && node scripts/desktop-smoke.mjs",
+    "test:brief": "npm run build && node scripts/brief-smoke.mjs",
     "fixture:glb": "node scripts/make-fixture-glb.mjs"
   },
   "dependencies": {

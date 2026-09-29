@@ -1,3 +1,17 @@
+# Progress — 2026-09-29 (official Upload Brief integration)
+
+## Upload Brief replaces the questionnaire (Claude Code, branch `feature/room-studio-and-materials`, uncommitted)
+
+Merged the supplied "Nested Brief update" (`Downloads/Nested-brief-update`, written against the old browser prototype) by porting, not by applying its patch. Read `docs/official-brief.md` for the format; below is what differs in the desktop app.
+
+- Ported as-is: validation/compile (`shared/brief.mjs`, `shared/briefGeometry.mjs`, moved to `shared/` so Electron main can validate too), `src/three/measuredShell.js`, editor, plan measure, measured plan, sample `examples/sample-home.nested-brief.json`, and its two tests.
+- Adapted: no IndexedDB/localStorage/browser downloads. Upload, draft open/save and official-Brief save go through new narrow IPC (`brief:open`, `brief:save`; native dialogs, size and format checked in main). Project format is now **v4**: `brief: {fingerprint, source}` stores the verified Brief inside the project file (v1–v3 migrate with `brief: null`). `validateProject` recompiles the stored Brief and refuses a project whose measured rooms differ from it (only furniture lists may differ).
+- Flow: a new/empty project shows the Upload Brief gate (no bypass, no quiz). Review + confirm → empty measured home; one room opens directly, several open on the exact measured plan. Identical-Brief "resume" is now simply reopening the saved project; "Start from another Brief" is New project (asks about unsaved changes first). No previous-project backup JSON exists any more: the `.nested` file is the backup.
+- Rendering: measured shell gained a ceiling and the app's dynamic cutaways (walls/ceiling hide only while the camera is outside; edge walls at any angle), non-casting near wall, clear glass with no transmission pass. Per-room placement namespacing (`<roomId>:piece#n`) ported into the store. Brief rooms use the Brief's colours, not the palette; Room/Finishes panels show locked measured facts; a Brief tab shows retained notes and attachments.
+- Removed: questionnaire (`Onboarding`, `HeroRoom`, `MoodPreview`, `LightPreview`, `MaterialPreview`, `moodScenes`); recoverable from Git.
+- Verified: `npm test` (7 files) passes; `node scripts/desktop-smoke.mjs` passes (expects v4); new `npm run test:brief` (real Electron, dialogs stubbed) covers gate, wrong-file refusals, review, editor export/draft round trip, re-upload, exact room, no auto-furnishing, save, crash recovery, New project. No page errors, no external requests. Screenshots inspected: `references/brief-flow/`.
+- Not done / limits: no PDF rendering, OCR or AI reading (as in the update); the whole Brief incl. attachments (up to ~12 MB) is inside the project, so autosave writes are large; project name/client are not prefilled from the Brief; default 1 m texture tile makes plank floors look fine-striped (designer-chosen scale); overview 3D of a multi-room home, sloped/complex rooms, drag-editing in non-rectangular rooms and the installed app were not hand-tested; installer not rebuilt.
+
 # Progress — 2026-09-29 (room studio + material pilot)
 
 ## Room studio shell and material pilot (Claude Code, branch `feature/room-studio-and-materials`, not merged)

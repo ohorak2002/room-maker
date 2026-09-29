@@ -56,6 +56,36 @@ function SelectedFinish() {
   )
 }
 
+/** The room's finishes as the Brief recorded them, with optional colour trials. */
+function BriefFinishes() {
+  const store = useRoomStore()
+  const room = store.activeRoom()
+  const colors = store.colors()
+  if (!room) return <p className="studio-note studio-pad">Open a room to see the finishes its Brief recorded.</p>
+  const s = room.surfaces
+  const swatch = (c) => <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: c, border: '1px solid var(--line-strong)', marginRight: 6, verticalAlign: -1 }} />
+  return (
+    <section className="studio-section">
+      <span className="studio-label">{room.name} · from the Brief</span>
+      <ul className="finish-list">
+        <li><span>Floor</span><strong>{swatch(s.floorColor)}{s.floor} · {s.floorFinish}</strong><small>Procedural preview at a {s.textureScale} m tile</small></li>
+        <li><span>Walls</span><strong>{swatch(s.wallColor)}{s.wall} · {s.wallFinish}</strong><small>Procedural preview at a {s.textureScale} m tile</small></li>
+        <li><span>Trim</span><strong>{swatch(s.trimColor)}{s.trimColor}</strong></li>
+        <li><span>Accent</span><strong>{swatch(s.accentColor)}{s.accentColor}</strong><small>Recorded for the designer; not painted onto a surface</small></li>
+      </ul>
+      <p className="studio-note">These are the Brief’s colours and generic procedural surfaces, not a verified paint or product match. Paint references and product notes are in the Brief panel.</p>
+      <span className="studio-label">Try a colour</span>
+      <div className="override-grid">
+        <label className="override"><span>Wall</span><input type="color" value={colors.wall} onChange={(e) => store.set('wallOverride', e.target.value)} /></label>
+        <label className="override"><span>Floor</span><input type="color" value={colors.floor} onChange={(e) => store.set('floorOverride', e.target.value)} /></label>
+      </div>
+      {(store.wallOverride || store.floorOverride) && (
+        <button className="link-btn" onClick={() => { store.set('wallOverride', null); store.set('floorOverride', null) }}>Back to the Brief’s colours</button>
+      )}
+    </section>
+  )
+}
+
 export default function FinishesPanel() {
   const store = useRoomStore()
   const colors = store.colors()
@@ -67,6 +97,7 @@ export default function FinishesPanel() {
         <SelectedFinish />
       </section>
 
+      {store.brief ? <BriefFinishes /> : <>
       <Section title="Palette" summary={PALETTES.find((p) => p.id === store.palette)?.name} defaultOpen>
         <div className="palette-list">
           {PALETTES.map((p) => (
@@ -122,6 +153,8 @@ export default function FinishesPanel() {
           ))}
         </div>
       </Section>
+
+      </>}
 
       <p className="studio-note studio-pad">
         Palette colours and generic surfaces are concept finishes. They are not verified retail variants.

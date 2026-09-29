@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import { atomicWrite, readProject, writeProject } from './files.mjs'
 import { stringifyProject, projectIdentity } from '../shared/project.mjs'
 import { ASSET_ID, MAX_ASSET_BYTES, inspectGlb } from '../shared/assets.mjs'
+import { BRIEF_FORMAT, MAX_BRIEF_BYTES, parseBrief } from '../shared/brief.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const origin = 'nested://app'
@@ -127,6 +128,37 @@ handle('image:export', dataUrl => exclusive(async () => {
   const path = result.filePath.endsWith('.png') ? result.filePath : `${result.filePath}.png`
   await atomicWrite(path, Buffer.from(dataUrl.split(',')[1], 'base64'))
   exportedPath = path
+  return { path }
+}))
+// Official Briefs and unfinished drafts are plain JSON files the designer keeps.
+// The renderer never touches the filesystem: it gets the text of a file the
+// designer chose, and hands text back to be saved where the designer chooses.
+const briefKinds = {
+  brief: { open: 'Upload Nested Brief', save: 'Save official Brief', suffix: '.nested-brief.json' },
+  draft: { open: 'Open Brief draft', save: 'Save Brief draft', suffix: '.nested-brief-draft.json' },
+}
+handle('brief:open', kind => exclusive(async () => {
+  const k = briefKinds[kind]
+  if (!k) throw new Error('Unknown Brief file type')
+  const result = await dialog.showOpenDialog(win, { title: k.open, filters: [{ name: kind === 'brief' ? 'Nested Brief' : 'Nested Brief draft', extensions: ['json'] }], properties: ['openFile'] })
+  if (result.canceled) return null
+  const path = result.filePaths[0]
+  if (!basename(path).endsWith(k.suffix)) throw new Error(kind === 'brief' ? 'Choose an official .nested-brief.json file. Attach PDFs and images inside the Brief editor first.' : 'Choose a .nested-brief-draft.json file saved from the Brief editor.')
+  if ((await stat(path)).size > MAX_BRIEF_BYTES) throw new Error('Brief files must be smaller than 8 MB.')
+  return { name: basename(path), text: await readFile(path, 'utf8') }
+}))
+handle('brief:save', (text, kind, suggestedName) => exclusive(async () => {
+  const k = briefKinds[kind]
+  if (!k || typeof text !== 'string' || new TextEncoder().encode(text).length > MAX_BRIEF_BYTES) throw new Error('Invalid Brief file')
+  // An official Brief must pass the same checks as an upload; a draft only has
+  // to be this format, since drafts are incomplete by definition.
+  if (kind === 'brief') { const { errors } = parseBrief(text); if (errors.length) throw new Error(errors[0]) }
+  else if (JSON.parse(text)?.format !== BRIEF_FORMAT) throw new Error('Invalid Brief draft')
+  const stem = String(suggestedName || 'project').replace(/[<>:"/\\|?*\s]+/g, '-').slice(0, 80) || 'project'
+  const result = await dialog.showSaveDialog(win, { title: k.save, defaultPath: stem + k.suffix, filters: [{ name: 'Nested Brief', extensions: ['json'] }] })
+  if (result.canceled) return null
+  const path = result.filePath.endsWith(k.suffix) ? result.filePath : result.filePath.replace(/\.json$/i, '') + k.suffix
+  await atomicWrite(path, text, { backup: false })
   return { path }
 }))
 handle('image:show', () => { if (exportedPath) shell.showItemInFolder(exportedPath) })

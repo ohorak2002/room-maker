@@ -1,6 +1,6 @@
 import { useRoomStore } from './store/roomStore'
 import { useUiStore } from './store/uiStore'
-import Onboarding from './components/Onboarding'
+import BriefGate from './components/BriefGate'
 import Workspace from './components/Workspace'
 import ErrorBoundary from './components/ErrorBoundary'
 import DesktopProjects from './components/DesktopProjects'
@@ -9,7 +9,7 @@ import './App.css'
 export default function App() {
   const onboarded = useRoomStore((s) => s.onboarded)
   const presenting = useUiStore((s) => s.presenting)
-  const editor = onboarded ? <Workspace /> : <Onboarding />
+  const editor = onboarded ? <Workspace /> : <BriefGate />
   // Nested is a desktop application. Without the Electron bridge there is no
   // project storage, so the editor is not offered at all.
   if (!window.nestedDesktop) {

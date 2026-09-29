@@ -92,6 +92,15 @@ export default function DesktopProjects() {
       useRoomStore.getState().reset()
     }
   })
+  // "Upload another Brief" elsewhere in the app asks for the same thing as New
+  // project: confirm unsaved changes, then return to Upload Brief.
+  const newRequests = useUiStore((s) => s.newProjectRequests)
+  const newRequestSeen = useRef(newRequests)
+  useEffect(() => {
+    if (newRequests === newRequestSeen.current) return
+    newRequestSeen.current = newRequests
+    newProject()
+  })
   const saved = /^(Saved|Opened) /.test(status)
   return <>
     <header className="appbar" aria-label="Project">
@@ -130,7 +139,6 @@ export default function DesktopProjects() {
           { label: 'New project', onSelect: newProject },
           { label: 'Save as…', onSelect: () => saveTo(true) },
           { label: 'Export shopping list', onSelect: () => exportShoppingList(useRoomStore.getState()), hidden: !onboarded },
-          { label: 'Retake style quiz', onSelect: () => useRoomStore.getState().restartOnboarding(), hidden: !onboarded },
         ]}
       />
       <button type="button" className="bar-btn primary" disabled={locked} onClick={() => saveTo(false)}>Save</button>

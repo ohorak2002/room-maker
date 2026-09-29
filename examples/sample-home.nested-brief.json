@@ -1,0 +1,174 @@
+{
+  "format": "nested-official-design-brief",
+  "schemaVersion": 1,
+  "producer": "Nested Brief Editor",
+  "id": "nested-example-measured-home",
+  "project": {
+    "name": "Sample measured home",
+    "client": "Sample client",
+    "studio": "Sample studio",
+    "designer": "Sample designer"
+  },
+  "units": "m",
+  "plan": {
+    "source": "measured",
+    "attachmentId": null,
+    "page": 1,
+    "reference": "Example measurements for testing only; replace with the client’s verified plan.",
+    "layoutVerified": true
+  },
+  "rooms": [
+    {
+      "id": "room-1",
+      "name": "Living room",
+      "kind": "living",
+      "floor": 0,
+      "x": 0,
+      "z": 0,
+      "width": 5.137,
+      "depth": 4.219,
+      "height": 2.743,
+      "outline": [],
+      "geometryVerified": true,
+      "openingsVerified": true,
+      "measurementSource": "Designer measured",
+      "openings": [
+        {
+          "id": "window-1",
+          "type": "window",
+          "edge": 0,
+          "offset": 1.1,
+          "width": 1.5,
+          "height": 1.4,
+          "sill": 0.9
+        },
+        {
+          "id": "door-1",
+          "type": "door",
+          "edge": 2,
+          "offset": 0.5,
+          "width": 0.9,
+          "height": 2.1,
+          "sill": 0
+        }
+      ],
+      "surfaces": {
+        "floor": "oak",
+        "wall": "plaster",
+        "floorColor": "#C6AC88",
+        "wallColor": "#EFE8DD",
+        "trimColor": "#FCF9F3",
+        "accentColor": "#CAA48E",
+        "floorFinish": "matte",
+        "wallFinish": "matte",
+        "textureScale": 1
+      },
+      "lighting": "natural",
+      "notes": {
+        "roomPurpose": "",
+        "roomUsers": "",
+        "scope": "",
+        "targetDate": "",
+        "feeling": "",
+        "avoidColors": "",
+        "inspiration": "",
+        "paintReference": "",
+        "floorDetail": "",
+        "surfaceReferences": "",
+        "ceiling": "",
+        "trim": "",
+        "daylight": "",
+        "lightNotes": "",
+        "fixedFeatures": "",
+        "preserveArchitecture": "",
+        "access": "",
+        "avoidMaterials": "",
+        "budget": "",
+        "currency": "",
+        "budgetCovers": "",
+        "constraints": "",
+        "questions": "",
+        "needs": ""
+      }
+    },
+    {
+      "id": "room-2",
+      "name": "Bedroom",
+      "kind": "bedroom",
+      "floor": 0,
+      "x": 5.237,
+      "z": 0,
+      "width": 3.2,
+      "depth": 4.219,
+      "height": 2.743,
+      "outline": [],
+      "geometryVerified": true,
+      "openingsVerified": true,
+      "measurementSource": "Designer measured",
+      "openings": [
+        {
+          "id": "window-2",
+          "type": "window",
+          "edge": 0,
+          "offset": 0.5,
+          "width": 1.1,
+          "height": 1.2,
+          "sill": 1
+        },
+        {
+          "id": "door-2",
+          "type": "door",
+          "edge": 2,
+          "offset": 0.5,
+          "width": 0.9,
+          "height": 2.1,
+          "sill": 0
+        }
+      ],
+      "surfaces": {
+        "floor": "oak",
+        "wall": "plaster",
+        "floorColor": "#C6AC88",
+        "wallColor": "#EFE8DD",
+        "trimColor": "#FCF9F3",
+        "accentColor": "#CAA48E",
+        "floorFinish": "matte",
+        "wallFinish": "matte",
+        "textureScale": 1
+      },
+      "lighting": "natural",
+      "notes": {
+        "roomPurpose": "",
+        "roomUsers": "",
+        "scope": "",
+        "targetDate": "",
+        "feeling": "",
+        "avoidColors": "",
+        "inspiration": "",
+        "paintReference": "",
+        "floorDetail": "",
+        "surfaceReferences": "",
+        "ceiling": "",
+        "trim": "",
+        "daylight": "",
+        "lightNotes": "",
+        "fixedFeatures": "",
+        "preserveArchitecture": "",
+        "access": "",
+        "avoidMaterials": "",
+        "budget": "",
+        "currency": "",
+        "budgetCovers": "",
+        "constraints": "",
+        "questions": "",
+        "needs": ""
+      }
+    }
+  ],
+  "attachments": [],
+  "review": {
+    "approved": true,
+    "reviewedBy": "Sample designer",
+    "date": "2026-09-29"
+  }
+}

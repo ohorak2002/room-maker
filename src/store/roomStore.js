@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { getPalette, getShape, shapeBounds } from '../data/presets'
+import { shapeArea } from '../three/shapeGeom'
+import { compileBrief } from '../../shared/brief.mjs'
 
 import { ROOM_DEFAULTS, MAX_VIEWS } from '../../shared/project.mjs'
 import { placedDimensions } from '../../shared/assets.mjs'
@@ -55,8 +57,26 @@ export const useRoomStore = create(
     canUndo: () => get()._past.length > 0,
 
     set: (key, value) => set({ [key]: value }),
-    finishOnboarding: () => set({ onboarded: true }),
-    restartOnboarding: () => set({ onboarded: false }),
+    /**
+     * Build the empty measured home from an official Brief that the Upload gate
+     * has already validated and the designer has confirmed. Everything else in
+     * the live project is replaced; the caller starts from a new project.
+     */
+    importOfficialBrief: ({ source, fingerprint }) => {
+      const home = compileBrief(source)
+      const first = home.rooms[0]
+      set({
+        ...structuredClone(initial),
+        home, scope: 'home',
+        focusedRoom: home.rooms.length === 1 ? first.id : null,
+        activeFloor: Math.min(...home.rooms.map((r) => r.floor)),
+        lighting: first.lighting,
+        onboarded: true,
+        brief: { fingerprint, source },
+        layoutRev: get().layoutRev + 1,
+        _past: [],
+      })
+    },
 
     /**
      * Items live in one of two places depending on scope: the top-level
@@ -133,7 +153,7 @@ export const useRoomStore = create(
       // Instance keys are positional, so drop the highest index.
       set((s) => {
         const placements = { ...s.placements }
-        delete placements[`${id}#${found.qty - 1}`]
+        delete placements[get().placementKey(`${id}#${found.qty - 1}`)]
         return { placements, layoutRev: s.layoutRev + 1 }
       })
       get()._updateItems((items) =>
@@ -150,7 +170,7 @@ export const useRoomStore = create(
       set((s) => {
         const placements = { ...s.placements }
         for (const k of Object.keys(placements)) {
-          if (k.startsWith(`${fromId}#`)) delete placements[k]
+          if (k.startsWith(get().placementKey(`${fromId}#`))) delete placements[k]
         }
         return { placements, layoutRev: s.layoutRev + 1 }
       })
@@ -209,7 +229,7 @@ export const useRoomStore = create(
     clearAll: () => {
       get().pushHistory()
       get()._updateItems(() => [])
-      set((s) => ({ placements: {}, layoutRev: s.layoutRev + 1 }))
+      get().setPlacements({})
     },
 
     qtyOf: (id) => get().activeItems().find((i) => i.id === id)?.qty || 0,
@@ -217,19 +237,48 @@ export const useRoomStore = create(
     // --- placement ------------------------------------------------------
     // History is pushed by the drag layer on pointer-down, not here — this
     // fires on every committed move and would otherwise flood the stack.
-    setPlacement: (key, pos) =>
-      set((s) => ({ placements: { ...s.placements, [key]: { ...s.placements[key], ...pos } } })),
+    // Rooms measured from a Brief each keep their own placements: the same
+    // catalog item in two rooms must not share a position, so keys are
+    // namespaced by room ("<roomId>:<piece>#<n>"). Callers keep using the plain
+    // "<piece>#<n>" key; the store scopes it.
+    placementKey: (key) => (get().home?.measured && get().focusedRoom ? `${get().focusedRoom}:${key}` : key),
 
-    setPlacements: (map) => set((s) => ({ placements: map, layoutRev: s.layoutRev + 1 })),
+    /** Placements of whatever is being edited, under their plain keys. */
+    activePlacements: () => {
+      const s = get()
+      if (!s.home?.measured || !s.focusedRoom) return s.placements
+      const prefix = `${s.focusedRoom}:`
+      return Object.fromEntries(Object.entries(s.placements).filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k.slice(prefix.length), v]))
+    },
+
+    setPlacement: (key, pos) => {
+      const scoped = get().placementKey(key)
+      set((s) => ({ placements: { ...s.placements, [scoped]: { ...s.placements[scoped], ...pos } } }))
+    },
+
+    setPlacements: (map) =>
+      set((s) => {
+        if (!s.home?.measured || !s.focusedRoom) return { placements: map, layoutRev: s.layoutRev + 1 }
+        const prefix = `${s.focusedRoom}:`
+        const others = Object.fromEntries(Object.entries(s.placements).filter(([k]) => !k.startsWith(prefix)))
+        const mine = Object.fromEntries(Object.entries(map).map(([k, v]) => [prefix + k, v]))
+        return { placements: { ...others, ...mine }, layoutRev: s.layoutRev + 1 }
+      }),
 
     clearPlacements: () => {
       get().pushHistory()
-      set((s) => ({ placements: {}, layoutRev: s.layoutRev + 1 }))
+      get().setPlacements({})
     },
 
     // --- derived --------------------------------------------------------
     colors: () => {
       const p = getPalette(get().palette)
+      // A Brief's own colours are the room's finishes; the palette only applies
+      // to rooms without one. The designer's overrides still win.
+      const measured = get().activeRoom()?.surfaces
+      if (measured) {
+        return { wall: get().wallOverride || measured.wallColor, floor: get().floorOverride || measured.floorColor, trim: measured.trimColor, accent: measured.accentColor }
+      }
       return {
         wall: get().wallOverride || p.wall,
         floor: get().floorOverride || p.floor,
@@ -250,6 +299,8 @@ export const useRoomStore = create(
         const room = s.home?.rooms.find((r) => r.id === roomId)
         return {
           focusedRoom: roomId,
+          // Each measured room carries its own lighting preview and finishes.
+          ...(room?.surfaces ? { lighting: room.lighting, wallOverride: null, floorOverride: null } : {}),
           activeFloor: room?.floor ?? s.activeFloor,
           layoutRev: s.layoutRev + 1,
         }
@@ -287,7 +338,7 @@ export const useRoomStore = create(
      */
     shape: () => {
       const focused = get().activeRoom()
-      if (focused) return { cols: focused.cols, rows: focused.rows, cells: focused.cells, h: focused.h }
+      if (focused) return { ...focused }
       const custom = get().customShape
       const preset = getShape(get().floorplan)
       const fallbackH = get().customDims?.h ?? preset.h
@@ -310,7 +361,7 @@ export const useRoomStore = create(
       const shape = get().shape()
       // Area of the actual footprint, not the bounding box — an L-shaped room
       // has far less usable floor than its width times its depth.
-      const area = shape.cells.length * 0.25
+      const area = shapeArea(shape)
       const used = areas.reduce((sum, a) => sum + a, 0)
       return area > 0 ? used / area : 0
     },

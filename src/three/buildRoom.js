@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { zoneOf } from './layout'
 import { floorRuns, wallRuns, windowWall } from './shapeGeom'
+import { buildMeasuredShell } from './measuredShell'
 import { shapeBounds } from '../data/presets'
 import { applySurface } from './textures'
 import { FIDDLE_FIG } from './meshes/fiddleFig'
@@ -1712,8 +1713,11 @@ export function updateCutaways(room, position) {
     y: position.y > b.h,
   }
   for (const c of cutaways) {
-    const coord = c.axis === 'x' ? position.z : c.axis === 'z' ? position.x : position.y
-    const hide = beyond[c.axis] && (coord - c.at) * c.inward < 0
+    // Walls of a measured room can lie at any angle: hide one when the camera
+    // is outside the room and on the far side of that wall's own plane.
+    const hide = c.axis === 'edge'
+      ? (beyond.x || beyond.z) && (position.x - c.px) * c.nx + (position.z - c.pz) * c.nz < 0
+      : beyond[c.axis] && ((c.axis === 'x' ? position.z : c.axis === 'z' ? position.x : position.y) - c.at) * c.inward < 0
     if (hide === c.hidden) continue
     c.hidden = hide
     for (const part of c.parts) part.traverse((o) => o.layers.set(hide ? CUTAWAY_LAYER : 0))
@@ -2038,7 +2042,9 @@ function placeItems(group, entries, placements, live, assets = {}, onChange) {
 
 export function buildRoom(scene, config) {
   const group = new THREE.Group()
-  const shell = buildShell(config)
+  // Rooms measured from an official Brief have exact polygon shells; every
+  // other room keeps the half-metre cell shell.
+  const shell = config.shape.footprint ? buildMeasuredShell(config) : buildShell(config)
   shadowed(shell)
   group.add(shell)
 

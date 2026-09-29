@@ -20,6 +20,7 @@ import { autoArrange, instanceKey, zoneOf } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
 import PieceMenu from './PieceMenu'
 import BlueprintPlan from './BlueprintPlan'
+import MeasuredPlan from './MeasuredPlan'
 import Icon from './Icons'
 import './RoomCanvas.css'
 
@@ -419,7 +420,7 @@ export default function RoomCanvas() {
     const auto = autoArrange(entries, { ...room, shape })
     const placements = {}
     for (const { key } of entries) {
-      placements[key] = { ...auto[key], ...(store.placements[key] || {}) }
+      placements[key] = { ...auto[key], ...(store.activePlacements()[key] || {}) }
     }
 
     engine.atmosphere?.()
@@ -435,7 +436,8 @@ export default function RoomCanvas() {
       ...room,
       colors,
       lighting,
-      windows,
+      // A measured room has exactly the windows its Brief recorded.
+      windows: shape.footprint ? shape.openings.some((o) => o.type === 'window') : windows,
       wallMaterial: getWallMaterial(wallMaterial),
       entries,
       placements,
@@ -864,7 +866,7 @@ export default function RoomCanvas() {
       zone: node.userData.zone,
     })
   }
-  const hasCustom = Object.keys(store.placements).length > 0
+  const hasCustom = Object.keys(store.activePlacements()).length > 0
   const historyDepth = store._past.length
 
   // Crowding: summed footprint vs floor area. Past ~55% you can't walk through it.
@@ -901,7 +903,7 @@ export default function RoomCanvas() {
         <div ref={mountRef} className="canvas-mount" hidden={planView} />
 
         {planView && (
-          <BlueprintPlan
+          <PlanView
             home={home}
             synthetics={store.synthetics}
             onPick={(id) => store.focusRoom(id)}
@@ -1064,7 +1066,7 @@ export default function RoomCanvas() {
             ×
           </button>
           <strong>This room is packed.</strong> Your pieces cover about{' '}
-          {Math.round(fill * 100)}% of the {(store.shape().cells.length * 0.25).toFixed(1)} m² of floor you
+          {Math.round(fill * 100)}% of the {(store.shape().area ?? store.shape().cells.length * 0.25).toFixed(1)} m² of floor you
           actually have — there won't be much room to walk. Try a bigger floorplan or fewer large pieces.
         </div>
       )}
@@ -1073,17 +1075,30 @@ export default function RoomCanvas() {
         <div className="empty-room">
           <div className="empty-card">
             <p className="empty-title">Your room is empty</p>
-            <p className="empty-sub">
-              {isFixtureRoom
-                ? "Start with the fixtures this room needs, then swap out whatever you don't want."
-                : `Start with a set picked for your ${store.mood} vibe, then swap out whatever you don't want.`}
-            </p>
-            <button
-              className="btn-primary"
-              onClick={() => store.addMany(pack.items)}
-            >
-              Add the {packName.toLowerCase()}
-            </button>
+            {store.brief ? (
+              <>
+                <p className="empty-sub">
+                  The room follows your Brief exactly. Nothing is placed for you: choose furniture with your client.
+                </p>
+                <button className="btn-primary" onClick={() => useUiStore.getState().openPanel('pieces')}>
+                  Browse pieces
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="empty-sub">
+                  {isFixtureRoom
+                    ? "Start with the fixtures this room needs, then swap out whatever you don't want."
+                    : `Start with a set picked for your ${store.mood} vibe, then swap out whatever you don't want.`}
+                </p>
+                <button
+                  className="btn-primary"
+                  onClick={() => store.addMany(pack.items)}
+                >
+                  Add the {packName.toLowerCase()}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1106,6 +1121,9 @@ export default function RoomCanvas() {
     </div>
   )
 }
+
+/** The overview plan: exact footprints for a Brief home, the schematic otherwise. */
+const PlanView = (props) => (props.home?.measured ? <MeasuredPlan {...props} /> : <BlueprintPlan {...props} />)
 
 /** The floating card for the selected piece: what it is, its size, actions. */
 function PieceInspector({ selected, onAction }) {
