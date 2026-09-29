@@ -152,7 +152,7 @@ try {
   await page.getByRole('status').filter({ hasText: /^Saved/ }).waitFor()
   {
     const studioDoc = await readProject(projectPath)
-    assert.equal(studioDoc.version, 4)
+    assert.equal(studioDoc.version, 5)
     assert.equal(studioDoc.state.brief, null)
     assert.equal(studioDoc.state.lighting, 'golden')
     assert.deepEqual(studioDoc.state.studio, { brightness: 120, sun: 40, accent: false })

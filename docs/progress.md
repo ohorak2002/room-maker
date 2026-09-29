@@ -1,4 +1,14 @@
-# Progress — 2026-09-29 (official Upload Brief integration)
+# Progress — 2026-09-29 (Brief is written in the app; AI assistant)
+
+## Upload removed; Brief written in Nested; assistant (Claude Code, follows the entry below)
+
+- No upload or export of Briefs any more. A new project shows "Start a new brief"; the editor runs inside Nested and the draft is saved **with the project** (format **v5**, `briefDraft`; v4 files migrate). "Review and create the room" validates, shows the measured plan for confirmation, then creates the empty home (the Brief is stored in the project as `brief`). File IPC for Briefs was removed. Attaching a floorplan image/PDF inside the editor still reads a file the designer chooses. Revising a Brief after room creation is not possible yet (start a new project).
+- **Brief assistant** (decision 2026-09-29: Nested-hosted service). The app's only network call: main process POSTs the Brief's text (no attachments, no client/studio/designer names) to the address in `NESTED_AI_URL` or `userData/ai.json` {"url"} (https, or http on localhost), only when the designer presses Ask, 45 s timeout, no redirects. Unset = "not connected". No provider key is in the app. Replies are allowlisted (`shared/briefAi.mjs`): wording of notes, room name/type, supported finishes, colours, lighting. Measurements, openings, verification flags, review, identity and furniture are refused and counted; the designer applies each change (stale ones are refused).
+- `server/brief-assistant.mjs` is a **reference** service (holds `ANTHROPIC_API_KEY`, forced tool output). It is outside the packaged files, **was not run against the live API** (no key here) and has no sign-in or rate limiting: no hosted service exists yet, so in this build the assistant is unavailable until one is deployed and its URL configured.
+- Verified: `npm test` (8 files, incl. new `briefAi`), `node scripts/desktop-smoke.mjs`, and `npm run test:brief` (real Electron; gate, draft survives crash, incomplete Brief refused, assistant against a local stand-in service, review, exact room, save, recovery, New project; no external requests other than that stand-in). Images: `references/brief-flow/`.
+- Not verified: the live model's answer quality; a deployed service; installer/installed app.
+
+# Earlier the same day: Upload Brief integration (superseded above)
 
 ## Upload Brief replaces the questionnaire (Claude Code, branch `feature/room-studio-and-materials`, uncommitted)
 

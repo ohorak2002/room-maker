@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { parseBrief, compileBrief, briefFingerprint } from '../shared/brief.mjs'
+import { parseBrief, compileBrief, briefFingerprint, newBrief } from '../shared/brief.mjs'
 import { createProject, parseProject, stringifyProject, ROOM_DEFAULTS, PROJECT_VERSION } from '../shared/project.mjs'
 
 // The Upload Brief flow inside a desktop project: import, save, reopen, refuse tampering.
 const sample = parseBrief(readFileSync(new URL('../examples/sample-home.nested-brief.json', import.meta.url), 'utf8'))
 assert.deepEqual(sample.errors, [])
 const fingerprint = await briefFingerprint(sample.doc)
-assert.equal(PROJECT_VERSION, 4)
+assert.equal(PROJECT_VERSION, 5)
 
 // What importOfficialBrief() stores (the store itself is not importable in plain
 // Node; scripts/desktop-smoke.mjs drives it in the real app).
@@ -22,6 +22,14 @@ const doc = createProject(state, { name: 'Sample', client: 'Client' })
 const reopened = parseProject(stringifyProject(doc))
 assert.equal(reopened.state.brief.fingerprint, fingerprint)
 assert.equal(reopened.state.home.rooms[0].items[0].id, 'sofa')
+
+// A Brief still being written is saved with the project, and refused if malformed.
+const drafting = createProject({ ...structuredClone(ROOM_DEFAULTS), briefDraft: newBrief() }, { name: 'Drafting' })
+assert.equal(parseProject(stringifyProject(drafting)).state.briefDraft.format, 'nested-official-design-brief')
+for (const bad of [{}, { format: 'nested-official-design-brief', schemaVersion: 1, rooms: [] }, 'text']) {
+  const d = structuredClone(drafting); d.state.briefDraft = bad
+  assert.throws(() => stringifyProject(d))
+}
 
 // Migration: a v3 file has no Brief and stays a normal project.
 const v3 = createProject(structuredClone(ROOM_DEFAULTS), { name: 'Old' }); v3.version = 3; delete v3.state.brief

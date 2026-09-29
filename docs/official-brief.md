@@ -1,3 +1,5 @@
+> **Superseded in part (2026-09-29):** the Brief is now written inside Nested and saved with the project; there is no upload or file export, and the entry gate is "Start a new brief". The schema, validation and rendering notes below still apply. See docs/progress.md.
+
 # Official Brief entry flow
 
 This update replaces the initial questionnaire with Upload Brief on every launch. There is no bypass into a newly generated default room. Users create the official document in the built-in Brief editor, export `*.nested-brief.json`, then upload it. Files are analyzed and reviewed before project state changes.

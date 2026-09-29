@@ -1,29 +1,39 @@
-// Real Electron check of the Upload Brief flow: gate, review, exact room, no
-// auto-furnishing, official export/upload round trip, project save and recovery.
-// Native dialog selections are stubbed; filesystem and IPC are real.
+// Real Electron check of the in-app Brief flow: start a Brief, draft persistence,
+// the AI assistant (against a stand-in service), review, the exact measured room,
+// no auto-furnishing, save, crash recovery. Native dialog selections are stubbed;
+// filesystem and IPC are real.
 import { _electron as electron } from 'playwright'
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import assert from 'node:assert/strict'
 import { readProject } from '../desktop/files.mjs'
-import { parseBrief, briefFingerprint } from '../shared/brief.mjs'
 
 const root = resolve('.')
 const output = join(root, 'artifacts', 'brief-flow')
 await mkdir(output, { recursive: true })
 const userData = await mkdtemp(join(tmpdir(), 'nested-brief-test-'))
-const samplePath = join(root, 'examples', 'sample-home.nested-brief.json')
-const badNamePath = join(userData, 'notes.json')
-await writeFile(badNamePath, '{}')
-const notOfficial = join(userData, 'other.nested-brief.json')
-await writeFile(notOfficial, JSON.stringify({ format: 'generic', producer: 'someone' }))
-const exportedPath = join(userData, 'exported.nested-brief.json')
-const draftPath = join(userData, 'saved.nested-brief-draft.json')
 const projectPath = join(userData, 'brief-room.nested')
-const sample = parseBrief(await readFile(samplePath, 'utf8'))
-const fingerprint = await briefFingerprint(sample.doc)
-const env = { ...process.env, NESTED_TEST_USER_DATA: userData }
+
+// A stand-in for Nested's assistant service, to check what the app sends and how
+// it treats the reply. The real service holds the provider key.
+const requests = []
+const service = createServer(async (req, res) => {
+  let body = ''
+  for await (const chunk of req) body += chunk
+  requests.push(JSON.parse(body))
+  const roomId = requests.at(-1).brief.rooms[0].id
+  res.writeHead(200, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ reply: 'A calm, warm feeling suits a reading room.', proposals: [
+    { roomId, field: 'notes.feeling', value: 'Calm, warm and quiet.', reason: 'From your description.' },
+    { roomId, field: 'width', value: 9 },
+    { roomId, field: 'geometryVerified', value: true },
+  ] }))
+}).listen(0, '127.0.0.1')
+await new Promise((ok) => service.once('listening', ok))
+
+const env = { ...process.env, NESTED_TEST_USER_DATA: userData, NESTED_AI_URL: `http://127.0.0.1:${service.address().port}/brief-assist` }
 delete env.ELECTRON_RUN_AS_NODE
 const errors = []
 const external = []
@@ -34,72 +44,87 @@ const launch = async () => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   page.on('pageerror', (err) => errors.push(err.message))
   page.on('request', (req) => { if (!/^(nested|data|blob):/.test(req.url())) external.push(req.url()) })
-  await application.evaluate(({ dialog }, paths) => {
-    globalThis.__next = {}
-    dialog.showOpenDialog = async (_w, o) => ({ canceled: false, filePaths: [globalThis.__next[o.title] ?? paths.project] })
-    dialog.showSaveDialog = async (_w, o) => ({ canceled: false, filePath: globalThis.__next[o.title] ?? paths.project })
+  page.on('dialog', (d) => d.accept())
+  await application.evaluate(({ dialog }, path) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] })
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: path })
     dialog.showMessageBox = async () => ({ response: 1 })
-  }, { project: projectPath })
+  }, projectPath)
   return page
 }
-const choose = (title, path) => application.evaluate((_e, [t, p]) => { globalThis.__next[t] = p }, [title, path])
+const fill = (page, label, value) => page.locator('.brief-editor-main').getByLabel(label, { exact: true }).fill(String(value))
 let page
 try {
   page = await launch()
-  // 1. The gate replaces the old questionnaire: no bypass, no quiz.
-  await page.getByRole('heading', { name: 'Upload your Brief.' }).waitFor()
-  assert.equal(await page.getByText(/style quiz|Retake/i).count(), 0)
+  // 1. No upload, no quiz: the app starts a Brief itself.
+  await page.getByRole('heading', { name: 'Start with a Brief.' }).waitFor()
+  assert.equal(await page.getByText(/Upload|style quiz|Retake/i).count(), 0)
   assert.equal(await page.locator('.canvas-mount').count(), 0)
-  await page.screenshot({ path: join(output, '1-gate.png') })
-
-  // 2. Wrong files are refused with a plain reason and change nothing.
-  await choose('Upload Nested Brief', badNamePath)
-  await page.getByRole('button', { name: 'Upload Brief…' }).click()
-  await page.getByRole('alert').filter({ hasText: 'official .nested-brief.json' }).waitFor()
-  await choose('Upload Nested Brief', notOfficial)
-  await page.getByRole('button', { name: 'Upload Brief…' }).click()
-  await page.getByText('A few details need attention.').waitFor()
-  await page.getByText(/Upload an official \.nested-brief\.json exported from the Nested Brief editor/).waitFor()
-  assert.equal(await page.getByRole('button', { name: 'Create the empty home' }).count(), 0)
-
-  // 3. The official sample: review first, create only after confirmation.
-  await choose('Upload Nested Brief', samplePath)
-  await page.getByRole('button', { name: 'Upload Brief…' }).click()
-  await page.getByText('Your measured space is ready.').waitFor()
-  await page.getByText('5.137 × 4.219 × 2.743 m').first().waitFor()
-  assert.equal(await page.getByRole('button', { name: 'Create the empty home' }).isDisabled(), true)
-  await page.screenshot({ path: join(output, '2-review.png'), fullPage: true })
-
-  // 4. Official export/upload round trip through the editor.
-  await page.getByRole('button', { name: 'Create or complete the official Brief' }).click()
+  await page.screenshot({ path: join(output, '1-start.png') })
+  await page.getByRole('button', { name: 'Start a new brief' }).click()
   await page.getByText('OFFICIAL DESIGN BRIEF · V1').waitFor()
-  await choose('Save official Brief', exportedPath)
-  await choose('Save Brief draft', draftPath)
-  await page.getByRole('button', { name: 'Save official Brief…' }).click()
-  await page.getByText(/Official Brief saved to/).waitFor()
-  await page.getByRole('button', { name: 'Save draft…' }).click()
-  await page.getByText(/Draft saved to/).waitFor()
-  assert.deepEqual(parseBrief(await readFile(exportedPath, 'utf8')).errors, [])
-  assert.equal(JSON.parse(await readFile(draftPath, 'utf8')).format, 'nested-official-design-brief')
-  // An incomplete brief cannot be exported: clearing the reviewer is refused.
-  await page.getByRole('button', { name: 'Practical details' }).click()
-  await page.getByLabel('Reviewed by').fill('')
-  await page.getByRole('button', { name: 'Save official Brief…' }).click()
+  await fill(page, 'Project name', 'Sample measured home')
+  await fill(page, 'Client name', 'Sample client')
+  await fill(page, 'Studio / company', 'Sample studio')
+  await fill(page, 'Designer', 'Sample designer')
+
+  // 2. The draft is part of the project: it survives a crash and restart.
+  await page.waitForTimeout(900)
+  await application.close()
+  page = await launch()
+  await page.getByRole('button', { name: 'Restore project', exact: true }).click()
+  await page.getByText('OFFICIAL DESIGN BRIEF · V1').waitFor()
+  assert.equal(await page.locator('.brief-editor-main').getByLabel('Project name', { exact: true }).inputValue(), 'Sample measured home')
+
+  // 3. Incomplete Briefs cannot create a room.
+  await page.getByRole('button', { name: 'Review and create the room' }).click()
   await page.getByRole('alert').filter({ hasText: 'client review' }).waitFor()
-  await choose('Open Brief draft', draftPath)
-  await page.getByRole('button', { name: 'Open draft…' }).click()
-  await page.getByText(/saved\.nested-brief-draft\.json opened/).waitFor()
-  await page.getByRole('button', { name: 'Back to Upload Brief' }).click()
-  await choose('Upload Nested Brief', exportedPath)
-  await page.getByRole('button', { name: 'Upload Brief…' }).click()
+
+  // 4. The assistant proposes; only allowed changes reach the designer.
+  await page.getByRole('button', { name: 'Room & floorplan' }).click()
+  await fill(page, 'Room name', 'Living room')
+  await page.getByLabel('Ask the Brief assistant').fill('It is a quiet reading room for two.')
+  await page.getByRole('button', { name: 'Ask', exact: true }).click()
+  await page.getByText('A calm, warm feeling suits a reading room.').waitFor()
+  await page.getByText('2 suggestions were ignored').waitFor()
+  assert.equal(requests.length, 1)
+  const sent = JSON.stringify(requests[0])
+  assert.ok(!sent.includes('Sample client') && !sent.includes('dataUrl'), 'client name and attachments are not sent')
+  await page.screenshot({ path: join(output, '1b-assistant.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Apply', exact: true }).click()
+  await page.getByRole('button', { name: 'Colors & atmosphere' }).click()
+  assert.equal(await page.getByLabel('How should the room feel?').inputValue(), 'Calm, warm and quiet.')
+  await page.getByRole('button', { name: 'Room & floorplan' }).click()
+  assert.equal(await page.getByLabel('WIDTH (m)').inputValue(), '') // measurements were not touched
+
+  // 5. The designer enters verified measurements and reviews.
+  await fill(page, 'WIDTH (m)', 5.137)
+  await fill(page, 'DEPTH (m)', 4.219)
+  await fill(page, 'Ceiling height (m)', 2.743)
+  await fill(page, 'Plan reference / known scale', 'Measured on site with a laser.')
+  await page.getByLabel('Measurement source').selectOption('Designer measured')
+  await page.getByLabel('I verified the room dimensions, outline and ceiling height.').check()
+  await page.getByRole('button', { name: 'Add opening' }).click()
+  await page.getByLabel('Type', { exact: true }).selectOption('window')
+  await fill(page, 'Wall edge number', 0)
+  await fill(page, 'offset (m)', 1.117)
+  await fill(page, 'width (m)', 1.413)
+  await fill(page, 'height (m)', 1.257)
+  await fill(page, 'sill (m)', 0.811)
+  await page.getByLabel('I recorded and verified all openings, including none where appropriate.').check()
+  await page.getByLabel('I verified the complete plan, room positions and scale.').check()
+  await page.getByRole('button', { name: 'Practical details' }).click()
+  await fill(page, 'Reviewed by', 'Sample designer')
+  await fill(page, 'Review date', '2026-09-29')
+  await page.getByLabel('The designer and client reviewed this brief.').check()
+  await page.getByRole('button', { name: 'Review and create the room' }).click()
   await page.getByText('Your measured space is ready.').waitFor()
+  await page.screenshot({ path: join(output, '2-review.png'), fullPage: true })
+  assert.equal(await page.getByRole('button', { name: 'Create the empty home' }).isDisabled(), true)
   await page.getByLabel('I checked the layout, measurements and supported details above.').check()
   await page.getByRole('button', { name: 'Create the empty home' }).click()
 
-  // 5. Several rooms open on the exact measured plan; a room opens as real 3D.
-  await page.getByText('Measured floorplan').waitFor()
-  await page.screenshot({ path: join(output, '3a-home-plan.png') })
-  await page.getByRole('button', { name: /^Living room · / }).click()
+  // 6. One room opens directly as real 3D, exact size shown, nothing furnished.
   await page.locator('.canvas-mount canvas').waitFor()
   await page.getByText('Your room is empty').waitFor()
   await page.getByText(/Nothing is placed for you/).waitFor()
@@ -107,30 +132,28 @@ try {
   await page.getByRole('button', { name: 'Room', exact: true }).click()
   await page.getByText('5.137 m').waitFor()
   await page.getByRole('button', { name: 'Brief', exact: true }).click()
-  await page.getByText('Official Brief v1 · measured room foundation').waitFor()
+  await page.getByText('Calm, warm and quiet.').waitFor()
   await page.waitForTimeout(1500)
   await page.screenshot({ path: join(output, '3-room-eye-level.png') })
-  await page.getByRole('button', { name: 'Overview', exact: true }).click()
-  await page.waitForTimeout(1200)
-  await page.screenshot({ path: join(output, '4-room-overview.png') })
   await page.getByRole('button', { name: 'Corner' }).click()
   await page.waitForTimeout(1200)
-  await page.screenshot({ path: join(output, '5-room-corner.png') })
+  await page.screenshot({ path: join(output, '4-room-corner.png') })
 
-  // 6. The designer furnishes it; save; the project reopens with its Brief.
+  // 7. The designer furnishes it; save; the file holds the Brief and no draft.
   await page.getByRole('button', { name: 'Pieces', exact: true }).click()
   await page.getByRole('button', { name: /Add to room/ }).first().click()
   await page.waitForTimeout(800)
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await page.getByRole('status').filter({ hasText: /^Saved/ }).waitFor()
   const saved = await readProject(projectPath)
-  assert.equal(saved.version, 4)
-  assert.equal(saved.state.brief.fingerprint, fingerprint)
+  assert.equal(saved.version, 5)
+  assert.equal(saved.state.brief.source.project.name, 'Sample measured home')
+  assert.equal(saved.state.briefDraft, null)
   assert.equal(saved.state.home.rooms[0].exactW, 5.137)
   assert.equal(saved.state.home.rooms[0].items.length, 1)
-  assert.equal(saved.state.home.rooms[0].openings.length, 2) // only what the Brief recorded
+  assert.equal(saved.state.home.rooms[0].openings.length, 1) // only what the Brief recorded
 
-  // 7. Crash and restart: the recovery copy restores the Brief project.
+  // 8. Crash and restart: the recovery copy restores the Brief project.
   await application.close()
   page = await launch()
   await page.getByRole('button', { name: 'Restore project', exact: true }).click()
@@ -138,13 +161,14 @@ try {
   await page.getByRole('button', { name: 'Brief', exact: true }).click()
   await page.getByText('Official Brief v1 · measured room foundation').waitFor()
 
-  // 8. Start another project: back to Upload Brief; the saved file is untouched.
+  // 9. Start another project: back to the start; the saved file is untouched.
   await page.getByRole('button', { name: 'More project actions' }).click()
   await page.getByRole('menuitem', { name: 'New project' }).click()
-  await page.getByRole('heading', { name: 'Upload your Brief.' }).waitFor()
+  await page.getByRole('heading', { name: 'Start with a Brief.' }).waitFor()
   assert.deepEqual(external, [])
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ ok: true, screenshots: output, errors, external }, null, 2))
+  console.log(JSON.stringify({ ok: true, screenshots: output, errors, external, assistantRequests: requests.length }, null, 2))
 } finally {
   await application?.close().catch(() => {})
+  service.close()
 }

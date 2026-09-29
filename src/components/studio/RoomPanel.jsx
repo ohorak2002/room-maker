@@ -42,7 +42,7 @@ function BriefRoom() {
           <dt>Floor area</dt><dd>{room.area.toFixed(2)} m²</dd>
           <dt>Openings</dt><dd>{room.openings.length} recorded</dd>
         </dl>
-        <p className="studio-note">Measured from your official Brief and locked. To change the room, start a project from a revised Brief.</p>
+        <p className="studio-note">Measured from your official Brief and locked. To change the room, start a new project and Brief.</p>
         {store.home.rooms.length > 1 && <button className="chip" onClick={store.exitRoom}>Back to all rooms</button>}
       </section>
       <Section title="Layout" summary={placed === 0 ? 'Auto' : `${placed} moved`} defaultOpen>

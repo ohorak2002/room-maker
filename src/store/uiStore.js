@@ -27,8 +27,6 @@ export const useUiStore = create((set) => ({
   // unsaved changes first) and so return to Upload Brief.
   newProjectRequests: 0,
   requestNewProject: () => set((s) => ({ newProjectRequests: s.newProjectRequests + 1 })),
-  briefStatus: '',
-  setBriefStatus: (briefStatus) => set({ briefStatus }),
   setPanelOpen: (panelOpen) => set({ panelOpen }),
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
   /** Show a panel; choosing the one already showing collapses the inspector. */

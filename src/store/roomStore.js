@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { getPalette, getShape, shapeBounds } from '../data/presets'
 import { shapeArea } from '../three/shapeGeom'
-import { compileBrief } from '../../shared/brief.mjs'
+import { compileBrief, newBrief } from '../../shared/brief.mjs'
 
 import { ROOM_DEFAULTS, MAX_VIEWS } from '../../shared/project.mjs'
 import { placedDimensions } from '../../shared/assets.mjs'
@@ -57,11 +57,16 @@ export const useRoomStore = create(
     canUndo: () => get()._past.length > 0,
 
     set: (key, value) => set({ [key]: value }),
+    /** Begin writing a Brief in the app. */
+    startBrief: () => set({ briefDraft: newBrief() }),
+    setBriefDraft: (briefDraft) => set({ briefDraft }),
+
     /**
      * Build the empty measured home from an official Brief that the Upload gate
      * has already validated and the designer has confirmed. Everything else in
      * the live project is replaced; the caller starts from a new project.
      */
+    // (Named for the schema it produces: the official Brief document.)
     importOfficialBrief: ({ source, fingerprint }) => {
       const home = compileBrief(source)
       const first = home.rooms[0]

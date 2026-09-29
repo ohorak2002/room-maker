@@ -9,8 +9,8 @@ contextBridge.exposeInMainWorld('nestedDesktop', {
   newProject: () => ipcRenderer.invoke('project:new'),
   exportImage: (dataUrl) => ipcRenderer.invoke('image:export', dataUrl),
   showExport: () => ipcRenderer.invoke('image:show'),
-  openBrief: (kind) => ipcRenderer.invoke('brief:open', kind),
-  saveBrief: (text, kind, name) => ipcRenderer.invoke('brief:save', text, kind, name),
+  aiStatus: () => ipcRenderer.invoke('ai:status'),
+  aiAssist: (message, draft) => ipcRenderer.invoke('ai:assist', message, draft),
   importAsset: () => ipcRenderer.invoke('asset:import'),
   assetStatus: (ids) => ipcRenderer.invoke('asset:status', ids),
 })

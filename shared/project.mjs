@@ -1,10 +1,11 @@
 import { validateAssetRecord } from './assets.mjs'
-import { validateBrief, compileBrief, MAX_BRIEF_BYTES } from './brief.mjs'
+import { validateBrief, compileBrief, normalizeDraft, MAX_BRIEF_BYTES } from './brief.mjs'
 
 // v2 added `assets`: private imported models referenced by checksum.
 // v3 added `studio` (brightness, sun height, accent lights) and `views` (saved cameras).
-// v4 added `brief`: the official Upload Brief the project's measured rooms came from.
-export const PROJECT_VERSION = 4
+// v4 added `brief`: the official Brief the project's measured rooms came from.
+// v5 added `briefDraft`: a Brief being written in the app, not yet turned into rooms.
+export const PROJECT_VERSION = 5
 export const MAX_PROJECT_BYTES = 32 * 1024 * 1024
 export const ROOM_DEFAULTS = {
   onboarded: false, scope: 'room', home: null, focusedRoom: null, activeFloor: 0,
@@ -19,6 +20,8 @@ export const ROOM_DEFAULTS = {
   // null = a project without an official Brief (rooms from earlier versions).
   // Otherwise { fingerprint, source }: `source` is the verified brief document.
   brief: null,
+  // The unfinished Brief (incomplete by design; validated only when the room is created).
+  briefDraft: null,
 }
 export const MAX_VIEWS = 40
 export const VIEW_MODES = ['overview', 'eye', 'corner']
@@ -95,6 +98,9 @@ export function validateProject(doc) {
   studio(s.studio)
   views(s.views)
   briefRecord(s)
+  if (s.briefDraft !== null) {
+    try { normalizeDraft(JSON.stringify(s.briefDraft)) } catch (err) { fail(`invalid Brief draft (${err.message})`) }
+  }
   if (!['room', 'home'].includes(s.scope)) fail('invalid scope')
   if (s.customShape) shape(s.customShape)
   if (s.customDims !== null && (!object(s.customDims) || !finite(s.customDims.h) || s.customDims.h <= 0)) fail('invalid dimensions')
@@ -132,6 +138,7 @@ export function migrateProject(doc) {
   if (next.version === 1) next = { ...next, version: 2, state: { ...next.state, assets: next.state.assets ?? {} } }
   if (next.version === 2) next = { ...next, version: 3, state: { ...next.state, studio: next.state.studio ?? structuredClone(ROOM_DEFAULTS.studio), views: next.state.views ?? [] } }
   if (next.version === 3) next = { ...next, version: 4, state: { ...next.state, brief: next.state.brief ?? null } }
+  if (next.version === 4) next = { ...next, version: 5, state: { ...next.state, briefDraft: next.state.briefDraft ?? null } }
   return next
 }
 export function parseProject(text) {

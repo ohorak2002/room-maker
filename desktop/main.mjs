@@ -6,7 +6,8 @@ import { createHash } from 'node:crypto'
 import { atomicWrite, readProject, writeProject } from './files.mjs'
 import { stringifyProject, projectIdentity } from '../shared/project.mjs'
 import { ASSET_ID, MAX_ASSET_BYTES, inspectGlb } from '../shared/assets.mjs'
-import { BRIEF_FORMAT, MAX_BRIEF_BYTES, parseBrief } from '../shared/brief.mjs'
+import { normalizeDraft } from '../shared/brief.mjs'
+import { briefForAssistant, validateAssistantReply } from '../shared/briefAi.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const origin = 'nested://app'
@@ -130,37 +131,31 @@ handle('image:export', dataUrl => exclusive(async () => {
   exportedPath = path
   return { path }
 }))
-// Official Briefs and unfinished drafts are plain JSON files the designer keeps.
-// The renderer never touches the filesystem: it gets the text of a file the
-// designer chose, and hands text back to be saved where the designer chooses.
-const briefKinds = {
-  brief: { open: 'Upload Nested Brief', save: 'Save official Brief', suffix: '.nested-brief.json' },
-  draft: { open: 'Open Brief draft', save: 'Save Brief draft', suffix: '.nested-brief-draft.json' },
+// Brief assistant. The only network call in the app: it goes to Nested's own
+// assistant service, only when the designer presses Ask, and carries the Brief's
+// text (never attachments or the client's name). No provider key is in the app.
+// The service address comes from NESTED_AI_URL or userData/ai.json {"url": ...};
+// unset means the assistant is simply not connected.
+async function assistantUrl() {
+  let url = process.env.NESTED_AI_URL
+  if (!url) { try { url = JSON.parse(await readFile(join(app.getPath('userData'), 'ai.json'), 'utf8')).url } catch { return null } }
+  const parsed = new URL(url)
+  const local = ['localhost', '127.0.0.1'].includes(parsed.hostname)
+  if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && local)) throw new Error('The assistant service address must use https.')
+  return parsed
 }
-handle('brief:open', kind => exclusive(async () => {
-  const k = briefKinds[kind]
-  if (!k) throw new Error('Unknown Brief file type')
-  const result = await dialog.showOpenDialog(win, { title: k.open, filters: [{ name: kind === 'brief' ? 'Nested Brief' : 'Nested Brief draft', extensions: ['json'] }], properties: ['openFile'] })
-  if (result.canceled) return null
-  const path = result.filePaths[0]
-  if (!basename(path).endsWith(k.suffix)) throw new Error(kind === 'brief' ? 'Choose an official .nested-brief.json file. Attach PDFs and images inside the Brief editor first.' : 'Choose a .nested-brief-draft.json file saved from the Brief editor.')
-  if ((await stat(path)).size > MAX_BRIEF_BYTES) throw new Error('Brief files must be smaller than 8 MB.')
-  return { name: basename(path), text: await readFile(path, 'utf8') }
-}))
-handle('brief:save', (text, kind, suggestedName) => exclusive(async () => {
-  const k = briefKinds[kind]
-  if (!k || typeof text !== 'string' || new TextEncoder().encode(text).length > MAX_BRIEF_BYTES) throw new Error('Invalid Brief file')
-  // An official Brief must pass the same checks as an upload; a draft only has
-  // to be this format, since drafts are incomplete by definition.
-  if (kind === 'brief') { const { errors } = parseBrief(text); if (errors.length) throw new Error(errors[0]) }
-  else if (JSON.parse(text)?.format !== BRIEF_FORMAT) throw new Error('Invalid Brief draft')
-  const stem = String(suggestedName || 'project').replace(/[<>:"/\\|?*\s]+/g, '-').slice(0, 80) || 'project'
-  const result = await dialog.showSaveDialog(win, { title: k.save, defaultPath: stem + k.suffix, filters: [{ name: 'Nested Brief', extensions: ['json'] }] })
-  if (result.canceled) return null
-  const path = result.filePath.endsWith(k.suffix) ? result.filePath : result.filePath.replace(/\.json$/i, '') + k.suffix
-  await atomicWrite(path, text, { backup: false })
-  return { path }
-}))
+handle('ai:status', async () => { const url = await assistantUrl(); return { configured: Boolean(url), host: url?.host ?? null } })
+handle('ai:assist', async (message, draft) => {
+  if (typeof message !== 'string' || !message.trim() || message.length > 2000) throw new Error('Write a question of up to 2,000 characters.')
+  const url = await assistantUrl()
+  if (!url) throw new Error('The Brief assistant is not connected.')
+  const doc = normalizeDraft(JSON.stringify(draft))
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message.trim(), brief: briefForAssistant(doc) }), signal: AbortSignal.timeout(45000), redirect: 'error' })
+  if (!response.ok) throw new Error(`The assistant service answered ${response.status}.`)
+  const text = await response.text()
+  if (text.length > 200000) throw new Error('The assistant reply was too large.')
+  return validateAssistantReply(JSON.parse(text), doc)
+})
 handle('image:show', () => { if (exportedPath) shell.showItemInFolder(exportedPath) })
 handle('asset:import', () => exclusive(async () => {
   const result = await dialog.showOpenDialog(win, { title: 'Import GLB model', filters: [{ name: 'Binary glTF model', extensions: ['glb'] }], properties: ['openFile'] })

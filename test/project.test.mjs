@@ -55,7 +55,8 @@ assert.deepEqual(parseProject(stringifyProject(studioDoc)).state.views, studioSt
 assert.deepEqual(parseProject(stringifyProject(studioDoc)).state.studio, studioState.studio)
 const v2file = structuredClone(studioDoc); v2file.version = 2; delete v2file.state.studio; delete v2file.state.views
 const migratedStudio = parseProject(JSON.stringify(v2file))
-assert.equal(migratedStudio.version, 4)
+assert.equal(migratedStudio.version, 5)
+assert.equal(migratedStudio.state.briefDraft, null)
 assert.equal(migratedStudio.state.brief, null)
 assert.deepEqual(migratedStudio.state.studio, ROOM_DEFAULTS.studio)
 assert.deepEqual(migratedStudio.state.views, [])
