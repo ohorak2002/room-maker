@@ -55,7 +55,12 @@ export default function BriefChat({ doc, roomId, edit }) {
     <aside className="brief-assistant brief-chat" aria-label="Brief chat">
       <span className="brief-eyebrow">BRIEF CHAT</span>
       <h2>Ask about your Brief.</h2>
-      {connected === false && <p>The Brief chat is not connected on this computer, so it is unavailable. You can complete the Brief by hand.</p>}
+      {connected !== true && <>
+        <p className="brief-chat-off" role="status"><strong>Doesn’t work right now.</strong> The Brief chat is planned for a later version of Nested. Until then, complete the Brief by hand.</p>
+        <div className="brief-chat-log" aria-hidden="true"><p className="brief-caption">Type anything, or ask what to write, fix or make richer. Suggestions will appear here for you to review.</p></div>
+        <label className="brief-field"><span>Message</span><textarea aria-label="Message the Brief chat" rows="3" disabled placeholder="Coming later…" /></label>
+        <div className="brief-start-actions"><button className="brief-primary" disabled>Send</button></div>
+      </>}
       {connected && <>
         <span className="brief-badge">AI · when you send a message, this Brief’s text (no attachments, no client name) goes to Nested’s chat service</span>
         <div className="brief-chat-log" role="log" aria-live="polite" aria-label="Conversation">
