@@ -63,3 +63,17 @@ export function applyProposal(draft, p) {
   keys.reduce((o, k) => o[k], room)[last] = p.value
   return true
 }
+
+// --- multi-turn chat ------------------------------------------------------
+export const MAX_CHAT_MESSAGES = 24
+export const MAX_CHAT_CHARS = 4000
+/** The conversation the service receives: alternating-free, bounded, ending on the designer. */
+export function validateChat(messages) {
+  if (!Array.isArray(messages) || !messages.length || messages.length > MAX_CHAT_MESSAGES) throw new Error('Write a message first.')
+  const clean = messages.map((m) => {
+    if (!m || !['user', 'assistant'].includes(m.role) || typeof m.content !== 'string' || !m.content.trim() || m.content.length > MAX_CHAT_CHARS) throw new Error(`Messages must be text of up to ${MAX_CHAT_CHARS} characters.`)
+    return { role: m.role, content: m.content }
+  })
+  if (clean.at(-1).role !== 'user') throw new Error('The last message must be yours.')
+  return clean
+}

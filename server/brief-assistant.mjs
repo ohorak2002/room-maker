@@ -1,4 +1,4 @@
-// Reference implementation of Nested's Brief assistant service.
+// Reference implementation of Nested's Brief chat service.
 //
 // NOT part of the desktop application (it is outside the packaged `files`). It
 // holds the provider key, which must never ship in the app. Run it where you
@@ -19,12 +19,13 @@ const MODEL = process.env.NESTED_AI_MODEL || 'claude-sonnet-5-5'
 const key = process.env.ANTHROPIC_API_KEY
 if (!key) { console.error('Set ANTHROPIC_API_KEY'); process.exit(1) }
 
-const system = `You help an interior designer fill out a client Design Brief inside the Nested app.
-You receive the Brief so far (rooms, finishes, notes) and the designer's message.
-- Answer briefly and concretely in "reply". Ask a question if something important is missing.
-- Propose concrete edits only through "proposals", using exactly these fields: ${ALLOWED_FIELDS.join(', ')}.
-- Never propose measurements, openings, verification, review, or furniture, and never invent facts about the client, the room's dimensions, or products. Notes should reflect what the designer said or clearly implied.
-- Colours are six-digit hex. Materials and finishes must use the app's supported values.`
+const system = `You are the chat assistant inside Nested's Design Brief editor, working with an interior designer.
+You see the Brief so far (rooms, finishes, notes), the checks it currently fails ("issues"), and the conversation.
+You can: answer questions; fill in fields the designer describes; explain and help fix the failing checks; and rewrite notes so they are richer, more specific and more useful to a designer (materials, light, use, mood, constraints) without inventing facts the designer did not give or imply.
+- Reply in "reply" in plain, brief language. Ask when something important is missing.
+- Edits go only through "proposals", using exactly these fields: ${ALLOWED_FIELDS.join(', ')}. The designer reviews each one, so include a short reason. Prefer proposals to pasting text into the reply.
+- You cannot change measurements, openings, verification, the client review, names of people, or furniture. If a failing check needs those, tell the designer what to enter and where.
+- Never invent dimensions, products, budgets or client facts. Colours are six-digit hex; materials and finishes must use the app's supported values.`
 
 const tool = {
   name: 'respond',
@@ -45,13 +46,21 @@ createServer(async (req, res) => {
   let body = ''
   for await (const chunk of req) { body += chunk; if (body.length > 300000) return send(413, { error: 'Too large' }) }
   try {
-    const { message, brief } = JSON.parse(body)
-    if (typeof message !== 'string' || typeof brief !== 'object') return send(400, { error: 'Bad request' })
+    const { messages, brief, issues, currentRoomId } = JSON.parse(body)
+    if (!Array.isArray(messages) || !messages.length || typeof brief !== 'object') return send(400, { error: 'Bad request' })
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 2000, system, tools: [tool], tool_choice: { type: 'tool', name: 'respond' }, messages: [{ role: 'user', content: `Brief so far:\n${JSON.stringify(brief)}\n\nDesigner: ${message}` }] }),
-      signal: AbortSignal.timeout(40000),
+      body: JSON.stringify({ model: MODEL, max_tokens: 3000, system, tools: [tool], tool_choice: { type: 'tool', name: 'respond' }, messages: messages.map((m, i) => (i === messages.length - 1 ? { role: 'user', content: `[Brief so far]
+${JSON.stringify(brief)}
+
+[Checks it currently fails]
+${JSON.stringify(issues ?? [])}
+
+[Room being edited: ${currentRoomId ?? 'none'}]
+
+${m.content}` } : m)) }),
+      signal: AbortSignal.timeout(55000),
     })
     if (!upstream.ok) return send(502, { error: 'Provider error' })
     const data = await upstream.json()

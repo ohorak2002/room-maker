@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('nestedDesktop', {
   exportImage: (dataUrl) => ipcRenderer.invoke('image:export', dataUrl),
   showExport: () => ipcRenderer.invoke('image:show'),
   aiStatus: () => ipcRenderer.invoke('ai:status'),
-  aiAssist: (message, draft) => ipcRenderer.invoke('ai:assist', message, draft),
+  aiChat: (messages, draft, roomId) => ipcRenderer.invoke('ai:chat', messages, draft, roomId),
   importAsset: () => ipcRenderer.invoke('asset:import'),
   assetStatus: (ids) => ipcRenderer.invoke('asset:status', ids),
 })

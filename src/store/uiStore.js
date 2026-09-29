@@ -25,6 +25,9 @@ export const useUiStore = create((set) => ({
   setSelectedItemId: (selectedItemId) => set({ selectedItemId }),
   // Bumped to ask the project bar to start a new project (which asks about
   // unsaved changes first) and so return to Upload Brief.
+  // The Brief chat's conversation: this session only, never saved in a project.
+  briefChat: [],
+  setBriefChat: (briefChat) => set({ briefChat }),
   newProjectRequests: 0,
   requestNewProject: () => set((s) => ({ newProjectRequests: s.newProjectRequests + 1 })),
   setPanelOpen: (panelOpen) => set({ panelOpen }),

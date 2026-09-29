@@ -29,3 +29,7 @@ assert.equal(draft.rooms[0].surfaces.wallColor, '#F0E8DC')
 assert.equal(applyProposal(draft, result.proposals[0]), false) // stale: the value changed since
 assert.equal(draft.rooms[0].width, null)
 console.log('Brief assistant: sanitised payload, allowlisted proposals, stale-proposal refusal passed')
+import { validateChat } from '../shared/briefAi.mjs'
+assert.deepEqual(validateChat([{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'hello', proposals: [1] }, { role: 'user', content: 'more' }]).map((m) => Object.keys(m).length), [2, 2, 2])
+for (const bad of [[], [{ role: 'assistant', content: 'x' }], [{ role: 'system', content: 'x' }], [{ role: 'user', content: '' }], [{ role: 'user', content: 'x'.repeat(4001) }], 'x', Array(25).fill({ role: 'user', content: 'x' })]) assert.throws(() => validateChat(bad))
+console.log('Brief chat: conversation bounds passed')

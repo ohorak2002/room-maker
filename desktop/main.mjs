@@ -6,8 +6,8 @@ import { createHash } from 'node:crypto'
 import { atomicWrite, readProject, writeProject } from './files.mjs'
 import { stringifyProject, projectIdentity } from '../shared/project.mjs'
 import { ASSET_ID, MAX_ASSET_BYTES, inspectGlb } from '../shared/assets.mjs'
-import { normalizeDraft } from '../shared/brief.mjs'
-import { briefForAssistant, validateAssistantReply } from '../shared/briefAi.mjs'
+import { normalizeDraft, validateBrief } from '../shared/brief.mjs'
+import { briefForAssistant, validateAssistantReply, validateChat } from '../shared/briefAi.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const origin = 'nested://app'
@@ -131,7 +131,7 @@ handle('image:export', dataUrl => exclusive(async () => {
   exportedPath = path
   return { path }
 }))
-// Brief assistant. The only network call in the app: it goes to Nested's own
+// Brief chat. The only network call in the app: it goes to Nested's own
 // assistant service, only when the designer presses Ask, and carries the Brief's
 // text (never attachments or the client's name). No provider key is in the app.
 // The service address comes from NESTED_AI_URL or userData/ai.json {"url": ...};
@@ -145,15 +145,18 @@ async function assistantUrl() {
   return parsed
 }
 handle('ai:status', async () => { const url = await assistantUrl(); return { configured: Boolean(url), host: url?.host ?? null } })
-handle('ai:assist', async (message, draft) => {
-  if (typeof message !== 'string' || !message.trim() || message.length > 2000) throw new Error('Write a question of up to 2,000 characters.')
+handle('ai:chat', async (messages, draft, roomId) => {
+  const chat = validateChat(messages)
   const url = await assistantUrl()
-  if (!url) throw new Error('The Brief assistant is not connected.')
+  if (!url) throw new Error('The Brief chat is not connected.')
   const doc = normalizeDraft(JSON.stringify(draft))
-  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message.trim(), brief: briefForAssistant(doc) }), signal: AbortSignal.timeout(45000), redirect: 'error' })
-  if (!response.ok) throw new Error(`The assistant service answered ${response.status}.`)
+  // What the Brief still needs, so the chat can help fix it. Wording only: the
+  // designer's private names are not in these messages either.
+  const issues = validateBrief(doc).errors.slice(0, 25)
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: chat, brief: briefForAssistant(doc), issues, currentRoomId: typeof roomId === 'string' ? roomId.slice(0, 100) : null }), signal: AbortSignal.timeout(60000), redirect: 'error' })
+  if (!response.ok) throw new Error(`The chat service answered ${response.status}.`)
   const text = await response.text()
-  if (text.length > 200000) throw new Error('The assistant reply was too large.')
+  if (text.length > 200000) throw new Error('The reply was too large.')
   return validateAssistantReply(JSON.parse(text), doc)
 })
 handle('image:show', () => { if (exportedPath) shell.showItemInFolder(exportedPath) })

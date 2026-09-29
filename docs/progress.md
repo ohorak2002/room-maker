@@ -1,3 +1,8 @@
+# Progress — 2026-09-29 (Brief chat replaces the assistant panel)
+
+Branch `feature/brief-chat` (from `main` at ce0e60a). The one-shot "Brief assistant" was replaced by a multi-turn **Brief chat** beside the editor: type anything to fill fields, troubleshoot (the service is sent the Brief's current failing checks, up to 25), or make descriptions richer. Same rules as before: Nested-hosted service via `NESTED_AI_URL`; sends Brief text only (no attachments, no client/studio/designer names) plus the conversation (max 24 messages, 4,000 characters each); replies are allowlisted proposals the designer applies one by one, with before/after shown; measurements, openings, verification, review, identity and furniture can't be changed (`shared/briefAi.mjs`, `validateChat`). The conversation is session-only, not saved in the project. `server/brief-assistant.mjs` (reference service, not packaged) now takes the conversation and issues; still **not run against the live API**, no sign-in or rate limiting, and no hosted service exists, so the chat is "not connected" until one is deployed.
+Verified: `npm test` and `npm run test:brief` (real Electron; stand-in service; multi-turn, Enter sends, issues sent, ignored suggestions counted, client name absent from the payload). Not verified: real model behaviour, long-conversation cost, narrow-window layout of the chat.
+
 # Progress — 2026-09-29 (Brief is written in the app; AI assistant)
 
 ## Upload removed; Brief written in Nested; assistant (Claude Code, follows the entry below)
