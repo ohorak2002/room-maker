@@ -6,7 +6,7 @@ import { renderThumbnail } from '../three/thumbnail'
  * into view — so opening the Shop tab doesn't draw 47 objects up front.
  * Falls back to the item's color swatch if WebGL is unavailable.
  */
-export default function ItemThumb({ item, size = 46 }) {
+export default function ItemThumb({ item, size = 46, className = 'item-thumb' }) {
   const ref = useRef(null)
   const [url, setUrl] = useState(null)
   const [seen, setSeen] = useState(false)
@@ -37,10 +37,12 @@ export default function ItemThumb({ item, size = 46 }) {
   return (
     <span
       ref={ref}
-      className="item-thumb"
-      style={{ width: size, height: size, background: url ? undefined : item.color }}
+      className={className}
+      // size={null}: the stylesheet sizes it (the Shop cards).
+      style={size ? { width: size, height: size, background: url ? undefined : item.color } : undefined}
     >
-      {url && <img src={url} alt="" width={size} height={size} loading="lazy" />}
+      {url && <img src={url} alt="" width={size || 256} height={size || 256} loading="lazy" />}
+      {!url && !size && <span className="thumb-swatch" style={{ background: item.color }} />}
     </span>
   )
 }

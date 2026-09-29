@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import ItemThumb from './ItemThumb'
+import Icon from './Icons'
 import { useRoomStore } from '../store/roomStore'
+import { useUiStore } from '../store/uiStore'
 import { CATALOG, CATEGORIES, byId, formatUSD, recommend, cheapestSubstitute, resolveItem } from '../data/catalog'
 import './ShopPanel.css'
 
+const CATEGORY_NAME = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name]))
+
 export default function ShopPanel() {
   const store = useRoomStore()
+  const selectedItemId = useUiStore((s) => s.selectedItemId)
   const [cat, setCat] = useState('for-you')
   const [query, setQuery] = useState('')
 
@@ -32,61 +37,75 @@ export default function ShopPanel() {
     return cheaper ? sum + (item.price - cheaper.price) * entry.qty : sum
   }, 0)
 
+  const chips = [
+    { id: 'for-you', name: 'For your style' },
+    { id: 'all', name: 'All' },
+    ...CATEGORIES,
+  ]
+
   return (
     <div className="shop">
-      <p className="price-disclaimer">
-        Prices are <strong>estimates</strong> for planning, not live retail data. Each item links to
-        that store's search so you can check the real price.
-      </p>
+      <div className="shop-head">
+        <label className="shop-search">
+          <Icon name="search" size={16} />
+          <input
+            type="search"
+            placeholder="Search sofas, rugs, lighting…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search the catalog"
+          />
+        </label>
 
-      <input
-        type="search"
-        className="shop-search"
-        placeholder="Search items or stores"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        aria-label="Search the catalog"
-      />
+        <div className="cat-row" role="group" aria-label="Category">
+          {chips.map((c) => (
+            <button
+              key={c.id}
+              className={`cat ${cat === c.id ? 'active' : ''}`}
+              aria-pressed={cat === c.id}
+              onClick={() => setCat(c.id)}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
 
-      <div className="cat-row">
-        <button className={`cat feature ${cat === 'for-you' ? 'active' : ''}`} onClick={() => setCat('for-you')}>
-          For your vibe
-        </button>
-        <button className={`cat ${cat === 'all' ? 'active' : ''}`} onClick={() => setCat('all')}>
-          All
-        </button>
-        {CATEGORIES.map((c) => (
-          <button key={c.id} className={`cat ${cat === c.id ? 'active' : ''}`} onClick={() => setCat(c.id)}>
-            {c.name}
-          </button>
-        ))}
+        <p className="shop-meta">
+          {visible.length} concept {visible.length === 1 ? 'piece' : 'pieces'}
+          {cat === 'for-you' && (
+            <>
+              {' '}ranked for your <strong>{store.mood}</strong> room
+              {photoPalette.length > 0 && <> and photo colours</>}
+            </>
+          )}
+          {' '}· prices estimated, sizes approximate
+        </p>
       </div>
 
-      {cat === 'for-you' && (
-        <p className="rec-note">
-          Ranked for your <strong>{store.mood}</strong> room
-          {photoPalette.length > 0 && <> and the colors from your photo</>}.
-        </p>
-      )}
-
-      <div className="item-list">
+      <div className="card-grid">
         {visible.map((item, i) => {
           const qty = store.qtyOf(item.id)
           const cheaper = cheapestSubstitute(item.id)
           const owned = store.prefurnished.includes(item.id)
+          const selected = selectedItemId === item.id
           return (
-            <div key={item.id} className={`item ${qty ? 'in-room' : ''}`} style={{ '--i': i }}>
-              <ItemThumb item={item} size={46} />
-
-              <div className="item-body">
-                <p className="item-name">
-                  {item.name}
-                  {owned && <span className="owned-tag">already have</span>}
+            <article
+              key={item.id}
+              className={`card ${qty ? 'in-room' : ''} ${selected ? 'selected' : ''}`}
+              style={{ '--i': i }}
+            >
+              <div className="card-photo">
+                <ItemThumb item={item} size={null} className="card-thumb" />
+                <span className="card-badge">{owned ? 'Already have' : 'Concept'}</span>
+              </div>
+              <div className="card-body">
+                <span className="card-eyebrow">{CATEGORY_NAME[item.cat] || 'Piece'}</span>
+                <h3 className="card-name">{item.name}</h3>
+                <p className="card-price">
+                  {formatUSD(item.price)} <span>est.</span>
                 </p>
-                <p className="item-meta">
-                  <span className="item-price">{formatUSD(item.price)}</span>
-                  <span className="item-sep">·</span>
-                  <span className="item-store">{item.retailerName}</span>
+                <p className="card-dims">
+                  H ≈ {Math.round(item.h * 100)} cm · {item.retailerName}
                 </p>
                 {cheaper && (
                   <button
@@ -94,28 +113,30 @@ export default function ShopPanel() {
                     onClick={() => (qty ? store.swapItem(item.id, cheaper.id) : store.addItem(cheaper.id))}
                     title={`${cheaper.name} at ${cheaper.retailerName}`}
                   >
-                    Save {formatUSD(item.price - cheaper.price)} — {cheaper.retailerName} has a similar
-                    one for {formatUSD(cheaper.price)}
+                    Similar for {formatUSD(cheaper.price)} at {cheaper.retailerName}
                   </button>
                 )}
+                {qty === 0 ? (
+                  <button className="card-add" onClick={() => store.addItem(item.id)}>
+                    <Icon name="plus" size={14} strokeWidth={2} />
+                    Add to room
+                  </button>
+                ) : (
+                  <div className="card-qty">
+                    <span className="card-in-room">
+                      <Icon name="check" size={14} strokeWidth={2.2} />
+                      In room{qty > 1 ? ` · ${qty}` : ''}
+                    </span>
+                    <button onClick={() => store.removeItem(item.id)} aria-label={`Remove one ${item.name}`}>
+                      −
+                    </button>
+                    <button onClick={() => store.addItem(item.id)} aria-label={`Add one ${item.name}`}>
+                      +
+                    </button>
+                  </div>
+                )}
               </div>
-
-              {qty === 0 ? (
-                <button className="add-btn" onClick={() => store.addItem(item.id)}>
-                  Add
-                </button>
-              ) : (
-                <div className="qty">
-                  <button onClick={() => store.removeItem(item.id)} aria-label={`Remove one ${item.name}`}>
-                    −
-                  </button>
-                  <span className="qty-num">{qty}</span>
-                  <button onClick={() => store.addItem(item.id)} aria-label={`Add one ${item.name}`}>
-                    +
-                  </button>
-                </div>
-              )}
-            </div>
+            </article>
           )
         })}
         {visible.length === 0 && <p className="empty">Nothing matches "{query}".</p>}

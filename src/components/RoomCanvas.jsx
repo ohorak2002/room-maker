@@ -8,21 +8,34 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { useRoomStore } from '../store/roomStore'
-import { byId, starterForRoom, ROOM_PACKS, resolveItem, footprintArea } from '../data/catalog'
+import { useUiStore } from '../store/uiStore'
+import { starterForRoom, ROOM_PACKS, resolveItem, footprintArea, formatUSD } from '../data/catalog'
 import { getWallMaterial } from '../data/presets'
-import { buildRoom } from '../three/buildRoom'
+import { buildRoom, updateCutaways } from '../three/buildRoom'
 import { buildHome, buildHomeLights } from '../three/buildHome'
 import { buildAtmosphere } from '../three/atmosphere'
 import { autoArrange, instanceKey, zoneOf } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
 import PieceMenu from './PieceMenu'
 import BlueprintPlan from './BlueprintPlan'
+import Icon from './Icons'
 import './RoomCanvas.css'
 
 export default function RoomCanvas() {
   const mountRef = useRef(null)
   const engineRef = useRef(null)
-  const [selected, setSelected] = useState(null) // { key, name }
+  const tagRef = useRef(null)
+  const frameRef = useRef(null)
+  const [selected, setSelectedState] = useState(null) // { key, name, size }
+  const [view, setView] = useState('eye')
+  // The selected piece: React state for the panel, the node for the per-frame
+  // tag, and the catalog id so the Shop card can show which piece it is.
+  const setSelected = (node) => {
+    const engine = engineRef.current
+    if (engine) engine.selectedNode = node
+    useUiStore.getState().setSelectedItemId(node ? node.userData.key.split('#')[0] : null)
+    setSelectedState(node ? { key: node.userData.key, name: node.userData.name, size: localSize(node) } : null)
+  }
   const [dragging, setDragging] = useState(false)
   const [warnDismissed, setWarnDismissed] = useState(false)
   const [menu, setMenu] = useState(null) // { key, name, x, y }
@@ -34,11 +47,8 @@ export default function RoomCanvas() {
   const showView = (name) => {
     const engine = engineRef.current
     if (!engine?.roomDims) return
-    const view = viewFor(name, engine.roomDims, engine.camera)
-    engine.camera.position.copy(view.position)
-    engine.controls.target.copy(view.target)
-    engine.controls.update()
-    engine.noteInput?.()
+    applyView(engine, name, useRoomStore.getState().shape())
+    setView(name)
   }
   const [hasExport, setHasExport] = useState(false)
   const exportImage = async () => {
@@ -135,8 +145,22 @@ export default function RoomCanvas() {
     // Half resolution: at full resolution AO alone took the frame from 8 to
     // 17 ms on the reference machine (docs/progress.md). Occlusion is a soft,
     // low-frequency term, and the blend pass upsamples it with linear filtering.
+    // Views inside the room drop to quarter resolution: there every pixel is
+    // near geometry, and half-resolution AO took eye level from 8.4 to 16.6 ms
+    // on the reference machine; quarter brought it back to 8.5 ms with no
+    // visible difference in side-by-side captures (docs/progress.md).
     const setGtaoSize = gtao.setSize.bind(gtao)
-    gtao.setSize = (w, h) => setGtaoSize(Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2)))
+    let aoDivisor = 2
+    let fullSize = [1, 1]
+    gtao.setSize = (w, h) => {
+      fullSize = [w, h]
+      setGtaoSize(Math.max(1, Math.ceil(w / aoDivisor)), Math.max(1, Math.ceil(h / aoDivisor)))
+    }
+    const setAoDivisor = (d) => {
+      if (d === aoDivisor) return
+      aoDivisor = d
+      gtao.setSize(...fullSize)
+    }
     gtao.blendIntensity = 0.5
     gtao.updateGtaoMaterial({ radius: 0.25, distanceExponent: 1, thickness: 0.5, scale: 1, samples: 16 })
     // GTAOPass renders its normal buffer with the scene's background still
@@ -164,10 +188,12 @@ export default function RoomCanvas() {
     controls.minDistance = 2
     controls.maxDistance = 30
 
-    const outline = new THREE.BoxHelper(new THREE.Object3D(), 0x4fa089)
+    // Tracks the selected piece's bounds. It is not drawn: the selection frame
+    // is a screen-space rectangle (placeTag below). Drawn, this wireframe was
+    // overwritten by opaque geometry rendered after it and never showed.
+    const outline = new THREE.BoxHelper(new THREE.Object3D(), 0x6fa894)
     outline.visible = false
-    outline.material.depthTest = false
-    outline.material.linewidth = 2
+    outline.material.visible = false
     scene.add(outline)
 
     const ghost = new THREE.Mesh(
@@ -210,6 +236,54 @@ export default function RoomCanvas() {
     }
     window.addEventListener('keydown', noteInput)
 
+    // Eye level: the scroll wheel walks forward and back instead of zooming,
+    // staying inside the room.
+    const onWheel = (e) => {
+      const engine = engineRef.current
+      if (engine?.mode !== 'eye' || !engine.roomDims) return
+      e.preventDefault()
+      const forward = controls.target.clone().sub(camera.position).setY(0)
+      if (forward.lengthSq() < 1e-8) return
+      forward.normalize().multiplyScalar(-Math.sign(e.deltaY) * 0.3)
+      const next = camera.position.clone().add(forward)
+      const inside = insideFloor(engine.roomDims, useRoomStore.getState().shape(), next.x, next.z)
+      const move = new THREE.Vector3(inside.x - camera.position.x, 0, inside.z - camera.position.z)
+      camera.position.add(move)
+      controls.target.add(move)
+      noteInput()
+    }
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
+
+    // The selected piece's screen-space frame and name tag, from its projected
+    // bounding box. Positioned directly each frame, outside React.
+    const tagBox = new THREE.Box3()
+    const corner = new THREE.Vector3()
+    const placeTag = () => {
+      const tag = tagRef.current
+      const frameEl = frameRef.current
+      const node = engineRef.current?.selectedNode
+      if (!tag || !frameEl) return
+      if (!node || !node.parent) { tag.style.opacity = frameEl.style.opacity = '0'; return }
+      tagBox.setFromObject(node)
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, behind = false
+      for (let i = 0; i < 8; i++) {
+        corner.set(i & 1 ? tagBox.max.x : tagBox.min.x, i & 2 ? tagBox.max.y : tagBox.min.y, i & 4 ? tagBox.max.z : tagBox.min.z)
+        corner.project(camera)
+        if (corner.z > 1) behind = true
+        x0 = Math.min(x0, corner.x); x1 = Math.max(x1, corner.x)
+        y0 = Math.min(y0, corner.y); y1 = Math.max(y1, corner.y)
+      }
+      const W = mount.clientWidth, H = mount.clientHeight
+      const left = ((x0 + 1) / 2) * W, right = ((x1 + 1) / 2) * W
+      const top = ((1 - y1) / 2) * H, bottom = ((1 - y0) / 2) * H
+      const visible = !behind && right > 0 && left < W && bottom > 0 && top < H
+      tag.style.opacity = frameEl.style.opacity = visible ? '1' : '0'
+      frameEl.style.transform = `translate(${left - 6}px, ${top - 6}px)`
+      frameEl.style.width = `${right - left + 12}px`
+      frameEl.style.height = `${bottom - top + 12}px`
+      tag.style.transform = `translate(${(left + right) / 2}px, ${Math.max(top - 12, 34)}px) translate(-50%, -100%)`
+    }
+
     let frame
     let prev = performance.now()
     const tick = (now) => {
@@ -218,8 +292,9 @@ export default function RoomCanvas() {
       prev = now
 
       const idle = now - lastInput > IDLE_MS
-      // controls.enabled goes false while a piece is being dragged.
-      if (idle && controls.enabled && !reduceMotion.matches) {
+      // controls.enabled goes false while a piece is being dragged. No drift
+      // at eye level: turning your head on its own is disorienting.
+      if (idle && controls.enabled && !reduceMotion.matches && engineRef.current?.mode !== 'eye') {
         // Ease the drift in rather than snapping to full speed at 4.000s.
         driftPhase = Math.min(driftPhase + dt / 2200, 1)
         const eased = driftPhase * driftPhase * (3 - 2 * driftPhase)
@@ -235,12 +310,14 @@ export default function RoomCanvas() {
       }
 
       controls.update()
+      updateCutaways(engineRef.current?.room, camera.position)
       if (outline.visible) outline.update()
+      placeTag()
       composer.render()
     }
     frame = requestAnimationFrame(tick)
 
-    engineRef.current = { scene, camera, renderer, composer, controls, outline, ghost, room: null, atmosphere: null, mount, noteInput }
+    engineRef.current = { scene, camera, renderer, composer, controls, outline, ghost, room: null, atmosphere: null, mount, noteInput, setAoDivisor, mode: 'overview', selectedNode: null }
     // Explicit VITE_NESTED_DEBUG=1 builds only (scripts/scene-debug.mjs).
     if (import.meta.env.VITE_NESTED_DEBUG === '1') window.__nestedEngine = engineRef.current
 
@@ -251,6 +328,8 @@ export default function RoomCanvas() {
         renderer.domElement.removeEventListener(evt, noteInput)
       }
       window.removeEventListener('keydown', noteInput)
+      renderer.domElement.removeEventListener('wheel', onWheel)
+      useUiStore.getState().setSelectedItemId(null)
       engineRef.current?.room?.dispose()
       engineRef.current?.atmosphere?.()
       controls.dispose()
@@ -301,6 +380,9 @@ export default function RoomCanvas() {
       // Look down at the plan from a shallow angle — high enough to read the
       // layout, low enough that the low walls still give it depth.
       const dist = span * 1.25
+      orbitControls(controls)
+      engine.mode = 'overview'
+      engine.setAoDivisor?.(2)
       camera.position.set(dist * 0.32, span * 0.95, dist * 0.78)
       controls.target.set(0, 0, 0)
       controls.update()
@@ -355,10 +437,9 @@ export default function RoomCanvas() {
     const prev = engine.roomDims
     engine.roomDims = room
     if (prev && prev.w === room.w && prev.d === room.d && prev.h === room.h) return
-    const view = viewFor('overview', room, camera)
-    camera.position.copy(view.position)
-    controls.target.copy(view.target)
-    controls.update()
+    // A new room opens standing inside it, not looking into a box.
+    applyView(engine, 'eye', shape)
+    setView('eye')
   }, [palette, lighting, wallMaterial, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom, activeFloor, assets])
 
   // ---- home overview: hover + click a room to focus it --------------------
@@ -507,7 +588,7 @@ export default function RoomCanvas() {
 
       outline.setFromObject(hit.node)
       outline.visible = true
-      setSelected({ key: hit.node.userData.key, name: hit.node.userData.name })
+      setSelected(hit.node)
 
       controls.enabled = false
       el.setPointerCapture?.(e.pointerId)
@@ -644,7 +725,7 @@ export default function RoomCanvas() {
       outline.setFromObject(hit.node)
       outline.visible = true
       outlineTarget = hit.node
-      setSelected({ key: hit.node.userData.key, name: hit.node.userData.name })
+      setSelected(hit.node)
       setMenu({
         key: hit.node.userData.key,
         name: hit.node.userData.name,
@@ -823,45 +904,75 @@ export default function RoomCanvas() {
 
       <PieceMenu menu={menu} onAction={runMenuAction} onClose={() => setMenu(null)} />
 
-      {activeRoom && (
-        <div className="focus-banner">
-          <button className="btn-quiet" onClick={() => store.exitRoom()}>
-            ← Whole place
-          </button>
-          <span className="focus-name">{activeRoom.name}</span>
-          {/* Returns to the whole place. It does not save a project file —
-              Save in the project bar does that — so it must not claim to. */}
-          <button className="focus-save" onClick={() => store.exitRoom()}>
-            {saved > 0 ? `Done · ${saved} ${saved === 1 ? 'piece' : 'pieces'}` : 'Nothing in here yet'}
-          </button>
+      {selected && <div className="piece-frame" ref={frameRef} aria-hidden="true" />}
+      {selected && (
+        <div className="piece-tag" ref={tagRef} aria-hidden="true">
+          {selected.name} · {Math.round(selected.size.w * 100)} cm
         </div>
       )}
 
+      <div className="room-chip-stack">
+        {activeRoom ? (
+          <div className="room-chip">
+            <button className="chip-back" onClick={() => store.exitRoom()} aria-label="Back to the whole place" title="Back to the whole place">
+              <Icon name="back" size={16} />
+            </button>
+            <span className="room-chip-name">{activeRoom.name}</span>
+            <span className="room-chip-dims">{roomSize(dims)}</span>
+            {/* Returns to the whole place. It does not save a project file —
+                Save in the project bar does that — so it must not claim to. */}
+            <button className="focus-save" onClick={() => store.exitRoom()}>
+              {saved > 0 ? `Done · ${saved} ${saved === 1 ? 'piece' : 'pieces'}` : 'Nothing in here yet'}
+            </button>
+          </div>
+        ) : (
+          <div className="room-chip">
+            <span className="room-chip-name">Your room</span>
+            <span className="room-chip-dims">{roomSize(dims)}</span>
+          </div>
+        )}
+        {hasCustom && <span className="room-chip-note">Custom layout</span>}
+      </div>
+
+      <div className="view-switch" role="group" aria-label="Camera view">
+        {VIEWS.map(([id, label]) => (
+          <button key={id} className={`view-seg ${view === id ? 'on' : ''}`} aria-pressed={view === id} onClick={() => showView(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="canvas-tools">
-        <span className="view-toggle" role="group" aria-label="Camera view">
-          {VIEWS.map(([id, label]) => (
-            <button key={id} className="view-btn" onClick={() => showView(id)}>{label}</button>
-          ))}
-        </span>
-        <button className="tool-btn" onClick={exportImage}>Export image</button>
-        {hasExport && <button className="tool-btn" onClick={() => window.nestedDesktop.showExport()}>Show image file</button>}
-        {imageStatus && <span className="tool-note" role="status">{imageStatus}</span>}
-        <button
-          className="tool-btn"
-          onClick={() => store.undo()}
-          disabled={historyDepth === 0}
-          title="Undo the last change (Ctrl+Z)"
-        >
-          Undo
-        </button>
-        <button
-          className="tool-btn primary"
-          onClick={() => store.clearPlacements()}
-          title="Re-run the layout solver on every piece"
-        >
-          Auto-arrange
-        </button>
-        {hasCustom && <span className="tool-note">Custom layout</span>}
+        <div className="tool-group">
+          <button
+            className="tool-icon"
+            onClick={() => store.undo()}
+            disabled={historyDepth === 0}
+            aria-label="Undo"
+            title="Undo the last change (Ctrl+Z)"
+          >
+            <Icon name="undo" />
+          </button>
+          <span className="tool-sep" aria-hidden="true" />
+          <button
+            className="tool-btn"
+            onClick={() => store.clearPlacements()}
+            title="Re-run the layout solver on every piece"
+          >
+            <Icon name="arrange" size={15} />
+            Auto-arrange
+          </button>
+          <button className="tool-btn" onClick={exportImage} title="Save a PNG of this view">
+            <Icon name="camera" size={15} />
+            Export image
+          </button>
+        </div>
+        {imageStatus && (
+          <div className="tool-toast">
+            <span role="status">{imageStatus}</span>
+            {hasExport && <button className="link-btn" onClick={() => window.nestedDesktop.showExport()}>Show image file</button>}
+          </div>
+        )}
       </div>
 
       {fill > 0.55 && !warnDismissed && (
@@ -900,18 +1011,125 @@ export default function RoomCanvas() {
 
       <div className="canvas-hud">
         {selected ? (
-          <span className="hud-sel">
-            <strong>{selected.name}</strong> — drag to move · arrows nudge · R rotates · Delete
-            removes
-          </span>
+          <span className="hud-hint">Drag to move · arrows nudge · R rotates · Delete removes</span>
         ) : (
           count > 0 && (
-            <span className="hud-hint">Click a piece to move it · drag empty space to orbit</span>
+            <span className="hud-hint">
+              {view === 'eye'
+                ? 'Click a piece to move it · drag empty space to look around · scroll to walk'
+                : 'Click a piece to move it · drag empty space to orbit'}
+            </span>
           )
         )}
       </div>
+
+      {selected && <PieceInspector selected={selected} onAction={(action) => runMenuAction(action, selected)} />}
     </div>
   )
+}
+
+/** The floating card for the selected piece: what it is, its size, actions. */
+function PieceInspector({ selected, onAction }) {
+  const synthetics = useRoomStore((s) => s.synthetics)
+  const id = selected.key.split('#')[0]
+  const item = resolveItem(id, synthetics)
+  const imported = id.startsWith('asset-')
+  const { w, d, h } = selected.size
+  const cm = (v) => Math.round(v * 100)
+  return (
+    <section className="piece-panel" aria-label="Selected piece">
+      <div className="piece-head">
+        <div className="piece-title">
+          <span className="piece-eyebrow">Selected</span>
+          <span className="piece-name">{selected.name}</span>
+        </div>
+        {item?.price != null && <span className="piece-price">{formatUSD(item.price)} <span>est.</span></span>}
+      </div>
+      <p className="piece-size">
+        W {cm(w)} × D {cm(d)} × H {cm(h)} cm
+        <span>{imported ? 'Placed size of your model' : 'Concept model · real product size unknown'}</span>
+      </p>
+      <div className="piece-actions">
+        <button className="piece-btn" onClick={() => onAction('rotate')}>
+          <Icon name="rotate" size={15} />
+          Rotate 45°
+        </button>
+        <button className="piece-btn" onClick={() => onAction('duplicate')}>
+          <Icon name="copy" size={15} />
+          Duplicate
+        </button>
+        <button className="piece-btn danger" onClick={() => onAction('remove')} aria-label="Remove from room" title="Remove from room">
+          <Icon name="trash" size={15} />
+        </button>
+      </div>
+    </section>
+  )
+}
+
+const roomSize = (dims) => `${dims.w.toFixed(1)} × ${dims.d.toFixed(1)} m · ${dims.h.toFixed(1)} m ceiling`
+
+/** Size of a piece in its own orientation, not its rotated bounding box. */
+function localSize(node) {
+  const ry = node.rotation.y
+  node.rotation.y = 0
+  node.updateMatrixWorld(true)
+  const size = new THREE.Box3().setFromObject(node).getSize(new THREE.Vector3())
+  node.rotation.y = ry
+  node.updateMatrixWorld(true)
+  return { w: size.x, d: size.z, h: size.y }
+}
+
+// Orbit around a point: overview and corner.
+function orbitControls(controls) {
+  controls.enableZoom = true
+  controls.enablePan = true
+  controls.rotateSpeed = 1
+  controls.minDistance = 1.5
+  controls.maxDistance = 30
+  controls.minPolarAngle = 0
+  controls.maxPolarAngle = Math.PI / 2.05
+}
+
+// Distance from the eye to the point it turns around. Small enough that
+// dragging turns your head rather than walking you around something.
+const LOOK_RADIUS = 0.05
+
+/** Moves the camera to a named view and sets up the controls for it. */
+function applyView(engine, name, shape) {
+  const { camera, controls, roomDims } = engine
+  const view = viewFor(name, roomDims, camera)
+  engine.mode = name
+  // Inside the room (eye level, corner) AO covers every pixel; see setAoDivisor.
+  engine.setAoDivisor?.(name === 'overview' ? 2 : 4)
+  if (name === 'eye') {
+    const at = insideFloor(roomDims, shape, view.position.x, view.position.z)
+    camera.position.set(at.x, view.position.y, at.z)
+    const dir = view.target.clone().sub(camera.position).normalize()
+    controls.target.copy(camera.position).addScaledVector(dir, LOOK_RADIUS)
+    controls.enableZoom = false
+    controls.enablePan = false
+    // Negative: dragging moves the room with the pointer, as in a panorama
+    // viewer, instead of swinging the view the other way.
+    controls.rotateSpeed = -0.35
+    controls.minDistance = LOOK_RADIUS
+    controls.maxDistance = LOOK_RADIUS
+    controls.minPolarAngle = Math.PI * 0.15
+    controls.maxPolarAngle = Math.PI * 0.8
+  } else {
+    orbitControls(controls)
+    camera.position.copy(view.position)
+    controls.target.copy(view.target)
+  }
+  controls.update()
+  engine.noteInput?.()
+}
+
+/** Keeps a standing position on the floor, at least 35 cm from any wall. */
+function insideFloor(room, shape, x, z) {
+  const m = 0.35
+  const cx = clamp(x, -room.w / 2 + m, room.w / 2 - m)
+  const cz = clamp(z, -room.d / 2 + m, room.d / 2 - m)
+  return shape ? clampToShape(shape, cx, cz) : { x: cx, z: cz }
 }
 
 const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)))
@@ -921,10 +1139,11 @@ const VIEWS = [['overview', 'Overview'], ['eye', 'Eye level'], ['corner', 'Corne
 /** Repeatable camera positions, so views can be compared between designs. */
 function viewFor(name, room, camera) {
   if (name === 'eye') {
-    // Standing just inside the open side, eyes at 1.55 m.
+    // Standing with your back to the entrance wall, eyes at 1.6 m, looking
+    // across the room toward the far wall and slightly down at the furniture.
     return {
-      position: new THREE.Vector3(room.w * 0.18, 1.55, room.d / 2 - 0.25),
-      target: new THREE.Vector3(0, 1.0, -room.d * 0.3),
+      position: new THREE.Vector3(room.w * 0.12, 1.6, room.d / 2 - 0.45),
+      target: new THREE.Vector3(-room.w * 0.04, 1.1, -room.d / 2),
     }
   }
   if (name === 'corner') {

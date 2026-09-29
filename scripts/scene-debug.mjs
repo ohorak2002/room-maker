@@ -1,7 +1,8 @@
 // Development-only scene inspection in real Electron. Build first with
 // `VITE_NESTED_DEBUG=1 npx vite build` so the engine hook is exposed, then:
 //   node scripts/scene-debug.mjs <name> "<js run in the page before capture>"
-// Writes artifacts/debug-<name>.png from the canvas.
+// Writes artifacts/debug-<name>.png from the canvas (NESTED_DEBUG_FULL=1: the
+// whole window).
 import { _electron as electron } from 'playwright'
 import { mkdtemp, mkdir } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
@@ -27,5 +28,7 @@ try {
   await page.waitForTimeout(1500)
   if (script) console.log(JSON.stringify(await page.evaluate(`(async () => { const e = window.__nestedEngine; ${script} })()`)))
   await page.waitForTimeout(400)
-  await page.locator('.canvas-mount canvas').screenshot({ path: join(root, 'artifacts', `debug-${name}.png`) })
+  // NESTED_DEBUG_FULL=1 captures the whole window (panels and bars) instead of the canvas.
+  const target = process.env.NESTED_DEBUG_FULL === '1' ? page : page.locator('.canvas-mount canvas')
+  await target.screenshot({ path: join(root, 'artifacts', `debug-${name}.png`) })
 } finally { await app.evaluate(({ app }) => app.exit(0)).catch(() => {}) }

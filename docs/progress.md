@@ -1,8 +1,48 @@
-# Progress — 2026-09-28
+# Progress — 2026-09-29
+
+## Next work (supersedes the milestone 3 list below where they overlap)
+
+1. Room realism at eye level, now the default view: ceiling and wall lighting (floor bounce), better procedural or permitted demo furniture, a real window view. Needs a visual reference; the user wants the room to feel like a real room.
+2. Redesign the remaining panels (Design, Models, Place, Search, Photo) to the interface target.
+3. Check the layout at narrower and wider window sizes; hand-test look-around drag and wheel walking.
+4. Then the milestone 3 items: real licensed product GLB, remove-model action, portable project packages, finer room dimensions, installed-app import.
 
 ## Project location (2026-09-28)
 
 Moved from `C:\Users\orenh\OneDrive\Desktop\Nested\nested-desktop` to `C:\dev\nested-desktop` to stop syncing build dependencies to OneDrive. Copied with robocopy (11,738 files, 0 failures). In the new location, `git fsck` was clean, HEAD matched (`04742d7`), and `npm test`, `npm run build` and `npm run test:desktop` passed before the OneDrive copy was removed. The branch was then pushed to GitHub and, at the user's request, fast-forwarded into `main` (no force-push; the prototype stays in history at `cc9ca25`). GitHub `main` is now the desktop application and the off-computer copy.
+
+## Interface rebuild, first pass (Claude Code, 2026-09-29)
+
+The user approved an interface mock-up (colour scheme and layout) and asked for the real interface to be rebuilt to match, with the room remaining real 3D that feels like standing inside it. The mock-up is saved in `references/interface-target/` (with a README of what it does and does not settle). An attempt to generate a photoreal reference image with the Higgsfield connector failed first: the account is on the free plan and every model returned "Requires basic plan or higher"; nothing was generated or charged.
+
+Built:
+
+- **Theme**: palette tokens from the mock-up in `src/App.css` (light; dark variants adjusted), Instrument Sans (interface) and Instrument Serif (wordmark, large titles) bundled via `@fontsource-variable/instrument-sans` and `@fontsource/instrument-serif`; Inter and Lora removed. No network font loading (CSP `font-src 'self'` unchanged).
+- **One project bar** (`DesktopProjects.jsx`) replaces the old file bar and the workspace top bar: wordmark, inline-editable project/client names, short save status (full path in the tooltip), piece count and estimated total, side-panel toggle, shortcuts, Open…, a "⋯" menu (New project, Save as…, Export shopping list, Retake style quiz) and Save. Window-level UI state moved to `src/store/uiStore.js` (not saved in projects); shopping-list export moved to `src/data/shoppingList.js`. New shared `Icons.jsx` and `Menu.jsx`.
+- **Shop** is a two-column card grid (3D thumbnail of the actual procedural model, "Concept" badge, category, name, estimated price, approximate height and retailer searched, Add to room / In room with quantity). The card of the piece selected in the room is highlighted. No finish swatches: the catalog has no finish variants. Category chips are one scrolling row. The Shop tab now opens first.
+- **Room overlays** (`RoomCanvas.jsx/css`): room chip with approximate size, Overview | Eye level | Corner switch showing the active view, Undo / Auto-arrange / Export image, export toast, hint pill, a screen-space frame and name tag on the selected piece, and a selected-piece panel (price, model size W × D × H, "Concept model · real product size unknown" or "Placed size of your model", Rotate 45°, Duplicate, Remove). The old 3D BoxHelper outline was never visible (drawn without depth test but still writing depth, so later opaque geometry overwrote it); it now only tracks bounds.
+- **Standing in the room**: the near wall is now built (it never casts shadows, so lighting is unchanged). All walls and the ceiling are cutaways: each frame, a wall is hidden only when the camera is outside the room's bounds on that wall's outer side (`updateCutaways` in `buildRoom.js`), by moving it to a layer the view camera skips and the shadow cameras still render. A room opens at eye level (1.6 m, back to the entrance wall). Eye level is a look-around mode: dragging turns the view (panorama-style), the scroll wheel walks forward and back, the position stays 35 cm inside the floor, and the idle drift is off.
+- `scripts/scene-debug.mjs` accepts `NESTED_DEBUG_FULL=1` to capture the whole window.
+
+Verified (Windows ARM64, Snapdragon X Plus, this session): `npm test` passes (3 files); `npm run test:desktop` passes in real Electron with no page errors (all save/open/recovery/export/import checks; selectors unchanged: Save, Open…, Export image, Project name, Overview); production `dist` contains no `__nestedEngine`. Visually inspected real Electron captures of the whole window, all three views and a selected sofa: `references/interface-rebuild/`.
+
+Performance (rAF intervals, 240 frames, idle, reduced motion, canvas 2094 × 1342, debug room, `scene-debug.mjs`; display 120 Hz, so values quantize to 8.3 / 16.7 ms):
+
+| View | AO at half resolution | AO at quarter resolution (shipped for eye level and corner) |
+|---|---|---|
+| Overview | 8.4 ms median | (half resolution kept) |
+| Eye level | 16.6 ms | 8.4 ms |
+| Corner | 16.6 ms | 8.4 ms |
+
+At the old canvas height (1176) eye level was also 16.6 ms, so the cost is the enclosed view (AO over every pixel), not the taller canvas. Disabling AO alone gave 8.4 ms; bloom was not the cost; 8 AO samples or a lighter denoise did not help. Side-by-side eye-level captures at half and quarter AO showed no visible difference. The smoke test's own 120-frame sample (imported glass side table in view at eye level, under automation) gave median 16.7 ms, p95 50 ms; the transmission pass for that model was not measured separately.
+
+Not verified / limitations:
+
+- Look-around drag direction and wheel walking were reasoned through and exercised only by synthetic events, not by hand; the smoke test does not drag.
+- Twice, the first `scene-debug.mjs` launch straight after a build misbehaved (once the view read Overview; once "Restore project" kept detaching until timeout). More than 20 other runs, including later first-after-build launches, were clean. Not diagnosed.
+- The Models, Design, Place, Search and Photo panels keep their old internals under the new theme; only Shop was redesigned.
+- Rendering realism is unchanged: the ceiling reads dark brown at eye level (mean grey ≈ 100 in the top 8 % of the frame), procedural furniture and the painted window view remain.
+- The layout was checked at one window size (1427 × 727 CSS px); narrower windows rely on CSS fallbacks that were not inspected.
 
 ## Desktop-only cleanup (Claude Code, 2026-09-28)
 

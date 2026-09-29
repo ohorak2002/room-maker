@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
-import { byId, formatUSD, resolveItem } from '../data/catalog'
+import { useUiStore } from '../store/uiStore'
+import { projectTotals } from '../data/shoppingList'
 import ControlsPanel from './ControlsPanel'
 import ShopPanel from './ShopPanel'
 import SearchPanel from './SearchPanel'
@@ -8,7 +9,6 @@ import HomePanel from './HomePanel'
 import PhotoImport from './PhotoImport'
 import ModelsPanel from './ModelsPanel'
 import Shortcuts from './Shortcuts'
-import PillowMark from './PillowMark'
 import './Workspace.css'
 
 // Three.js only loads when the 3D view actually mounts, so the survey and the
@@ -24,11 +24,14 @@ const TABS = [
   { id: 'models', label: 'Models' },
 ]
 
+// The project bar (DesktopProjects) sits above this and carries the totals and
+// file actions; the workspace is the side panel and the room.
 export default function Workspace() {
-  const store = useRoomStore()
-  const [tab, setTab] = useState('design')
-  const [panelOpen, setPanelOpen] = useState(true)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [tab, setTab] = useState('shop')
+  const panelOpen = useUiStore((s) => s.panelOpen)
+  const shortcutsOpen = useUiStore((s) => s.shortcutsOpen)
+  const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen)
+  const count = useRoomStore((s) => projectTotals(s).count)
 
   // "?" opens the shortcuts sheet, the convention on every desktop app that
   // has one. Ignored while typing so it doesn't hijack the search field.
@@ -43,128 +46,16 @@ export default function Workspace() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  // The top bar reports the whole project: in home scope that's every room's
-  // basket combined, not just whichever one is open.
-  const allItems =
-    store.scope === 'home' && store.home
-      ? store.home.rooms.flatMap((r) => r.items || [])
-      : store.items
-
-  const total = allItems.reduce((sum, i) => {
-    const item = resolveItem(i.id, store.synthetics)
-    return sum + (item ? item.price * i.qty : 0)
-  }, 0)
-  const count = allItems.reduce((n, i) => n + i.qty, 0)
-
-  const lineFor = (i) => {
-    const item = resolveItem(i.id, store.synthetics)
-    return {
-      name: item?.name,
-      qty: i.qty,
-      retailer: item?.retailerName,
-      estimatedPrice: item?.price,
-      link: item?.url,
-    }
-  }
-
-  const exportDesign = () => {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      palette: store.palette,
-      mood: store.mood,
-      lighting: store.lighting,
-      floorplan: store.floorplan,
-      windows: store.windows,
-      scope: store.scope,
-      home: store.home
-        ? {
-            beds: store.home.beds,
-            baths: store.home.baths,
-            sqft: store.home.sqft,
-            storeys: store.home.storeys ?? 1,
-            traced: Boolean(store.home.traced),
-          }
-        : null,
-      // Room by room, not one merged list. The flat list was fine for a single
-      // room and useless for a house: you could see you owned four lamps and
-      // not which rooms they were in, which is the thing you need when you're
-      // standing in the shop.
-      rooms: store.home
-        ? store.home.rooms
-            .filter((r) => (r.items || []).length > 0)
-            .map((r) => {
-              const items = (r.items || []).map((i) => lineFor(i))
-              return {
-                name: r.name,
-                kind: r.kind,
-                floor: (r.floor ?? 0) + 1,
-                sizeFt: `${(r.cols * 0.5 * 3.28084).toFixed(1)} x ${(r.rows * 0.5 * 3.28084).toFixed(1)}`,
-                items,
-                subtotal: items.reduce((s, i) => s + (i.estimatedPrice || 0) * i.qty, 0),
-              }
-            })
-        : null,
-      items: allItems.map((i) => lineFor(i)),
-      estimatedTotal: total,
-      note: 'Prices are estimates for prototyping, not live retail data.',
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    // Name it after what it is, so a folder of these stays readable.
-    a.download = store.home
-      ? `nested-${store.home.beds}bd-${store.home.sqft}sqft.json`
-      : 'nested-room.json'
-    a.click()
-    URL.revokeObjectURL(a.href)
-  }
+  }, [setShortcutsOpen])
 
   return (
     <div className="workspace">
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <header className="topbar">
-        <div className="brand">
-          <PillowMark size={30} />
-          <span className="brand-name">Nested</span>
-          <span className="tool-note">Concept furniture · approximate dimensions</span>
-        </div>
-
-        <div className="topbar-actions">
-          <span className="basket-readout">
-            <span className="basket-count">{count}</span> {count === 1 ? 'item' : 'items'} ·{' '}
-            <span className="basket-total">{formatUSD(total)}</span> est.
-          </span>
-          <button
-            className="kbd-hint"
-            onClick={() => setShortcutsOpen(true)}
-            title="Keyboard shortcuts"
-          >
-            <kbd>?</kbd> Shortcuts
-          </button>
-          <button className="btn-quiet" onClick={exportDesign}>
-            Export shopping list
-          </button>
-          <button className="btn-quiet" onClick={store.restartOnboarding}>
-            <span className="label-long">Retake quiz</span>
-            <span className="label-short">Quiz</span>
-          </button>
-          <button
-            className="btn-quiet panel-toggle"
-            onClick={() => setPanelOpen((v) => !v)}
-            aria-expanded={panelOpen}
-          >
-            <span className="label-long">{panelOpen ? 'Hide panel' : 'Show panel'}</span>
-            <span className="label-short">{panelOpen ? 'Hide' : 'Show'}</span>
-          </button>
-        </div>
-      </header>
 
       <div className="workspace-body">
         {panelOpen && (
           <aside className="panel">
-            <div className="tabs" role="tablist">
+            <div className="tabs" role="tablist" aria-label="Panels">
               {TABS.map((t) => (
                 <button
                   key={t.id}

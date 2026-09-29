@@ -1,29 +1,37 @@
 /* ---------------------------------------------------------------------------
-   Design tokens.
-   A near-neutral ground so the room's own colors read true, pine as the single
-   accent, and a separate amber reserved for money.
+   Design tokens, from the approved interface target
+   (references/interface-target/workspace-mockup.dc.html).
+   A warm neutral ground so the room's own colours read true, a deep green as
+   the single accent, and prices set in ink rather than a separate colour.
    Light is defined on bare :root; dark is redefined twice so both the OS
    preference and an explicit toggle resolve correctly.
 --------------------------------------------------------------------------- */
 
 :root {
-  --ground: #f4f3f0;
+  --ground: #f5f3ef;
   --surface: #ffffff;
-  --surface-sunk: #eceae5;
-  --ink: #17181b;
-  --ink-soft: #45474c;
-  --ink-muted: #7a7d85;
-  --line: #dedcd7;
-  --accent: #2e6b5e;
-  --accent-wash: rgba(46, 107, 94, 0.09);
-  --money: #9a5518;
-  --danger: #A33A2A;
+  --surface-sunk: #efece7;
+  --surface-soft: #faf9f6;
+  --ink: #1d1c1a;
+  --ink-soft: #4a4741;
+  /* 5.9:1 on white, 5.4:1 on the ground — small captions stay readable. */
+  --ink-muted: #66625b;
+  --line: #e3dfd7;
+  --line-strong: #d6d1c7;
+  --accent: #2e5b4f;
+  --accent-wash: rgba(46, 91, 79, 0.09);
+  --money: #1d1c1a;
+  --danger: #9b3b2e;
+  --overlay: rgba(255, 255, 255, 0.92);
+  --overlay-line: rgba(29, 28, 26, 0.08);
+  --radius-s: 8px;
+  --radius-m: 10px;
+  --radius-l: 12px;
 
-  /* Lora carries the warmth — it's a serif with organic curves that still holds
-     up at small sizes, which most display serifs don't. Inter does the dense
-     panel work, where neutrality and legibility beat character. */
-  --font-display: 'Lora Variable', Georgia, 'Times New Roman', serif;
-  --font-body: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  /* Instrument Serif is reserved for the wordmark and large titles; it has a
+     single weight and only works big. Instrument Sans does all panel work. */
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-body: 'Instrument Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI',
     'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'Cascadia Mono', 'SF Mono', Consolas, 'Roboto Mono', Menlo, monospace;
 
@@ -75,32 +83,40 @@ button {
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --ground: #131417;
-    --surface: #1b1d21;
-    --surface-sunk: #101114;
-    --ink: #efeeea;
-    --ink-soft: #b9b8b3;
-    --ink-muted: #83868d;
-    --line: #2c2f35;
-    --accent: #4fa089;
-    --accent-wash: rgba(79, 160, 137, 0.14);
-    --money: #d89143;
-    --danger: #E0715C;
+    --ground: #151412;
+    --surface: #1d1c1a;
+    --surface-sunk: #121110;
+    --surface-soft: #22211e;
+    --ink: #f0eee9;
+    --ink-soft: #c4c0b8;
+    --ink-muted: #9c978e;
+    --line: #34322e;
+    --line-strong: #45423d;
+    --accent: #6fa894;
+    --accent-wash: rgba(111, 168, 148, 0.14);
+    --money: #f0eee9;
+    --danger: #e0715c;
+    --overlay: rgba(29, 28, 26, 0.9);
+    --overlay-line: rgba(240, 238, 233, 0.1);
   }
 }
 
 :root[data-theme='dark'] {
-  --ground: #131417;
-  --surface: #1b1d21;
-  --surface-sunk: #101114;
-  --ink: #efeeea;
-  --ink-soft: #b9b8b3;
-  --ink-muted: #83868d;
-  --line: #2c2f35;
-  --accent: #4fa089;
-  --accent-wash: rgba(79, 160, 137, 0.14);
-  --money: #d89143;
-  --danger: #E0715C;
+  --ground: #151412;
+  --surface: #1d1c1a;
+  --surface-sunk: #121110;
+  --surface-soft: #22211e;
+  --ink: #f0eee9;
+  --ink-soft: #c4c0b8;
+  --ink-muted: #9c978e;
+  --line: #34322e;
+  --line-strong: #45423d;
+  --accent: #6fa894;
+  --accent-wash: rgba(111, 168, 148, 0.14);
+  --money: #f0eee9;
+  --danger: #e0715c;
+  --overlay: rgba(29, 28, 26, 0.9);
+  --overlay-line: rgba(240, 238, 233, 0.1);
 }
 
 /* --- shared buttons ----------------------------------------------------- */

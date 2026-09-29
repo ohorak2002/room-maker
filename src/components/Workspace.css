@@ -5,56 +5,6 @@
   background: var(--ground);
 }
 
-/* --- top bar ------------------------------------------------------------ */
-
-.topbar {
-  flex-shrink: 0;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand-name {
-  font-family: var(--font-display);
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.basket-readout {
-  font-size: 0.82rem;
-  color: var(--ink-muted);
-  margin-right: 8px;
-  white-space: nowrap;
-}
-
-.basket-count,
-.basket-total {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-
-.basket-total {
-  color: var(--money);
-}
-
 /* --- body --------------------------------------------------------------- */
 
 .workspace-body {
@@ -76,20 +26,27 @@
 .tabs {
   display: flex;
   flex-shrink: 0;
+  gap: 2px;
+  height: 48px;
+  padding: 0 12px;
   border-bottom: 1px solid var(--line);
 }
 
 .tab {
   flex: 1;
-  padding: 13px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 4px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--ink-muted);
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: color 0.18s ease, border-color 0.18s ease;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .tab:hover {
@@ -98,19 +55,22 @@
 
 .tab.active {
   color: var(--ink);
+  font-weight: 600;
   border-bottom-color: var(--accent);
 }
 
 .tab-badge {
-  display: inline-block;
-  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 18px;
-  padding: 1px 5px;
+  height: 18px;
+  padding: 0 5px;
   border-radius: 9px;
   background: var(--accent);
   color: #fff;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 10.5px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -138,51 +98,6 @@
     border-bottom: 1px solid var(--line);
   }
 
-  .basket-readout {
-    display: none;
-  }
-}
-
-.label-short {
-  display: none;
-}
-
-/* Phones: keep the top bar on one line. At 375px the full-width labels wrap
-   the brand onto two lines and the bar grows to twice its height. */
-@media (max-width: 560px) {
-  .label-long {
-    display: none;
-  }
-
-  .label-short {
-    display: inline;
-  }
-
-  .topbar {
-    height: 48px;
-    padding: 0 10px;
-    gap: 8px;
-  }
-
-  .brand-name {
-    white-space: nowrap;
-    font-size: 0.95rem;
-  }
-
-  .topbar-actions {
-    gap: 2px;
-  }
-
-  .topbar-actions .btn-quiet {
-    padding: 7px 8px;
-    font-size: 0.78rem;
-    white-space: nowrap;
-  }
-
-  .tab {
-    padding: 11px 6px;
-    font-size: 0.84rem;
-  }
 }
 
 /* --- 3D chunk loading --------------------------------------------------- */
@@ -224,42 +139,10 @@
 
 @media (min-width: 1280px) {
   .panel { width: 380px; }
-  .topbar { height: 60px; padding: 0 22px; }
 }
 
-@media (min-width: 1600px) {
+@media (min-width: 1800px) {
   .panel { width: 440px; }
-}
-
-@media (min-width: 1920px) {
-  .panel { width: 500px; }
-}
-
-/* Keyboard hint in the top bar — desktop users expect shortcuts and won't find
-   them otherwise. Hidden below laptop width, where there's no keyboard anyway. */
-.kbd-hint {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  margin-right: 4px;
-  font-size: 0.76rem;
-  color: var(--ink-muted);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 6px 10px;
-  cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out);
-}
-
-.kbd-hint:hover {
-  color: var(--ink);
-  border-color: var(--line);
-}
-
-@media (min-width: 1100px) {
-  .kbd-hint { display: inline-flex; }
 }
 
 kbd {

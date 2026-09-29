@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nested workspace</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;family=Instrument+Serif&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Instrument Sans',system-ui,sans-serif;color:#1D1C1A;background:#F5F3EF}
+button,input,select{font-family:inherit}
+.btn{cursor:pointer;transition:background-color .15s ease,border-color .15s ease}
+.btn:hover{background-color:#F0EDE7}
+.ghost:hover{background-color:rgba(29,28,26,.06)}
+.card-hit{cursor:pointer}
+.card-hit:hover{filter:brightness(.98)}
+.scroll{scrollbar-width:thin;scrollbar-color:#D6D1C7 transparent}
+a{color:#2E5B4F}a:hover{color:#1F4238}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #F5F3EF; overflow: hidden;">
+
+<!-- Top bar -->
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 20px; padding: 0 16px 0 20px; background: #FFFFFF; border-bottom: 1px solid #E3DFD7;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10v9.5h13V10"></path><path d="M9.5 19.5v-5h5v5"></path></svg>
+<span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 24px; letter-spacing: -0.2px; line-height: 1;">Nested</span>
+</div>
+<div style="width: 1px; height: 24px; background: #E3DFD7;"></div>
+<div style="display: flex; flex-direction: column; gap: 1px;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<span style="font-size: 14px; font-weight: 600;">Harbor Loft</span>
+<span style="font-size: 12px; color: #66625B;">for Demo client</span>
+</div>
+<span style="font-size: 11.5px; color: #66625B; display: flex; align-items: center; gap: 5px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: {{accent}};"></span>Saved · Living room</span>
+</div>
+<div style="flex-grow: 1;"></div>
+<div style="display: flex; align-items: baseline; gap: 6px; font-size: 13px;">
+<span style="font-weight: 600;">{{countLabel}}</span>
+<span style="color: #66625B;">·</span>
+<span style="font-weight: 600;">$4,280</span>
+<span style="color: #66625B;">est.</span>
+</div>
+<div style="width: 1px; height: 24px; background: #E3DFD7;"></div>
+<button class="ghost btn" aria-label="Keyboard shortcuts" style="width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center; color: #4A4741;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4"></path><path d="M12 17h.01"></path></svg></button>
+<button class="btn" style="height: 36px; padding: 0 14px; border: 1px solid #E3DFD7; border-radius: 8px; background: #FFFFFF; font-size: 13px; font-weight: 500; color: #1D1C1A;">Open…</button>
+<button class="btn" style="height: 36px; padding: 0 12px 0 14px; border: 1px solid #E3DFD7; border-radius: 8px; background: #FFFFFF; font-size: 13px; font-weight: 500; color: #1D1C1A; display: flex; align-items: center; gap: 6px;">Export<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<button style="height: 36px; padding: 0 16px; border: 0; border-radius: 8px; background: {{accent}}; font-size: 13px; font-weight: 600; color: #FFFFFF; cursor: pointer;">Save</button>
+</header>
+
+<div style="flex-grow: 1; display: flex; min-height: 0;">
+
+<!-- Sidebar -->
+<aside style="width: 380px; flex-shrink: 0; display: flex; flex-direction: column; background: #FFFFFF; border-right: 1px solid #E3DFD7; min-height: 0;">
+<nav role="tablist" aria-label="Panels" style="height: 48px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: stretch; gap: 2px; padding: 0 12px; border-bottom: 1px solid #E3DFD7;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="6">
+<button role="tab" aria-selected="{{t.selected}}" onClick="{{t.pick}}" class="btn" style="flex-grow: 1; border: 0; background: transparent; border-bottom: 2px solid {{t.line}}; color: {{t.color}}; font-size: 13px; font-weight: {{t.weight}}; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 0 4px; cursor: pointer;">{{t.label}}<sc-if value="{{t.badge}}" hint-placeholder-val="{{false}}"><span style="min-width: 18px; height: 18px; border-radius: 9px; background: {{accent}}; color: #FFFFFF; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;">{{t.badge}}</span></sc-if></button>
+</sc-for>
+</nav>
+
+<!-- Shop -->
+<sc-if value="{{isShop}}" hint-placeholder-val="{{true}}">
+<div style="flex-shrink: 0; padding: 16px 16px 12px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid #EFECE6;">
+<label style="height: 38px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #E3DFD7; border-radius: 10px; background: #FAF9F6; color: #66625B;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<input aria-label="Search the catalog" placeholder="Search sofas, rugs, lighting…" style="flex-grow: 1; border: 0; outline: 0; background: transparent; font-size: 13px; color: #1D1C1A;">
+</label>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+<button class="btn" style="height: 30px; padding: 0 8px 0 12px; border: 1px solid {{c.border}}; border-radius: 15px; background: {{c.bg}}; font-size: 12.5px; font-weight: 500; color: #1D1C1A; display: flex; align-items: center; gap: 4px;">{{c.label}}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #66625B;">
+<span>8 concept pieces · sizes approximate</span>
+<span>Sort: Recommended</span>
+</div>
+</div>
+<div class="scroll" style="flex-grow: 1; overflow-y: auto; padding: 14px 16px 20px;">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{cards}}" as="card" hint-placeholder-count="6">
+<article style="display: flex; flex-direction: column; border: 1px solid {{card.border}}; box-shadow: {{card.ring}}; border-radius: 12px; background: #FFFFFF; overflow: hidden;">
+<button class="card-hit" onClick="{{card.pick}}" aria-label="Select {{card.name}}" style="position: relative; height: 128px; border: 0; padding: 0; background: #EFECE7; display: flex; align-items: center; justify-content: center; color: #8A8378;">
+<sc-if value="{{card.isSofa}}" hint-placeholder-val="{{true}}"><svg width="96" height="64" viewBox="0 0 96 64" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="14" y="14" width="68" height="22" rx="7" fill="#F6F1E8"></rect><rect x="8" y="26" width="80" height="22" rx="8" fill="#FBF7F0"></rect><rect x="4" y="24" width="12" height="28" rx="5" fill="#F6F1E8"></rect><rect x="80" y="24" width="12" height="28" rx="5" fill="#F6F1E8"></rect><path d="M14 52v5M82 52v5"></path></svg></sc-if>
+<sc-if value="{{card.isTable}}" hint-placeholder-val="{{false}}"><svg width="96" height="64" viewBox="0 0 96 64" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 24h76l-6 8H16z" fill="#5B5550" fill-opacity=".35"></path><path d="M20 32v22M76 32v22M26 32v16M70 32v16"></path></svg></sc-if>
+<sc-if value="{{card.isLamp}}" hint-placeholder-val="{{false}}"><svg width="96" height="80" viewBox="0 0 96 80" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M38 8h20l6 16H32z" fill="#FBF7F0"></path><path d="M48 24v48M38 74h20" stroke="#A88B5C" stroke-width="2"></path></svg></sc-if>
+<sc-if value="{{card.isRug}}" hint-placeholder-val="{{false}}"><svg width="100" height="64" viewBox="0 0 100 64" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M18 14h64l12 38H6z" fill="#D8B79E"></path><path d="M26 20h48l8 26H18z" stroke="#A9705A"></path><path d="M50 22l10 11-10 11-10-11z" stroke="#A9705A"></path></svg></sc-if>
+<sc-if value="{{card.isSide}}" hint-placeholder-val="{{false}}"><svg width="80" height="70" viewBox="0 0 80 70" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="40" cy="16" rx="22" ry="6" fill="#E3CFB0"></ellipse><path d="M40 22v36M28 62h24"></path></svg></sc-if>
+<sc-if value="{{card.isChair}}" hint-placeholder-val="{{false}}"><svg width="80" height="70" viewBox="0 0 80 70" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="20" y="10" width="40" height="26" rx="8" fill="#EDE6DA"></rect><rect x="14" y="30" width="52" height="16" rx="6" fill="#F6F1E8"></rect><path d="M20 46l-3 16M60 46l3 16"></path></svg></sc-if>
+<sc-if value="{{card.isPlant}}" hint-placeholder-val="{{false}}"><svg width="80" height="84" viewBox="0 0 80 84" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="30" cy="24" r="12" fill="#9AA57F" fill-opacity=".6"></circle><circle cx="48" cy="18" r="13" fill="#8C9870" fill-opacity=".6"></circle><circle cx="52" cy="36" r="11" fill="#9AA57F" fill-opacity=".6"></circle><path d="M40 40v16"></path><path d="M28 56h24l-3 22H31z" fill="#D9CBB8"></path></svg></sc-if>
+<span style="position: absolute; top: 8px; left: 8px; height: 20px; padding: 0 7px; border-radius: 10px; background: rgba(255,255,255,.9); font-size: 10.5px; font-weight: 600; color: #4A4741; display: flex; align-items: center;">Concept</span>
+</button>
+<div style="padding: 10px 11px 11px; display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; gap: 5px;">
+<sc-for list="{{card.swatches}}" as="s" hint-placeholder-count="3">
+<span style="width: 14px; height: 14px; border-radius: 7px; background: {{s.c}}; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);"></span>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: .8px; color: #66625B;">NESTED CONCEPT</span>
+<span style="font-size: 13px; font-weight: 500; line-height: 1.25;">{{card.name}}</span>
+</div>
+<span style="font-size: 13px; font-weight: 600;">{{card.price}} <span style="font-weight: 400; color: #66625B;">est.</span></span>
+<span style="font-size: 11px; color: #66625B;">{{card.dims}}</span>
+<sc-if value="{{card.inRoom}}" hint-placeholder-val="{{true}}">
+<button class="btn" style="margin-top: 2px; height: 32px; border: 1px solid #E3DFD7; border-radius: 8px; background: #FAF9F6; font-size: 12.5px; font-weight: 500; color: #4A4741; display: flex; align-items: center; justify-content: center; gap: 5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"></path></svg>In room</button>
+</sc-if>
+<sc-if value="{{card.notInRoom}}" hint-placeholder-val="{{false}}">
+<button class="btn" style="margin-top: 2px; height: 32px; border: 1px solid #D6D1C7; border-radius: 8px; background: #FFFFFF; font-size: 12.5px; font-weight: 600; color: #1D1C1A; display: flex; align-items: center; justify-content: center; gap: 5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Add to room</button>
+</sc-if>
+</div>
+</article>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- Design -->
+<sc-if value="{{isDesign}}" hint-placeholder-val="{{false}}">
+<div class="scroll" style="flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px;">
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Room size</h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: #66625B;">Width<input value="5.50 m" style="height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E3DFD7; border-radius: 8px; font-size: 13px; color: #1D1C1A;"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: #66625B;">Depth<input value="4.50 m" style="height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E3DFD7; border-radius: 8px; font-size: 13px; color: #1D1C1A;"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: #66625B;">Ceiling<input value="2.80 m" style="height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #E3DFD7; border-radius: 8px; font-size: 13px; color: #1D1C1A;"></label>
+</div>
+<span style="font-size: 11.5px; color: #66625B;">Measured to the centimetre.</span>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Walls</h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<button class="btn" style="padding: 8px; border: 1.5px solid {{accent}}; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; align-items: stretch; font-size: 11.5px; text-align: left; color: #1D1C1A;"><span style="height: 44px; border-radius: 6px; background: #F1EDE6;"></span>Warm plaster</button>
+<button class="btn" style="padding: 8px; border: 1px solid #E3DFD7; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; align-items: stretch; font-size: 11.5px; text-align: left; color: #1D1C1A;"><span style="height: 44px; border-radius: 6px; background: #E4D8C6;"></span>Sand limewash</button>
+<button class="btn" style="padding: 8px; border: 1px solid #E3DFD7; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; align-items: stretch; font-size: 11.5px; text-align: left; color: #1D1C1A;"><span style="height: 44px; border-radius: 6px; background: #D5D3CE;"></span>Soft grey</button>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Floor</h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<button class="btn" style="padding: 8px; border: 1.5px solid {{accent}}; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; align-items: stretch; font-size: 11.5px; text-align: left; color: #1D1C1A;"><span style="height: 44px; border-radius: 6px; background: repeating-linear-gradient(90deg,#D9C3A0 0 18px,#CFB690 18px 19px);"></span>Light oak</button>
+<button class="btn" style="padding: 8px; border: 1px solid #E3DFD7; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; align-items: stretch; font-size: 11.5px; text-align: left; color: #1D1C1A;"><span style="height: 44px; border-radius: 6px; background: repeating-linear-gradient(90deg,#8A6A4E 0 18px,#7B5D43 18px 19px);"></span>Smoked oak</button>
+<button class="btn" style="padding: 8px; border: 1px solid #E3DFD7; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px; align-items: stretch; font-size: 11.5px; text-align: left; color: #1D1C1A;"><span style="height: 44px; border-radius: 6px; background: #BDB9B2;"></span>Concrete</button>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600;">Light</h2>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #66625B;">Time of day · Afternoon<input type="range" min="0" max="100" value="62" style="accent-color: {{accent}};"></label>
+</section>
+</div>
+</sc-if>
+
+<!-- Models -->
+<sc-if value="{{isModels}}" hint-placeholder-val="{{false}}">
+<div class="scroll" style="flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+<button class="btn" style="height: 40px; border: 1px dashed #BDB7AC; border-radius: 10px; background: #FAF9F6; font-size: 13px; font-weight: 600; color: #1D1C1A; display: flex; align-items: center; justify-content: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Import a GLB model</button>
+<div style="border: 1px solid #E3DFD7; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 14px; font-weight: 600;">nested-side-table</span>
+<span style="font-size: 11.5px; color: #66625B;">nested-side-table.glb · 37 KB</span>
+</div>
+<span style="height: 22px; padding: 0 8px; border-radius: 11px; background: #F3EFE8; font-size: 11px; font-weight: 600; color: #4A4741; display: flex; align-items: center; white-space: nowrap;">Private · unverified</span>
+</div>
+<span style="font-size: 12px; color: #4A4741;">3 materials · 2 textures · 6 parts · placed W 60 × D 60 × H 50 cm</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: #66625B;">Authored units<select style="height: 34px; border: 1px solid #E3DFD7; border-radius: 8px; padding: 0 8px; font-size: 12.5px; background: #FFFFFF;"><option>Metres</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: #66625B;">Facing<select style="height: 34px; border: 1px solid #E3DFD7; border-radius: 8px; padding: 0 8px; font-size: 12.5px; background: #FFFFFF;"><option>As authored</option></select></label>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: #66625B;">Source<input placeholder="Unknown — where the file came from" style="height: 34px; box-sizing: border-box; border: 1px solid #E3DFD7; border-radius: 8px; padding: 0 10px; font-size: 12.5px;"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: #66625B;">Usage rights<input placeholder="Unknown — licence or permission" style="height: 34px; box-sizing: border-box; border: 1px solid #E3DFD7; border-radius: 8px; padding: 0 10px; font-size: 12.5px;"></label>
+</div>
+</div>
+</sc-if>
+
+<!-- Other tabs -->
+<sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+<div style="flex-grow: 1; padding: 28px 20px; font-size: 13px; color: #66625B;">This panel isn't drawn in the mock-up yet.</div>
+</sc-if>
+</aside>
+
+<!-- Viewport -->
+<main style="position: relative; flex-grow: 1; min-width: 0; background: #E9E6E0; overflow: hidden;">
+<svg viewBox="0 0 1060 844" preserveAspectRatio="xMidYMid slice" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" aria-hidden="true">
+<polygon points="0,0 1060,0 830,150 230,150" fill="#EEEAE3"></polygon>
+<polygon points="0,0 230,150 230,560 0,844" fill="#E7E1D7"></polygon>
+<polygon points="1060,0 830,150 830,560 1060,844" fill="#E2DBD0"></polygon>
+<rect x="230" y="150" width="600" height="410" fill="#F2EEE7"></rect>
+<polygon points="230,560 830,560 1060,844 0,844" fill="#D8C29F"></polygon>
+<g stroke="#C4AA82" stroke-width="1" opacity=".7">
+<line x1="280" y1="560" x2="88" y2="844"></line><line x1="330" y1="560" x2="177" y2="844"></line><line x1="380" y1="560" x2="265" y2="844"></line><line x1="430" y1="560" x2="353" y2="844"></line><line x1="480" y1="560" x2="442" y2="844"></line><line x1="530" y1="560" x2="530" y2="844"></line><line x1="580" y1="560" x2="618" y2="844"></line><line x1="630" y1="560" x2="707" y2="844"></line><line x1="680" y1="560" x2="795" y2="844"></line><line x1="730" y1="560" x2="883" y2="844"></line><line x1="780" y1="560" x2="972" y2="844"></line>
+</g>
+<polygon points="580,560 760,560 870,780 610,780" fill="#FFFFFF" opacity=".22"></polygon>
+<rect x="580" y="200" width="180" height="300" fill="#DDE6E9"></rect>
+<rect x="580" y="200" width="180" height="300" fill="none" stroke="#2A2926" stroke-width="4"></rect>
+<line x1="670" y1="200" x2="670" y2="500" stroke="#2A2926" stroke-width="3"></line>
+<line x1="580" y1="500" x2="760" y2="500" stroke="#2A2926" stroke-width="6"></line>
+<polygon points="330,640 740,640 830,770 240,770" fill="#C99F84"></polygon>
+<polygon points="350,652 720,652 800,758 270,758" fill="none" stroke="#A9705A" stroke-width="2"></polygon>
+<polygon points="535,668 585,705 535,742 485,705" fill="none" stroke="#E8D6BF" stroke-width="2"></polygon>
+<ellipse cx="440" cy="552" rx="170" ry="10" fill="#000000" opacity=".08"></ellipse>
+<rect x="296" y="420" width="288" height="62" rx="16" fill="#EDE5D7"></rect>
+<rect x="284" y="466" width="312" height="72" rx="16" fill="#F5EFE4"></rect>
+<rect x="272" y="448" width="40" height="96" rx="14" fill="#EDE5D7"></rect>
+<rect x="568" y="448" width="40" height="96" rx="14" fill="#EDE5D7"></rect>
+<ellipse cx="470" cy="672" rx="126" ry="10" fill="#000000" opacity=".1"></ellipse>
+<rect x="350" y="612" width="240" height="14" rx="3" fill="#3F3A35" opacity=".85"></rect>
+<rect x="360" y="626" width="10" height="42" fill="#6B4A33"></rect>
+<rect x="570" y="626" width="10" height="42" fill="#6B4A33"></rect>
+<line x1="720" y1="330" x2="720" y2="560" stroke="#A88B5C" stroke-width="4"></line>
+<ellipse cx="720" cy="562" rx="22" ry="5" fill="#A88B5C"></ellipse>
+<polygon points="692,286 748,286 760,332 680,332" fill="#F6F0E4"></polygon>
+<ellipse cx="660" cy="540" rx="26" ry="6" fill="#D9C3A0" stroke="#B89B72" stroke-width="2"></ellipse>
+<line x1="660" y1="546" x2="660" y2="578" stroke="#B89B72" stroke-width="4"></line>
+<circle cx="150" cy="470" r="46" fill="#8E9A72"></circle><circle cx="205" cy="440" r="52" fill="#7F8C66"></circle><circle cx="190" cy="510" r="44" fill="#95A07A"></circle>
+<line x1="180" y1="540" x2="180" y2="640" stroke="#6B5A45" stroke-width="5"></line>
+<polygon points="130,630 230,630 220,740 140,740" fill="#D2BFA7"></polygon>
+</svg>
+
+<!-- Selection outline and tag -->
+<sc-if value="{{sofaSelected}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; left: 262px; top: 410px; width: 356px; height: 142px; border: 1.5px solid {{accent}}; border-radius: 10px; box-sizing: border-box;"></div>
+<div style="position: absolute; left: 440px; top: 368px; transform: translateX(-50%); height: 28px; padding: 0 11px; border-radius: 14px; background: {{accent}}; color: #FFFFFF; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; white-space: nowrap;">Sofa · 214 cm</div>
+</sc-if>
+
+<!-- Top-left room chip -->
+<div style="position: absolute; top: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+<div style="height: 34px; padding: 0 12px; border-radius: 10px; background: rgba(255,255,255,.92); border: 1px solid rgba(29,28,26,.08); font-size: 12.5px; display: flex; align-items: center; gap: 8px;"><span style="font-weight: 600;">Living room</span><span style="color: #66625B;">5.50 × 4.50 m · ceiling 2.80 m</span></div>
+<div style="padding: 4px 8px; border-radius: 6px; border: 1px dashed #9C958A; font-size: 11px; color: #4A4741; background: rgba(255,255,255,.7);">Placeholder drawing · the live 3D room renders here</div>
+</div>
+
+<!-- View switcher -->
+<div role="group" aria-label="Camera view" style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.92); border: 1px solid rgba(29,28,26,.08); box-shadow: 0 1px 2px rgba(0,0,0,.05);">
+<sc-for list="{{views}}" as="v" hint-placeholder-count="3">
+<button onClick="{{v.pick}}" aria-pressed="{{v.selected}}" style="height: 30px; padding: 0 14px; border: 0; border-radius: 9px; background: {{v.bg}}; color: {{v.color}}; font-size: 12.5px; font-weight: 600; cursor: pointer; box-shadow: {{v.shadow}};">{{v.label}}</button>
+</sc-for>
+</div>
+
+<!-- Tools -->
+<div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.92); border: 1px solid rgba(29,28,26,.08);">
+<button class="ghost" aria-label="Undo" style="width: 32px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #4A4741; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"></path><path d="M4 9h11a5 5 0 0 1 0 10h-3"></path></svg></button>
+<button class="ghost" aria-label="Redo" style="width: 32px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #4A4741; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"></path><path d="M20 9H9a5 5 0 0 0 0 10h3"></path></svg></button>
+<div style="width: 1px; margin: 5px 0; background: #E3DFD7;"></div>
+<button class="ghost" style="height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #1D1C1A; font-size: 12.5px; font-weight: 500; display: flex; align-items: center; gap: 6px; cursor: pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Auto-arrange</button>
+<button class="ghost" style="height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #1D1C1A; font-size: 12.5px; font-weight: 500; display: flex; align-items: center; gap: 6px; cursor: pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="12" cy="12" r="3.2"></circle></svg>Snapshot</button>
+</div>
+
+<!-- Hint -->
+<div style="position: absolute; left: 16px; bottom: 16px; height: 32px; padding: 0 12px; border-radius: 16px; background: rgba(29,28,26,.78); color: #FFFFFF; font-size: 12px; display: flex; align-items: center;">Click a piece to move it · drag empty space to orbit</div>
+
+<!-- Inspector -->
+<section aria-label="Selected piece" style="position: absolute; right: 16px; bottom: 16px; width: 288px; box-sizing: border-box; padding: 14px; border-radius: 14px; background: rgba(255,255,255,.96); border: 1px solid rgba(29,28,26,.08); box-shadow: 0 8px 24px rgba(29,28,26,.12); display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: .8px; color: #66625B;">SELECTED</span>
+<span style="font-size: 14px; font-weight: 600; line-height: 1.25;">{{sel.name}}</span>
+</div>
+<span style="font-size: 13px; font-weight: 600; white-space: nowrap;">{{sel.price}}</span>
+</div>
+<span style="font-size: 12px; color: #4A4741;">{{sel.dims}} · approximate</span>
+<div style="display: flex; align-items: center; gap: 6px;">
+<span style="font-size: 12px; color: #66625B; margin-right: 4px;">Finish</span>
+<sc-for list="{{sel.swatches}}" as="s" hint-placeholder-count="3">
+<span style="width: 20px; height: 20px; border-radius: 10px; background: {{s.c}}; box-shadow: {{s.ring}};"></span>
+</sc-for>
+</div>
+<div style="display: flex; gap: 6px;">
+<button class="btn" style="flex-grow: 1; height: 32px; border: 1px solid #E3DFD7; border-radius: 8px; background: #FFFFFF; font-size: 12.5px; font-weight: 500; color: #1D1C1A;">Rotate 90°</button>
+<button class="btn" style="flex-grow: 1; height: 32px; border: 1px solid #E3DFD7; border-radius: 8px; background: #FFFFFF; font-size: 12.5px; font-weight: 500; color: #1D1C1A;">Duplicate</button>
+<button class="btn" aria-label="Remove from room" style="width: 36px; height: 32px; border: 1px solid #E3DFD7; border-radius: 8px; background: #FFFFFF; color: #9B3B2E; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"></path></svg></button>
+</div>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2E5B4F","options":["#2E5B4F","#1D1C1A","#8A5A3C","#34506E"]},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'shop', view: 'eye', picked: 'sofa' };
+  }
+  renderVals() {
+    const accent = this.props.accent ?? '#2E5B4F';
+    const s = this.state;
+    const cards = [
+      { id: 'sofa', kind: 'sofa', name: 'Boucle three-seat sofa', price: '$1,890', dims: 'W 214 × D 94 × H 81 cm', sw: ['#EFE8DC', '#D9CDB8', '#9A938A'], inRoom: true },
+      { id: 'table', kind: 'table', name: 'Walnut coffee table, smoked glass', price: '$640', dims: 'W 120 × D 60 × H 38 cm', sw: ['#6B4A33', '#3F3A35'], inRoom: true },
+      { id: 'lamp', kind: 'lamp', name: 'Brass floor lamp, linen shade', price: '$320', dims: 'Ø 40 × H 160 cm', sw: ['#B08D57', '#2A2926', '#F4EEE2'], inRoom: true },
+      { id: 'rug', kind: 'rug', name: 'Wool rug, terracotta and sand', price: '$780', dims: 'W 240 × D 170 cm', sw: ['#C99F84', '#E4D3BC', '#8E9A88'], inRoom: true },
+      { id: 'side', kind: 'side', name: 'Round oak side table', price: '$210', dims: 'Ø 45 × H 52 cm', sw: ['#D9C3A0', '#8A6A4E'], inRoom: true },
+      { id: 'olive', kind: 'plant', name: 'Olive tree in stone pot', price: '$440', dims: 'Ø 60 × H 180 cm', sw: ['#D2BFA7', '#9C958A'], inRoom: true },
+      { id: 'chair', kind: 'chair', name: 'Linen lounge armchair', price: '$690', dims: 'W 78 × D 82 × H 76 cm', sw: ['#E8DFD0', '#B7A58C', '#5E6B5A'], inRoom: false },
+      { id: 'travertine', kind: 'side', name: 'Travertine side table', price: '$380', dims: 'Ø 40 × H 48 cm', sw: ['#E3D6C2'], inRoom: false }
+    ];
+    const inRoomCount = cards.filter((c) => c.inRoom).length;
+    const decorated = cards.map((c) => {
+      const on = c.id === s.picked;
+      return {
+        ...c,
+        isSofa: c.kind === 'sofa', isTable: c.kind === 'table', isLamp: c.kind === 'lamp', isRug: c.kind === 'rug',
+        isSide: c.kind === 'side', isChair: c.kind === 'chair', isPlant: c.kind === 'plant',
+        notInRoom: !c.inRoom,
+        swatches: c.sw.map((x) => ({ c: x })),
+        border: on ? accent : '#E3DFD7',
+        ring: on ? '0 0 0 3px ' + accent + '26' : 'none',
+        pick: () => this.setState({ picked: c.id })
+      };
+    });
+    const sel = cards.find((c) => c.id === s.picked) || cards[0];
+    const tabDefs = [['place', 'Place'], ['design', 'Design'], ['shop', 'Shop'], ['search', 'Search'], ['photo', 'Photo'], ['models', 'Models']];
+    const tabs = tabDefs.map(([id, label]) => {
+      const on = id === s.tab;
+      return {
+        label, selected: on ? 'true' : 'false',
+        line: on ? accent : 'transparent', color: on ? '#1D1C1A' : '#66625B', weight: on ? 600 : 500,
+        badge: id === 'shop' ? String(inRoomCount) : false,
+        pick: () => this.setState({ tab: id })
+      };
+    });
+    const views = [['overview', 'Overview'], ['eye', 'Eye level'], ['corner', 'Corner']].map(([id, label]) => {
+      const on = id === s.view;
+      return {
+        label, selected: on ? 'true' : 'false',
+        bg: on ? '#1D1C1A' : 'transparent', color: on ? '#FFFFFF' : '#4A4741',
+        shadow: on ? '0 1px 2px rgba(0,0,0,.15)' : 'none',
+        pick: () => this.setState({ view: id })
+      };
+    });
+    const chips = ['Category', 'Style', 'Price', 'Colour', 'Size'].map((label, i) => ({
+      label, border: i === 0 ? '#1D1C1A' : '#E3DFD7', bg: i === 0 ? '#F3F1ED' : '#FFFFFF'
+    }));
+    return {
+      accent, tabs, views, chips, cards: decorated,
+      countLabel: inRoomCount + ' pieces',
+      isShop: s.tab === 'shop', isDesign: s.tab === 'design', isModels: s.tab === 'models',
+      isOther: ['place', 'search', 'photo'].includes(s.tab),
+      sofaSelected: s.picked === 'sofa',
+      sel: {
+        name: sel.name, price: sel.price + ' est.', dims: sel.dims,
+        swatches: sel.sw.map((x, i) => ({ c: x, ring: i === 0 ? '0 0 0 2px #FFFFFF, 0 0 0 3.5px ' + accent : 'inset 0 0 0 1px rgba(0,0,0,.12)' }))
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

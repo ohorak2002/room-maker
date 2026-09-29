@@ -2,6 +2,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
+  background: #e9e6e0;
 }
 
 .canvas-mount {
@@ -22,6 +23,21 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Floating chrome over the room shares one look: a near-opaque surface, a
+   hairline and a soft shadow, so it reads over any wall or floor colour. */
+.room-chip,
+.view-switch,
+.tool-group,
+.tool-toast,
+.piece-panel {
+  background: var(--overlay);
+  border: 1px solid var(--overlay-line);
+  box-shadow: 0 1px 2px rgba(29, 28, 26, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+/* --- hint pill ------------------------------------------------------------ */
+
 .canvas-hud {
   position: absolute;
   left: 16px;
@@ -30,108 +46,464 @@
   flex-direction: column;
   gap: 6px;
   pointer-events: none;
-  max-width: calc(100% - 32px);
+  max-width: calc(100% - 340px);
 }
 
 .hud-hint,
 .hud-sel {
   align-self: flex-start;
-  padding: 6px 11px;
-  border-radius: 3px;
-  font-size: 0.75rem;
-  background: rgba(20, 21, 24, 0.72);
-  color: #f0efec;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 6px 13px;
+  border-radius: 16px;
+  font-size: 12px;
+  line-height: 1.35;
+  background: rgba(29, 28, 26, 0.78);
+  color: #fff;
   backdrop-filter: blur(6px);
 }
 
 .hud-sel {
-  background: rgba(46, 107, 94, 0.92);
+  background: rgba(46, 91, 79, 0.92);
 }
 
 .hud-sel strong {
-  font-weight: 700;
+  font-weight: 600;
 }
 
-/* --- floating tools ----------------------------------------------------- */
+/* --- room chip (top left) ------------------------------------------------- */
+
+.room-chip-stack {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: calc(50% - 200px);
+}
+
+.room-chip {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  border-radius: var(--radius-m);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.room-chip:has(.chip-back) {
+  padding-left: 3px;
+  padding-right: 3px;
+}
+
+.room-chip-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.room-chip-dims {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-back {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.chip-back:hover {
+  background: var(--surface-sunk);
+}
+
+.room-chip-note {
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  background: var(--overlay);
+  border: 1px solid var(--overlay-line);
+}
+
+/* Confirmation that the room's contents are kept, where you'd look for a save
+   button. It reads state rather than performing an action. */
+.focus-save {
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-save:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* --- view switch (top centre) --------------------------------------------- */
+
+.view-switch {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-l);
+}
+
+.view-seg {
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.view-seg:hover {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+.view-seg.on {
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* --- tools (top right) ---------------------------------------------------- */
 
 .canvas-tools {
   position: absolute;
   top: 16px;
   right: 16px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
 }
 
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-l);
+}
+
+.tool-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 5px 3px;
+  background: var(--line);
+}
+
+.tool-icon,
 .tool-btn {
-  padding: 8px 14px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface);
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
   color: var(--ink);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
-.tool-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.tool-icon {
+  width: 32px;
+  color: var(--ink-soft);
 }
 
-.tool-btn.primary:hover {
-  background: var(--accent);
-  color: #fff;
+.tool-btn {
+  padding: 0 10px;
 }
 
+.tool-icon:hover:not(:disabled),
+.tool-btn:hover:not(:disabled) {
+  background: var(--surface-sunk);
+}
+
+.tool-icon:disabled,
+.tool-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tool-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius-m);
+  font-size: 12px;
+  color: var(--ink-soft);
+  animation: warn-in var(--dur-base) var(--ease-out) both;
+}
+
+/* Used by the whole-home overview, which keeps its own small tool row. */
 .tool-note {
   padding: 5px 10px;
-  border-radius: 3px;
-  font-size: 0.72rem;
-  background: rgba(20, 21, 24, 0.72);
-  color: #f0efec;
+  border-radius: 6px;
+  font-size: 12px;
+  background: rgba(29, 28, 26, 0.78);
+  color: #fff;
   backdrop-filter: blur(6px);
 }
 
-.tool-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.canvas-tools:has(.view-toggle) {
+  flex-direction: row;
+  align-items: center;
 }
 
-.tool-btn:disabled:hover {
-  border-color: var(--line);
+.view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--overlay-line);
+  border-radius: var(--radius-l);
+  background: var(--overlay);
+}
+
+.view-btn {
+  height: 30px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.view-btn:hover {
   color: var(--ink);
+}
+
+.view-btn.on {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+/* --- selected piece: frame, floating tag and panel ------------------------ */
+
+.piece-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1.5px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, width, height;
+}
+
+.piece-tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform;
+  box-shadow: 0 2px 8px rgba(29, 28, 26, 0.18);
+}
+
+.piece-panel {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 296px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(29, 28, 26, 0.12);
+  animation: warn-in var(--dur-base) var(--ease-out) both;
+}
+
+.piece-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.piece-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.piece-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.piece-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.piece-price {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--money);
+}
+
+.piece-price span {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.piece-size {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.piece-size span {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.piece-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.piece-btn {
+  flex: 1;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.piece-btn:hover {
+  background: var(--surface-sunk);
+}
+
+.piece-btn.danger {
+  flex: 0 0 38px;
+  color: var(--danger);
 }
 
 /* --- crowding warning --------------------------------------------------- */
 
 .crowd-warning {
   position: absolute;
-  top: 64px;
-  right: 16px;
+  top: 68px;
+  left: 16px;
   max-width: 300px;
-  padding: 11px 14px;
-  border-radius: 6px;
+  padding: 11px 30px 11px 14px;
+  border-radius: var(--radius-m);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: 12.5px;
   line-height: 1.5;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.12);
   animation: warn-in 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
 .crowd-warning strong {
-  color: var(--money);
+  color: var(--ink);
   display: block;
   margin-bottom: 3px;
 }
 
 @keyframes warn-in {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: none; }
+}
+
+.crowd-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-mid), color var(--dur-fast) var(--ease-mid);
+}
+
+.crowd-close:hover {
+  background: var(--surface-sunk);
+  color: var(--ink);
 }
 
 /* --- empty state -------------------------------------------------------- */
@@ -160,18 +532,18 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 24px 28px;
-  border-radius: 6px;
+  padding: 26px 30px;
+  border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--surface);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
   animation: warn-in 0.3s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
 .empty-title {
   font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 650;
+  font-size: 1.6rem;
+  font-weight: 400;
   color: var(--ink);
 }
 
@@ -185,132 +557,28 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .empty-card { animation: none; }
+  .empty-card,
+  .crowd-warning,
+  .piece-panel,
+  .tool-toast { animation: none; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .crowd-warning { animation: none; }
-}
-
-.crowd-warning {
-  padding-right: 30px;
-}
-
-.crowd-close {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--ink-muted);
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-mid), color var(--dur-fast) var(--ease-mid);
-}
-
-.crowd-close:hover {
-  background: var(--surface-sunk);
-  color: var(--ink);
-}
-
-/* Press feedback on the floating tools — confirms the tap inside 100ms. */
-.tool-btn:active:not(:disabled) {
+/* Press feedback on the floating tools — confirms the click inside 100ms. */
+.tool-btn:active:not(:disabled),
+.tool-icon:active:not(:disabled),
+.view-seg:active,
+.piece-btn:active {
   transform: scale(0.96);
 }
 
-.tool-btn {
-  transition: border-color var(--dur-fast) var(--ease-mid),
-              color var(--dur-fast) var(--ease-mid),
-              background var(--dur-fast) var(--ease-mid),
-              transform var(--dur-fast) var(--ease-mid);
-}
+/* Narrow stage: the view switch drops below the tools rather than colliding. */
+@media (max-width: 1180px) {
+  .view-switch {
+    top: auto;
+    bottom: 60px;
+  }
 
-/* --- focused-room banner (whole-home scope) ------------------------------ */
-
-.focus-banner {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 12px 6px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.14);
-  animation: warn-in 240ms var(--ease-out) both;
-}
-
-.focus-name {
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .focus-banner { animation: none; }
-}
-
-/* --- overview view toggle ------------------------------------------------ */
-
-.view-toggle {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--surface);
-}
-
-.view-btn {
-  padding: 6px 14px;
-  border: none;
-  background: none;
-  color: var(--ink-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.16s ease, color 0.16s ease;
-}
-
-.view-btn + .view-btn {
-  border-left: 1px solid var(--line);
-}
-
-.view-btn:hover {
-  color: var(--ink);
-}
-
-.view-btn.on {
-  background: var(--accent);
-  color: #fff;
-}
-
-/* Confirmation that the room's contents are kept, in the banner where you'd
-   look for a save button. It reads state rather than performing an action. */
-.focus-save {
-  margin-left: 10px;
-  padding: 5px 11px;
-  border: 1px solid var(--accent);
-  border-radius: 3px;
-  background: var(--accent-wash);
-  color: var(--accent);
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.focus-save:hover {
-  background: var(--accent);
-  color: #fff;
+  .room-chip-stack {
+    max-width: calc(100% - 360px);
+  }
 }

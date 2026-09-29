@@ -1600,6 +1600,13 @@ function buildShell({ shape, h, colors, windows, wallMaterial }) {
     return m
   }
 
+  // Every wall and the ceiling is a cutaway: the renderer hides whichever ones
+  // stand between an outside camera and the room (see updateCutaways), so the
+  // room is closed on all sides when you stand in it and still opens like a
+  // dollhouse when you orbit around it.
+  const cutaways = []
+  const cutaway = (from, spec) => cutaways.push({ ...spec, parts: g.children.slice(from), hidden: false })
+
   // --- floor and ceiling, from merged cell runs --------------------------
   for (const run of floorRuns(shape)) {
     const slab = box(run.w, t, run.d, floorMat, FLOOR_TILE)
@@ -1607,21 +1614,25 @@ function buildShell({ shape, h, colors, windows, wallMaterial }) {
     slab.userData.noCast = true
     g.add(slab)
 
+    const from = g.children.length
     const cap = box(run.w, t, run.d, ceilMat, CEILING_TILE)
     cap.position.set(run.x, h + t / 2, run.z)
     g.add(cap)
+    cutaway(from, { axis: 'y', at: h, inward: -1 })
   }
 
   // --- walls on every inside/outside boundary -----------------------------
-  // The near wall (facing the camera) is left off so the room reads as a
-  // dollhouse cutaway rather than a sealed box.
   const win = windows ? windowWall(shape) : null
   const bounds = shapeBounds(shape)
   const nearZ = bounds.d / 2
 
   for (const seg of wallRuns(shape)) {
-    // Skip walls on the near edge — those are the ones we'd be looking through.
-    if (seg.axis === 'x' && seg.facing === -1 && Math.abs(seg.z - nearZ) < 0.01) continue
+    // The near wall used to be left off for a permanent dollhouse view. It is
+    // built now so an eye-level view is enclosed, but it never casts shadows:
+    // the lighting was tuned without it, and windowless rooms are lit from
+    // that side.
+    const near = seg.axis === 'x' && seg.facing === -1 && Math.abs(seg.z - nearZ) < 0.01
+    const from = g.children.length
 
     const isWindowWall =
       win && seg.axis === 'x' && Math.abs(seg.z - win.z) < 0.01 && Math.abs(seg.x - win.x) < 0.01
@@ -1650,12 +1661,47 @@ function buildShell({ shape, h, colors, windows, wallMaterial }) {
       seg.z + (seg.axis === 'x' ? seg.facing * (t / 2 + 0.018) : 0)
     )
     g.add(bb)
+
+    if (near) {
+      for (const part of g.children.slice(from)) part.traverse((o) => { o.userData.noCast = true })
+    }
+    cutaway(from, { axis: seg.axis, at: seg.axis === 'x' ? seg.z : seg.x, inward: seg.facing })
   }
 
   g.traverse((o) => {
     if (o.isMesh && o.userData.tile) worldUV(o, o.userData.tile)
   })
+  g.userData.cutaways = cutaways
+  g.userData.bounds = { w: bounds.w, d: bounds.d, h }
   return g
+}
+
+/** Layer for walls hidden from the view camera; shadow cameras still see it. */
+export const CUTAWAY_LAYER = 1
+
+/**
+ * Hides the walls (and ceiling) that stand between an outside camera and the
+ * room. A wall is hidden only when the camera is beyond the room's bounds on
+ * that wall's outer side, so nothing is hidden while you stand inside, even in
+ * an L-shaped room. Hidden walls move to CUTAWAY_LAYER, which the shadow
+ * cameras also render, so lighting does not change as the camera moves.
+ */
+export function updateCutaways(room, position) {
+  const cutaways = room?.cutaways
+  if (!cutaways) return
+  const b = room.bounds
+  const beyond = {
+    x: Math.abs(position.z) > b.d / 2,
+    z: Math.abs(position.x) > b.w / 2,
+    y: position.y > b.h,
+  }
+  for (const c of cutaways) {
+    const coord = c.axis === 'x' ? position.z : c.axis === 'z' ? position.x : position.y
+    const hide = beyond[c.axis] && (coord - c.at) * c.inward < 0
+    if (hide === c.hidden) continue
+    c.hidden = hide
+    for (const part of c.parts) part.traverse((o) => o.layers.set(hide ? CUTAWAY_LAYER : 0))
+  }
 }
 
 /** A painted exterior seen through the glass: sky over a soft distant band. */
@@ -1821,6 +1867,7 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   sun.shadow.camera.right = span
   sun.shadow.camera.top = span
   sun.shadow.camera.bottom = -span
+  sun.shadow.camera.layers.enable(CUTAWAY_LAYER)
   add(sun)
 
   // Diffuse daylight off the ceiling, approximated as a soft, nearly vertical
@@ -1842,6 +1889,7 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   top.shadow.camera.right = half
   top.shadow.camera.top = half
   top.shadow.camera.bottom = -half
+  top.shadow.camera.layers.enable(CUTAWAY_LAYER)
   add(top)
 
   return () => added.forEach((l) => scene.remove(l))
@@ -1967,7 +2015,7 @@ export function buildRoom(scene, config) {
     disposeTree(group)
   }
 
-  return { dispose, handles, group }
+  return { dispose, handles, group, cutaways: shell.userData.cutaways, bounds: shell.userData.bounds }
 }
 
 // Superseded by three/atmosphere.js, which paints a gradient sky plus fog and
