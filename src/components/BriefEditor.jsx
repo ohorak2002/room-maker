@@ -9,7 +9,7 @@ const Field=({label,value,onChange,type='text',options,wide=false})=><label clas
 const Check=({label,value,onChange})=><label className="brief-checkbox"><input type="checkbox" checked={!!value} onChange={e=>onChange(e.target.checked)}/>{label}</label>
 // The Brief is written here, in the app. The draft lives in the project itself
 // (so autosave and recovery keep it); nothing is uploaded or exported.
-export default function BriefEditor({onReview,onDiscard}){
+export default function BriefEditor({onReview,onDiscard,onSkip}){
   const doc=useRoomStore(s=>s.briefDraft),setDoc=fn=>useRoomStore.getState().setBriefDraft(fn(useRoomStore.getState().briefDraft))
   const [section,setSection]=useState('project'),[roomIndex,setRoomIndex]=useState(0),[messages,setMessages]=useState([]),[status,setStatus]=useState(''),[assistant,setAssistant]=useState(''),[proposal,setProposal]=useState(null),[undo,setUndo]=useState(null),[outlineText,setOutlineText]=useState('')
   const room=doc.rooms[roomIndex],attachment=doc.attachments.find(a=>a.id===doc.plan.attachmentId)
@@ -25,7 +25,7 @@ export default function BriefEditor({onReview,onDiscard}){
     edit(d=>{const a={id:crypto.randomUUID(),name:file.name,mime:file.type,dataUrl};d.attachments=[a];d.plan.attachmentId=a.id;d.plan.source='attachment';d.plan.layoutVerified=false;d.rooms.forEach(r=>{r.geometryVerified=false;r.openingsVerified=false})})
   }catch(e){setMessages([e.message])}}
   return <div className="brief-app"><header className="brief-header"><span>OFFICIAL DESIGN BRIEF · V1</span></header>
-    <div className="brief-editor-layout"><nav className="brief-nav">{SECTIONS.map(([id,label])=><button key={id} aria-pressed={section===id} onClick={()=>setSection(id)}>{label}</button>)}<button onClick={()=>{if(window.confirm('Discard this Brief and start over?'))onDiscard()}}>Discard this Brief</button></nav>
+    <div className="brief-editor-layout"><nav className="brief-nav">{SECTIONS.map(([id,label])=><button key={id} aria-pressed={section===id} onClick={()=>setSection(id)}>{label}</button>)}<button onClick={()=>{if(window.confirm('Discard this Brief and start over?'))onDiscard()}}>Discard this Brief</button><button onClick={()=>{if(window.confirm('Skip the Brief and go straight to a room? This Brief draft will be discarded.'))onSkip()}}>Skip the Brief</button></nav>
       <main className="brief-editor-main"><span className="brief-eyebrow">A SPACE THAT FEELS LIKE YOU</span><h1>A beautiful room.<br/>A clear place to start.</h1><p className="brief-lead">Capture the foundation. Choose the furniture together later.</p>
         <div className="brief-editor-grid"><section className="brief-form"><h2>{SECTIONS.find(x=>x[0]===section)[1]}</h2>
           {section!=='project'&&<div className="brief-room-picker"><label className="brief-field"><span>Editing room</span><select value={roomIndex} onChange={e=>setRoomIndex(Number(e.target.value))}>{doc.rooms.map((r,i)=><option key={r.id} value={i}>{r.name||`Room ${i+1}`}</option>)}</select></label><strong>{room.name||`Room ${roomIndex+1}`}</strong><button onClick={()=>{const next=newBriefRoom(doc.rooms.length+1);next.id=crypto.randomUUID();edit(d=>{d.rooms.push(next);d.plan.layoutVerified=false});setRoomIndex(doc.rooms.length)}} disabled={doc.rooms.length>=30}>Add room</button>{doc.rooms.length>1&&<button onClick={()=>{edit(d=>{d.rooms.splice(roomIndex,1);d.plan.layoutVerified=false});setRoomIndex(0)}}>Remove room</button>}</div>}

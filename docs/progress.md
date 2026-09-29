@@ -1,3 +1,7 @@
+# Progress — 2026-09-29 (skip the Brief)
+
+Added "Skip the Brief — go straight to a room" on the start screen (and "Skip the Brief" inside the editor, which discards the draft). It opens the ordinary approximate room (living-room grid), no Brief, no measurements: for trying Nested without filling a Brief. Covered by `npm run test:brief` step 10.
+
 # Progress — 2026-09-29 (Brief chat parked)
 
 Decision: the hosted AI service is postponed. The Brief chat stays on screen, disabled, with "Doesn't work right now" so it remains a visible reminder; all plumbing is kept (IPC, allowlist, reference server, tests). It becomes live only if a service address is set in `NESTED_AI_URL` / `userData/ai.json`. Planned section of Nested: deploy a hosted service (hosting is cheap; model usage is pay-per-token), then add sign-in, rate limiting and a spend cap first.

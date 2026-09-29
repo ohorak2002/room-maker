@@ -172,6 +172,10 @@ try {
   await page.getByRole('button', { name: 'More project actions' }).click()
   await page.getByRole('menuitem', { name: 'New project' }).click()
   await page.getByRole('heading', { name: 'Start with a Brief.' }).waitFor()
+  // 10. The way around the Brief: straight to an ordinary room.
+  await page.getByRole('button', { name: /^Skip the Brief/ }).click()
+  await page.locator('.canvas-mount canvas').waitFor()
+  assert.equal(await page.getByText('Your room is empty').count(), 1)
   assert.deepEqual(external, [])
   assert.deepEqual(errors, [])
   console.log(JSON.stringify({ ok: true, screenshots: output, errors, external, chatRequests: requests.length }, null, 2))

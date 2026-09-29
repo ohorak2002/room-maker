@@ -57,6 +57,12 @@ export const useRoomStore = create(
     canUndo: () => get()._past.length > 0,
 
     set: (key, value) => set({ [key]: value }),
+    /**
+     * Go straight to an ordinary room without a Brief (for trying things out).
+     * The room is the app's approximate half-metre one, not measured.
+     */
+    skipBrief: () => set({ onboarded: true, briefDraft: null, floorplan: 'living' }),
+
     /** Begin writing a Brief in the app. */
     startBrief: () => set({ briefDraft: newBrief() }),
     setBriefDraft: (briefDraft) => set({ briefDraft }),

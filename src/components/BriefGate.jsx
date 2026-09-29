@@ -14,6 +14,7 @@ export default function BriefGate() {
   const draft = useRoomStore((s) => s.briefDraft)
   const startBrief = useRoomStore((s) => s.startBrief)
   const setBriefDraft = useRoomStore((s) => s.setBriefDraft)
+  const skipBrief = useRoomStore((s) => s.skipBrief)
   const [reviewing, setReviewing] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState('')
@@ -41,7 +42,9 @@ export default function BriefGate() {
           <p className="brief-lead">Capture the plan, the measurements and the vision.<br />We’ll prepare the space for you to design together.</p>
           <div className="brief-start-actions">
             <button className="brief-primary" onClick={startBrief}>Start a new brief</button>
+            <button onClick={skipBrief}>Skip the Brief — go straight to a room</button>
           </div>
+          <p className="brief-caption">Skipping gives you an ordinary, approximate room with no measurements or Brief, handy for trying things out. </p>
           <p className="brief-caption">Everything happens here in Nested. Furniture and accessories come later, in the room editor. To continue a project you already started, choose Open… in the bar above.</p>
           <p className="brief-footnote">Nested uses only the measurements you verify. It does not infer exact dimensions from an image or document.</p>
         </main>
@@ -50,7 +53,7 @@ export default function BriefGate() {
   }
   if (!reviewing) {
     return <>
-      <BriefEditor onReview={review} onDiscard={() => setBriefDraft(null)} />
+      <BriefEditor onReview={review} onDiscard={() => setBriefDraft(null)} onSkip={skipBrief} />
       {error && <p className="brief-error" role="alert">{error}</p>}
     </>
   }
