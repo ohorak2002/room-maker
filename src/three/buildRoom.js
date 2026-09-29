@@ -7,6 +7,7 @@ import { applySurface } from './textures'
 import { FIDDLE_FIG } from './meshes/fiddleFig'
 import { loadAsset, instantiate, placeholder } from './assetLoader'
 import { placedDimensions } from '../../shared/assets.mjs'
+import { pilotSofa, pilotTable } from './pilotFurniture'
 
 /**
  * Build a mesh that arrived as raw geometry rather than as code.
@@ -74,14 +75,18 @@ const mat = (color, roughness = 0.85, metalness = 0.0, envMapIntensity = 0.6, su
   return surface ? applySurface(m, surface, repeat) : m
 }
 
-const glow = (color, intensity = 1.2) =>
-  new THREE.MeshStandardMaterial({
+const glow = (color, intensity = 1.2) => {
+  const m = new THREE.MeshStandardMaterial({
     color: new THREE.Color(color),
     emissive: new THREE.Color(color),
     emissiveIntensity: intensity,
     roughness: 0.4,
     envMapIntensity: 0.3,
   })
+  // Remembered so the room's accent-lighting switch can dim and restore it.
+  m.userData.glow = intensity
+  return m
+}
 
 /**
  * Every rectangular part is a rounded box, not a hard-edged one. Real furniture
@@ -300,6 +305,13 @@ const frontLoader = (it, doorTint) => {
   g.add(dial)
   return g
 }
+
+// Development-only (VITE_NESTED_DEBUG=1 builds): scripts/material-compare.mjs
+// sets window.__nestedLegacyPieces before load to render the old sofa and table
+// under today's lighting, for a controlled before/after. Not present in
+// production builds.
+const usesPilot = (it) =>
+  it.materialSet === 'pilot' && !(import.meta.env.VITE_NESTED_DEBUG === '1' && window.__nestedLegacyPieces)
 
 export const builders = {
   /**
@@ -616,6 +628,8 @@ export const builders = {
    * amount of texture rescues it.
    */
   sofa: (it) => {
+    // Material pilot: only the catalog entry that names a material set.
+    if (usesPilot(it)) return pilotSofa(it)
     const g = new THREE.Group()
     const m = FABRIC(it.color)
     const W = 2.1
@@ -714,6 +728,7 @@ export const builders = {
   },
 
   table: (it) => {
+    if (usesPilot(it)) return pilotTable(it)
     const g = new THREE.Group()
     // Round top with a chamfered edge, on a weighted pedestal. The profile is
     // what stops it reading as a disc balanced on a tube.
@@ -1573,7 +1588,7 @@ function worldUV(mesh, tile) {
 const FLOOR_TILE = 2.4
 const CEILING_TILE = 1.5
 
-function buildShell({ shape, h, colors, windows, wallMaterial }) {
+function buildShell({ shape, h, colors, windows, wallMaterial, lighting }) {
   // Architecture wants crisp corners — a bevelled wall reads as a mistake, and
   // rounding the shell would also leave visible seams where planes meet.
   const g = new THREE.Group()
@@ -1647,6 +1662,7 @@ function buildShell({ shape, h, colors, windows, wallMaterial }) {
       addWindowedWall(g, seg, h, t, {
         wallMat,
         trimMat,
+        lighting,
         box: (w, hh, d, m) => box(w, hh, d, m, m === wallMat ? wallTile : 1),
       })
     }
@@ -1704,25 +1720,36 @@ export function updateCutaways(room, position) {
   }
 }
 
-/** A painted exterior seen through the glass: sky over a soft distant band. */
-let viewTexture = null
-function windowView() {
-  if (viewTexture) return viewTexture
+/**
+ * A painted exterior seen through the glass: sky over a soft distant band. The
+ * sky follows the lighting preset, or an evening room would look out on noon.
+ */
+const VIEW_SKIES = {
+  day: ['#9fbfd6', '#d6e4ec', '#e9eee9', '#aeb7a8', '#8f9887'],
+  golden: ['#8fa7c2', '#efcf9f', '#f6dcae', '#8a7a5a', '#6e6248'],
+  dusk: ['#121a30', '#2f3d5c', '#77606a', '#1a1e26', '#12151a'],
+}
+const viewTextures = {}
+function windowView(lighting) {
+  const kind = lighting === 'moody' ? 'dusk' : lighting === 'golden' || lighting === 'warm' ? 'golden' : 'day'
+  if (viewTextures[kind]) return viewTextures[kind]
   const c = document.createElement('canvas')
   c.width = 4
   c.height = 256
   const ctx = c.getContext('2d')
   const grad = ctx.createLinearGradient(0, 0, 0, 256)
-  grad.addColorStop(0, '#9fbfd6')
-  grad.addColorStop(0.55, '#d6e4ec')
-  grad.addColorStop(0.72, '#e9eee9')
-  grad.addColorStop(0.74, '#aeb7a8')
-  grad.addColorStop(1, '#8f9887')
+  const [a, b, d, e, f] = VIEW_SKIES[kind]
+  grad.addColorStop(0, a)
+  grad.addColorStop(0.55, b)
+  grad.addColorStop(0.72, d)
+  grad.addColorStop(0.74, e)
+  grad.addColorStop(1, f)
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, 4, 256)
-  viewTexture = new THREE.CanvasTexture(c)
-  viewTexture.colorSpace = THREE.SRGBColorSpace
-  return viewTexture
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  viewTextures[kind] = tex
+  return tex
 }
 
 /**
@@ -1732,7 +1759,7 @@ function windowView() {
  * view blocked the sun completely and the glass printed a dark translucent
  * slab into the room — the "dark rectangle" in the baseline screenshots.
  */
-function addWindowedWall(g, seg, h, t, { wallMat, trimMat, box }) {
+function addWindowedWall(g, seg, h, t, { wallMat, trimMat, box, lighting }) {
   const ww = Math.min(2.4, seg.len * 0.62)
   const sill = 0.9
   const top = Math.min(h - 0.45, sill + 1.6)
@@ -1795,7 +1822,7 @@ function addWindowedWall(g, seg, h, t, { wallMat, trimMat, box }) {
   // the window read as an opening onto distance rather than a picture.
   const view = new THREE.Mesh(
     new THREE.PlaneGeometry(ww * 2.2, (top - sill) * 2.2),
-    new THREE.MeshBasicMaterial({ map: windowView(), fog: false })
+    new THREE.MeshBasicMaterial({ map: windowView(lighting), fog: false })
   )
   view.position.set(seg.x, midY, seg.z - seg.facing * 0.9)
   view.rotation.y = seg.facing > 0 ? 0 : Math.PI
@@ -1859,7 +1886,10 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   sun.shadow.mapSize.set(2048, 2048)
   sun.shadow.radius = 3
   sun.shadow.bias = -0.0006
-  sun.shadow.normalBias = 0.02
+  // 0.05: at 0.02 the sun's shadow map self-shadowed near-horizontal surfaces
+  // (a coffee table top showed ~1 cm stripes and a dished rim). Measured in
+  // scripts/material-compare.mjs captures; contact shadows are unchanged.
+  sun.shadow.normalBias = 0.05
   sun.shadow.camera.near = 0.5
   sun.shadow.camera.far = 40
   const span = Math.max(w, d)
@@ -1881,7 +1911,7 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   top.shadow.mapSize.set(2048, 2048)
   top.shadow.radius = 8
   top.shadow.bias = -0.0004
-  top.shadow.normalBias = 0.02
+  top.shadow.normalBias = 0.05
   top.shadow.camera.near = 0.01
   top.shadow.camera.far = h + 1
   const half = span / 2 + 0.5
@@ -1892,7 +1922,19 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   top.shadow.camera.layers.enable(CUTAWAY_LAYER)
   add(top)
 
-  return () => added.forEach((l) => scene.remove(l))
+  // In-place sun height, so a slider does not rebuild the room. The horizontal
+  // direction stays where the room put it (through the window); only the
+  // elevation changes, at the same distance. null restores the room's own.
+  const sunBase = sun.position.clone()
+  const sunDist = sunBase.length()
+  const sunHoriz = Math.hypot(sunBase.x, sunBase.z) || 1
+  const sunDefaultElevation = (Math.atan2(sunBase.y, sunHoriz) * 180) / Math.PI
+  const setSun = (degrees) => {
+    if (degrees == null) return sun.position.copy(sunBase)
+    const el = (Math.min(85, Math.max(5, degrees)) * Math.PI) / 180
+    sun.position.set((sunBase.x / sunHoriz) * sunDist * Math.cos(el), sunDist * Math.sin(el), (sunBase.z / sunHoriz) * sunDist * Math.cos(el))
+  }
+  return { dispose: () => added.forEach((l) => scene.remove(l)), setSun, sunDefaultElevation }
 }
 
 // ---------------------------------------------------------------------------
@@ -2006,16 +2048,31 @@ export function buildRoom(scene, config) {
   const handles = placeItems(group, config.entries, config.placements, live, config.assets, config.onChange)
   scene.add(group)
 
-  const disposeLights = buildLights(scene, config)
+  const lights = buildLights(scene, config)
+
+  // Accent lighting: every lamp's own light and glow, on or (nearly) off. Done
+  // by scaling intensities, not by toggling visibility, so no shader recompiles.
+  const setAccent = (on) => {
+    group.traverse((o) => {
+      if (o.isPointLight) {
+        o.userData.base ??= o.intensity
+        o.intensity = on ? o.userData.base : 0
+      }
+      if (!o.isMesh) return
+      for (const m of [].concat(o.material)) {
+        if (m?.userData?.glow != null) m.emissiveIntensity = on ? m.userData.glow : m.userData.glow * 0.06
+      }
+    })
+  }
 
   const dispose = () => {
     live.ok = false
-    disposeLights()
+    lights.dispose()
     scene.remove(group)
     disposeTree(group)
   }
 
-  return { dispose, handles, group, cutaways: shell.userData.cutaways, bounds: shell.userData.bounds }
+  return { dispose, handles, group, cutaways: shell.userData.cutaways, bounds: shell.userData.bounds, setSun: lights.setSun, setAccent, sunDefaultElevation: lights.sunDefaultElevation }
 }
 
 // Superseded by three/atmosphere.js, which paints a gradient sky plus fog and

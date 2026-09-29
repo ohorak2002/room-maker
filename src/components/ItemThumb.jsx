@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { renderThumbnail } from '../three/thumbnail'
+import { preloadMaterials } from '../three/photoMaterials'
+import { PILOT_MATERIALS } from '../data/materialSources'
 
 /**
  * A 3D preview of a catalog item. Renders lazily — only once the row scrolls
@@ -29,6 +31,13 @@ export default function ItemThumb({ item, size = 46, className = 'item-thumb' })
 
   useEffect(() => {
     if (!seen) return
+    // Pieces with photographic maps wait for them, or the preview would be
+    // cached with the plain fallback colour.
+    if (item.materialSet === 'pilot') {
+      let live = true
+      preloadMaterials(Object.values(PILOT_MATERIALS)).then(() => live && setUrl(renderThumbnail(item)))
+      return () => { live = false }
+    }
     // Yield a frame so a burst of newly visible rows doesn't block scrolling.
     const id = requestAnimationFrame(() => setUrl(renderThumbnail(item)))
     return () => cancelAnimationFrame(id)

@@ -23,6 +23,8 @@ const app = await electron.launch({ args: [root], env })
 try {
   const page = await app.firstWindow()
   await page.emulateMedia({ reducedMotion: 'reduce' })
+  page.on('pageerror', (err) => console.error('PAGE ERROR:', err.message))
+  page.on('console', (m) => m.type() === 'error' && console.error('CONSOLE ERROR:', m.text()))
   await page.getByRole('button', { name: 'Restore project', exact: true }).click()
   await page.locator('.canvas-mount canvas').waitFor()
   await page.waitForTimeout(1500)

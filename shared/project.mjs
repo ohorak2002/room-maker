@@ -1,7 +1,8 @@
 import { validateAssetRecord } from './assets.mjs'
 
 // v2 added `assets`: private imported models referenced by checksum.
-export const PROJECT_VERSION = 2
+// v3 added `studio` (brightness, sun height, accent lights) and `views` (saved cameras).
+export const PROJECT_VERSION = 3
 export const MAX_PROJECT_BYTES = 32 * 1024 * 1024
 export const ROOM_DEFAULTS = {
   onboarded: false, scope: 'room', home: null, focusedRoom: null, activeFloor: 0,
@@ -10,7 +11,12 @@ export const ROOM_DEFAULTS = {
   planImage: null, windows: true, wallOverride: null, floorOverride: null,
   items: [], synthetics: {}, placements: {}, layoutRev: 0, photo: null,
   assets: {},
+  // sun: null = the room's own default sun height; otherwise degrees above the horizon.
+  studio: { brightness: 100, sun: null, accent: true },
+  views: [],
 }
+export const MAX_VIEWS = 40
+export const VIEW_MODES = ['overview', 'eye', 'corner']
 const fail = (message) => { throw new Error(`Invalid Nested project: ${message}`) }
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const finite = (v) => typeof v === 'number' && Number.isFinite(v)
@@ -31,6 +37,27 @@ function shape(value) {
   if (value.h !== undefined && (!finite(value.h) || value.h <= 0 || value.h > 100)) fail('invalid ceiling')
   if (value.cells.some(c => typeof c !== 'string' || !/^\d+,\d+$/.test(c) || Number(c.split(',')[0]) >= value.cols || Number(c.split(',')[1]) >= value.rows)) fail('invalid room cell')
 }
+const vec3 = (v) => Array.isArray(v) && v.length === 3 && v.every(finite)
+function studio(value) {
+  if (!object(value) || !finite(value.brightness) || value.brightness < 50 || value.brightness > 160) fail('invalid lighting brightness')
+  if (value.sun !== null && (!finite(value.sun) || value.sun < 0 || value.sun > 90)) fail('invalid sun height')
+  if (typeof value.accent !== 'boolean') fail('invalid accent lighting')
+}
+function views(value) {
+  if (!Array.isArray(value) || value.length > MAX_VIEWS) fail('invalid saved views')
+  const ids = new Set()
+  for (const v of value) {
+    if (!object(v) || typeof v.id !== 'string' || !v.id || v.id.length > 64 || ids.has(v.id)) fail('invalid saved view')
+    ids.add(v.id)
+    if (typeof v.name !== 'string' || !v.name.trim() || v.name.length > 80) fail('invalid saved view name')
+    if (typeof v.roomKey !== 'string' || v.roomKey.length > 200) fail('invalid saved view room')
+    if (!VIEW_MODES.includes(v.mode)) fail('invalid saved view mode')
+    if (!vec3(v.position) || !vec3(v.target)) fail('invalid saved view camera')
+    if (!finite(v.fov) || v.fov < 20 || v.fov > 90) fail('invalid saved view field of view')
+    // A small JPEG preview, kept so the strip does not need a re-render on open.
+    if (v.thumb !== null && (typeof v.thumb !== 'string' || !v.thumb.startsWith('data:image/jpeg;base64,') || v.thumb.length > 120000)) fail('invalid saved view preview')
+  }
+}
 export function validateProject(doc) {
   if (!object(doc) || doc.format !== 'nested-project' || doc.version !== PROJECT_VERSION) fail('unsupported format or version')
   safeTree(doc)
@@ -43,6 +70,8 @@ export function validateProject(doc) {
     if (fallback !== null && (Array.isArray(fallback) ? !Array.isArray(s[k]) : typeof s[k] !== typeof fallback || (typeof fallback === 'object' && !object(s[k])))) fail(`invalid ${k}`)
   }
   items(s.items)
+  studio(s.studio)
+  views(s.views)
   if (!['room', 'home'].includes(s.scope)) fail('invalid scope')
   if (s.customShape) shape(s.customShape)
   if (s.customDims !== null && (!object(s.customDims) || !finite(s.customDims.h) || s.customDims.h <= 0)) fail('invalid dimensions')
@@ -74,10 +103,12 @@ export function createProject(state, details = {}) {
 }
 /** Bring an older saved file up to the current version, without guessing data. */
 export function migrateProject(doc) {
-  if (object(doc) && doc.format === 'nested-project' && doc.version === 1 && object(doc.state) && !('assets' in doc.state)) {
-    return { ...doc, version: PROJECT_VERSION, state: { ...doc.state, assets: {} } }
-  }
-  return doc
+  if (!object(doc) || doc.format !== 'nested-project' || !object(doc.state)) return doc
+  let next = doc
+  // Each step only fills in what its version introduced; nothing is guessed.
+  if (next.version === 1) next = { ...next, version: 2, state: { ...next.state, assets: next.state.assets ?? {} } }
+  if (next.version === 2) next = { ...next, version: 3, state: { ...next.state, studio: next.state.studio ?? structuredClone(ROOM_DEFAULTS.studio), views: next.state.views ?? [] } }
+  return next
 }
 export function parseProject(text) {
   if (new TextEncoder().encode(text).length > MAX_PROJECT_BYTES) fail('file exceeds 32 MB')

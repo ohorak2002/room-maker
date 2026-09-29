@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import './ControlsPanel.css'
 
 /**
  * A collapsible panel section. On a phone the Design panel is only ~46% of the

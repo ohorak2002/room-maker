@@ -77,10 +77,12 @@ assert.throws(() => stringifyProject(rekeyed), /checksum/)
 // A version 1 file (before imports existed) opens with an empty asset list.
 const v1 = structuredClone(createProject(structuredClone(ROOM_DEFAULTS), { name: 'Old file' }))
 v1.version = 1
-delete v1.state.assets
+delete v1.state.assets; delete v1.state.studio; delete v1.state.views
 const migrated = parseProject(JSON.stringify(v1))
 assert.equal(migrated.version, PROJECT_VERSION)
 assert.deepEqual(migrated.state.assets, {})
+assert.deepEqual(migrated.state.studio, ROOM_DEFAULTS.studio)
+assert.deepEqual(migrated.state.views, [])
 // Future versions are still refused rather than guessed at.
-assert.throws(() => parseProject(JSON.stringify({ ...v1, version: 3 })))
+assert.throws(() => parseProject(JSON.stringify({ ...v1, version: 99 })))
 console.log('GLB inspection, unit/orientation handling, asset records and v1 migration passed')

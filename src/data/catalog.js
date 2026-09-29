@@ -54,7 +54,7 @@ const raw = [
   { id: 'chair-budget', name: 'Mesh Task Chair (Value)', cat: 'seating', retailer: 'walmart', price: 79, color: '#33353A', model: 'chair', h: 1.05, fp: 0.4, group: 'task-chair', vibes: ['modern', 'cool'] },
   { id: 'lounge-chair', name: 'Upholstered Lounge Chair', cat: 'seating', retailer: 'westelm', price: 799, color: '#8A6F5C', model: 'armchair', h: 0.85, fp: 0.55, group: 'accent-chair', vibes: ['cozy', 'warm', 'bold'] },
   { id: 'accent-budget', name: 'Accent Armchair (Value)', cat: 'seating', retailer: 'wayfair', price: 249, color: '#8F7A66', model: 'armchair', h: 0.82, fp: 0.53, group: 'accent-chair', vibes: ['cozy', 'warm'] },
-  { id: 'sofa', name: '3-Seat Fabric Sofa', cat: 'seating', retailer: 'ikea', price: 649, color: '#6E7A72', model: 'sofa', h: 0.8, fp: 1.15, group: 'sofa', vibes: ['cozy', 'modern', 'cool'] },
+  { id: 'sofa', name: '3-Seat Fabric Sofa', cat: 'seating', retailer: 'ikea', price: 649, color: '#6E7A72', model: 'sofa', materialSet: 'pilot', h: 0.8, fp: 1.15, group: 'sofa', vibes: ['cozy', 'modern', 'cool'] },
   { id: 'beanbag', name: 'Oversized Bean Bag', cat: 'seating', retailer: 'target', price: 129, color: '#9A5B4A', model: 'beanbag', h: 0.65, fp: 0.5, group: 'floor-seat', vibes: ['cozy', 'bold'] },
   { id: 'pouf', name: 'Knit Floor Pouf', cat: 'seating', retailer: 'wayfair', price: 79, color: '#C4B49A', model: 'pouf', h: 0.4, fp: 0.34, group: 'floor-seat', vibes: ['cozy', 'warm', 'natural'] },
 
@@ -65,7 +65,7 @@ const raw = [
   { id: 'bed', name: 'Upholstered Platform Bed, Queen', cat: 'surfaces', retailer: 'wayfair', price: 549, color: '#7E8892', model: 'bed', h: 0.55, fp: 1.3, group: 'bed', vibes: ['cozy', 'modern', 'cool'] },
   { id: 'bed-budget', name: 'Platform Bed Frame, Queen (Value)', cat: 'surfaces', retailer: 'walmart', price: 179, color: '#7A6A58', model: 'bed', h: 0.5, fp: 1.3, group: 'bed', vibes: ['cozy', 'warm'] },
   { id: 'bookshelf', name: 'Open Bookshelf, 5-Tier', cat: 'surfaces', retailer: 'ikea', price: 159, color: '#9A7B58', model: 'shelf', h: 1.8, fp: 0.5, group: 'shelving', vibes: ['warm', 'natural', 'modern'] },
-  { id: 'coffee-table', name: 'Round Coffee Table', cat: 'surfaces', retailer: 'westelm', price: 399, color: '#A8845C', model: 'table', h: 0.42, fp: 0.55, group: 'coffee-table', vibes: ['warm', 'modern', 'natural'] },
+  { id: 'coffee-table', name: 'Round Coffee Table', cat: 'surfaces', retailer: 'westelm', price: 399, color: '#A8845C', model: 'table', materialSet: 'pilot', h: 0.42, fp: 0.55, group: 'coffee-table', vibes: ['warm', 'modern', 'natural'] },
   { id: 'table-budget', name: 'Round Coffee Table (Value)', cat: 'surfaces', retailer: 'target', price: 119, color: '#9C7C58', model: 'table', h: 0.42, fp: 0.55, group: 'coffee-table', vibes: ['warm', 'modern'] },
   { id: 'nightstand', name: 'Two-Drawer Nightstand', cat: 'surfaces', retailer: 'target', price: 119, color: '#8B7355', model: 'nightstand', h: 0.6, fp: 0.32, group: 'nightstand', vibes: ['warm', 'cozy', 'natural'] },
   { id: 'rug', name: 'Hand-Woven Area Rug, 8x10', cat: 'surfaces', retailer: 'wayfair', price: 249, color: '#B5A188', model: 'rug', h: 0.02, fp: 1.6, group: 'rug', vibes: ['cozy', 'warm', 'natural'] },

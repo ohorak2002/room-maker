@@ -582,3 +582,43 @@
     max-width: calc(100% - 360px);
   }
 }
+
+/* --- presentation mode ---------------------------------------------------- */
+
+/* Only the room: no chips, tools, hints, selection frame or piece panel. */
+.is-presenting .room-chip-stack,
+.is-presenting .canvas-tools,
+.is-presenting .canvas-hud,
+.is-presenting .crowd-warning,
+.is-presenting .piece-frame,
+.is-presenting .piece-tag,
+.is-presenting .piece-panel { display: none; }
+
+.present-pill {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--overlay-line);
+  border-radius: var(--radius-l);
+  background: var(--overlay);
+  backdrop-filter: blur(8px);
+  opacity: 0.55;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.present-pill:hover,
+.present-pill:focus-within { opacity: 1; }
+
+.present-status { padding: 0 10px; font-size: 12px; color: var(--ink-soft); }
+
+/* Narrow stage: the tool row keeps its icons and drops the words, so it never
+   runs under the room chip. Every such button carries an aria-label. */
+@media (max-width: 1300px) {
+  .tool-label { display: none; }
+  .tool-btn { padding: 0 9px; }
+}

@@ -68,7 +68,13 @@ export function renderThumbnail(item) {
     camera.lookAt(center)
     camera.updateProjectionMatrix()
 
+    // The card lights are far brighter than a room's, and a light photographic
+    // cloth clips to white under them. Pieces with photographic maps are shot
+    // at lower exposure so the card shows the colour the room shows.
+    const exposure = renderer.toneMappingExposure
+    if (item.materialSet) renderer.toneMappingExposure = 0.62
     renderer.render(scene, camera)
+    renderer.toneMappingExposure = exposure
     url = renderer.domElement.toDataURL('image/png')
 
     scene.remove(node)

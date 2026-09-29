@@ -19,6 +19,8 @@ const GROUPS = [
       ['Zoom in and out', ['Scroll']],
       ['Undo the last change', ['Ctrl', 'Z']],
       ['Re-run the layout solver', ['Auto-arrange']],
+      ['Present the room only', ['P']],
+      ['Leave presentation', ['Esc']],
     ],
   },
   {

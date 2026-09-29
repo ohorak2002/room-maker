@@ -45,4 +45,21 @@ try {
   assert.equal((await readdir(directory)).some(p => p.endsWith('.tmp')), false)
   assert.ok((await readFile(path, 'utf8')).includes('Living room'))
 } finally { await rm(directory, { recursive: true, force: true }) }
+// Room studio state: lighting controls and saved camera views round-trip,
+// version 2 files (no studio state) migrate, and malformed values are refused.
+const studioState = structuredClone(ROOM_DEFAULTS)
+studioState.studio = { brightness: 120, sun: 42, accent: false }
+studioState.views = [{ id: 'v1', name: 'By the window', roomKey: 'room', mode: 'eye', position: [1, 1.6, 2], target: [1, 1.6, 1.95], fov: 44, thumb: 'data:image/jpeg;base64,/9j/AA==' }, { id: 'v2', name: 'From above', roomKey: 'room', mode: 'overview', position: [3, 4, 5], target: [0, 0, 0], fov: 52, thumb: null }]
+const studioDoc = createProject(studioState, { name: 'Studio' })
+assert.deepEqual(parseProject(stringifyProject(studioDoc)).state.views, studioState.views)
+assert.deepEqual(parseProject(stringifyProject(studioDoc)).state.studio, studioState.studio)
+const v2file = structuredClone(studioDoc); v2file.version = 2; delete v2file.state.studio; delete v2file.state.views
+const migratedStudio = parseProject(JSON.stringify(v2file))
+assert.equal(migratedStudio.version, 3)
+assert.deepEqual(migratedStudio.state.studio, ROOM_DEFAULTS.studio)
+assert.deepEqual(migratedStudio.state.views, [])
+for (const mutate of [d => d.state.studio.brightness = 500, d => d.state.studio.sun = 120, d => d.state.studio.accent = 'yes', d => d.state.views[0].fov = 500, d => d.state.views[0].position = [1, 2], d => d.state.views[0].mode = 'orbit', d => d.state.views[1].id = 'v1', d => d.state.views[0].thumb = 'http://example.com/x.jpg', d => d.state.views[0].name = '']) {
+  const bad = structuredClone(studioDoc); mutate(bad)
+  assert.throws(() => stringifyProject(bad))
+}
 console.log('Project round trip, validation, backup and failed-write preservation passed')

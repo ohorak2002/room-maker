@@ -24,11 +24,20 @@ const env = { ...process.env, NESTED_TEST_USER_DATA: userData }
 delete env.ELECTRON_RUN_AS_NODE
 let application
 const errors = []
+const external = []
+const materialResponses = []
+// Range inputs are driven the way React hears them: native setter + input event.
+const setRange = (locator, value) => locator.evaluate((el, v) => {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(v))
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+}, value)
 const launch = async () => {
   application = await electron.launch({ args: [root], env, timeout: 60000 })
   const page = await application.firstWindow()
   await page.emulateMedia({ reducedMotion: 'reduce' })
   page.on('pageerror', err => errors.push(err.message))
+  page.on('request', req => { if (!/^(nested|data|blob):/.test(req.url())) external.push(req.url()) })
+  page.on('response', res => { if (res.url().includes('/materials/polyhaven/')) materialResponses.push([res.url().split('/').pop(), res.status()]) })
   await page.getByRole('button', { name: 'Restore project', exact: true }).waitFor()
   await page.getByRole('button', { name: 'Restore project', exact: true }).click()
   await page.locator('.canvas-mount canvas').waitFor()
@@ -45,6 +54,7 @@ try {
     dialog.showOpenDialog = async (_win, opts) => ({ canceled: false, filePaths: [opts.title.includes('GLB') ? fixturePath : projectPath] })
     dialog.showMessageBox = async () => ({ response: 1 })
   }, { projectPath, imagePath, fixturePath })
+  console.log('step: import')
   // Import the fixture: validated and copied into the private library, then
   // placed and loaded through the standard GLTFLoader.
   await page.getByRole('tab', { name: 'Models' }).click()
@@ -66,7 +76,7 @@ try {
   await page.getByLabel('Source').click()
   await page.getByText('Differs from the entered dimensions: H -2.0 cm').waitFor()
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await page.getByRole('status').filter({ hasText: 'Saved ' }).waitFor()
+  await page.getByRole('status').filter({ hasText: /^Saved/ }).waitFor()
   const savedDoc = await readProject(projectPath)
   assert.deepEqual(savedDoc.state.placements, state.placements)
   assert.equal(savedDoc.state.assets[fixtureId].fileName, 'nested-side-table.glb')
@@ -74,7 +84,7 @@ try {
   assert.equal(savedDoc.state.items.find(i => i.id.startsWith('asset-')).qty, 1)
   await page.getByLabel('Project name', { exact: true }).fill('Edited alternative')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await page.getByRole('status').filter({ hasText: 'Saved ' }).waitFor()
+  await page.getByRole('status').filter({ hasText: /^Saved/ }).waitFor()
   assert.equal((await readProject(`${projectPath}.bak`)).name, doc.name)
   assert.equal((await readProject(projectPath)).name, 'Edited alternative')
   // Open cancellation leaves the current project intact.
@@ -93,10 +103,69 @@ try {
   await page.getByRole('alert').waitFor()
   assert.equal(await page.getByLabel('Project name', { exact: true }).inputValue(), 'Edited alternative')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await page.getByRole('status').filter({ hasText: 'Saved ' }).waitFor()
+  await page.getByRole('status').filter({ hasText: /^Saved/ }).waitFor()
   await page.getByRole('button', { name: 'Export image', exact: true }).click()
   await page.getByText('Room image saved', { exact: true }).waitFor()
   assert.equal((await readFile(imagePath)).subarray(1, 4).toString(), 'PNG')
+  {
+    const png = await readFile(imagePath)
+    assert.ok(png.readUInt32BE(16) >= 600 && png.readUInt32BE(20) >= 400, 'exported image is a real render, not a stub')
+  }
+  // Production builds carry no development hooks.
+  assert.equal(await page.evaluate(() => [typeof window.__nestedEngine, typeof window.__nestedMaterials, typeof window.__nestedLegacyPieces].join()), 'undefined,undefined,undefined')
+  console.log('step: studio')
+  // --- Room studio: lighting, field of view, saved views, presentation ---------
+  // Built-in views and their previews are in the strip.
+  await page.getByRole('button', { name: 'Eye level', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Light', exact: true }).click()
+  await page.getByRole('button', { name: /Golden hour/ }).click()
+  assert.equal(await page.getByRole('button', { name: /Golden hour/ }).getAttribute('aria-pressed'), 'true')
+  await setRange(page.getByLabel(/^Brightness/), 120)
+  await page.getByText('120%', { exact: true }).waitFor()
+  await setRange(page.getByLabel(/^Sun height/), 40)
+  await page.getByText('40°', { exact: true }).waitFor()
+  await page.getByLabel('Accent lighting', { exact: false }).uncheck()
+  // Camera views: change field of view, then save the current camera.
+  await page.getByRole('button', { name: 'Views', exact: true }).click()
+  await setRange(page.getByLabel(/^Field of view/), 44)
+  await page.getByText('44°', { exact: true }).waitFor()
+  await page.getByLabel('Save this view').fill('By the window')
+  await page.locator('.studio-btn').click()
+  await page.getByText('Saved “By the window”', { exact: false }).first().waitFor()
+  await page.getByRole('button', { name: 'By the window', exact: true }).waitFor()
+  // A second view from another preset, then go back to the first.
+  await page.getByRole('button', { name: 'Corner', exact: true }).first().click()
+  await page.getByRole('button', { name: 'By the window', exact: true }).click()
+  assert.equal(await page.getByRole('button', { name: 'By the window', exact: true }).getAttribute('aria-pressed'), 'true')
+  assert.equal(await page.getByLabel(/^Field of view/).inputValue(), '44')
+  // Presentation mode hides the chrome and Escape brings it back.
+  await page.getByRole('button', { name: 'Present', exact: true }).click()
+  await page.locator('.appbar').waitFor({ state: 'hidden' })
+  assert.equal(await page.locator('.rail').isVisible(), false)
+  await page.getByRole('button', { name: 'Exit presentation' }).waitFor()
+  await page.keyboard.press('Escape')
+  await page.locator('.appbar').waitFor({ state: 'visible' })
+  await page.getByRole('button', { name: 'Room', exact: true }).click()
+  await page.getByText('Floor area').waitFor()
+  await page.getByRole('button', { name: 'Pieces', exact: true }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByRole('status').filter({ hasText: /^Saved/ }).waitFor()
+  {
+    const studioDoc = await readProject(projectPath)
+    assert.equal(studioDoc.version, 3)
+    assert.equal(studioDoc.state.lighting, 'golden')
+    assert.deepEqual(studioDoc.state.studio, { brightness: 120, sun: 40, accent: false })
+    assert.equal(studioDoc.state.views.length, 1)
+    assert.equal(studioDoc.state.views[0].name, 'By the window')
+    assert.equal(studioDoc.state.views[0].fov, 44)
+    assert.equal(studioDoc.state.views[0].mode, 'eye')
+    assert.match(studioDoc.state.views[0].thumb, /^data:image\/jpeg;base64,/)
+    assert.deepEqual(studioDoc.state.placements, state.placements)
+  }
+  // Material pilot: the bundled maps loaded from the app itself, nothing external.
+  assert.equal(materialResponses.length >= 6 && materialResponses.every(([, status]) => status === 200), true, JSON.stringify(materialResponses))
+  assert.deepEqual(external, [])
+  console.log('step: workspace screenshot')
   await page.screenshot({ path: join(output, 'desktop-workspace.png') })
   const frameTimes = await page.evaluate(() => new Promise(resolve => {
     const times = []; let previous
@@ -106,10 +175,22 @@ try {
   const sorted = frameTimes.toSorted((a, b) => a - b)
   await page.getByLabel('Project name', { exact: true }).fill('Recovered after restart')
   await page.waitForTimeout(1200)
+  console.log('step: crash restart')
   // Abrupt process exit exercises recovery from disk, bypassing graceful close.
   await application.evaluate(({ app }) => app.exit(0))
   page = await launch()
   assert.equal(await page.getByLabel('Project name', { exact: true }).inputValue(), 'Recovered after restart')
+  // Lighting and saved views survive a crash restart.
+  await page.getByRole('button', { name: 'Light', exact: true }).click()
+  assert.equal(await page.getByRole('button', { name: /Golden hour/ }).getAttribute('aria-pressed'), 'true')
+  assert.equal(await page.getByLabel(/^Brightness/).inputValue(), '120')
+  await page.getByRole('button', { name: 'By the window', exact: true }).waitFor()
+  // The reopened project rebuilt the pilot pieces: their maps were requested again in the new process.
+  await page.waitForTimeout(500)
+  assert.ok(materialResponses.length >= 12 && materialResponses.every(([, status]) => status === 200), JSON.stringify(materialResponses))
+  assert.deepEqual(external, [])
+  await page.getByRole('button', { name: 'Pieces', exact: true }).click()
+  console.log('step: reload imported model')
   // A fresh process reloads the imported model from the private library.
   await page.getByRole('tab', { name: 'Models' }).click()
   await page.locator(`[data-asset-loaded="${fixtureId}"]`).waitFor({ timeout: 30000 })

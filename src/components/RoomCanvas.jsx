@@ -14,6 +14,8 @@ import { getWallMaterial } from '../data/presets'
 import { buildRoom, updateCutaways } from '../three/buildRoom'
 import { buildHome, buildHomeLights } from '../three/buildHome'
 import { buildAtmosphere } from '../three/atmosphere'
+import { materialsReady } from '../three/photoMaterials'
+import { viewBridge } from '../three/viewBridge'
 import { autoArrange, instanceKey, zoneOf } from '../three/layout'
 import { clampToShape } from '../three/shapeGeom'
 import PieceMenu from './PieceMenu'
@@ -27,7 +29,11 @@ export default function RoomCanvas() {
   const tagRef = useRef(null)
   const frameRef = useRef(null)
   const [selected, setSelectedState] = useState(null) // { key, name, size }
-  const [view, setView] = useState('eye')
+  // The current view lives in the UI store so the filmstrip can show and set it.
+  const view = useUiStore((s) => s.activeView)
+  const setView = (name) => useUiStore.getState().setActiveView(name)
+  const presenting = useUiStore((s) => s.presenting)
+  const fov = useUiStore((s) => s.fov)
   // The selected piece: React state for the panel, the node for the per-frame
   // tag, and the catalog id so the Shop card can show which piece it is.
   const setSelected = (node) => {
@@ -47,6 +53,9 @@ export default function RoomCanvas() {
   const showView = (name) => {
     const engine = engineRef.current
     if (!engine?.roomDims) return
+    useUiStore.getState().setFov(DEFAULT_FOV)
+    engine.camera.fov = DEFAULT_FOV
+    engine.camera.updateProjectionMatrix()
     applyView(engine, name, useRoomStore.getState().shape())
     setView(name)
   }
@@ -86,6 +95,8 @@ export default function RoomCanvas() {
   const focusedRoom = useRoomStore((s) => s.focusedRoom)
   const activeFloor = useRoomStore((s) => s.activeFloor)
   const assets = useRoomStore((s) => s.assets)
+  const studio = useRoomStore((s) => s.studio)
+  const savedViews = useRoomStore((s) => s.views)
 
   // ---- engine (once) -----------------------------------------------------
   useEffect(() => {
@@ -93,7 +104,7 @@ export default function RoomCanvas() {
     if (!mount) return
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 200)
+    const camera = new THREE.PerspectiveCamera(useUiStore.getState().fov, 1, 0.1, 200)
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
@@ -323,6 +334,7 @@ export default function RoomCanvas() {
 
     return () => {
       cancelAnimationFrame(frame)
+      clearTimeout(engineRef.current?.thumbTimer)
       ro.disconnect()
       for (const evt of ['pointerdown', 'pointermove', 'wheel', 'keydown']) {
         renderer.domElement.removeEventListener(evt, noteInput)
@@ -436,11 +448,68 @@ export default function RoomCanvas() {
     // itself changed size (or we just left the whole-home overview).
     const prev = engine.roomDims
     engine.roomDims = room
+    applyStudio(engine, store.studio)
     if (prev && prev.w === room.w && prev.d === room.d && prev.h === room.h) return
     // A new room opens standing inside it, not looking into a box.
+    useUiStore.getState().setFov(DEFAULT_FOV)
+    engine.camera.fov = DEFAULT_FOV
+    engine.camera.updateProjectionMatrix()
     applyView(engine, 'eye', shape)
     setView('eye')
+    applyStudio(engine, useRoomStore.getState().studio)
   }, [palette, lighting, wallMaterial, floorplan, customShape, customDims, windows, wallOverride, floorOverride, items, layoutRev, scope, home, focusedRoom, activeFloor, assets])
+
+  // ---- lighting controls, field of view, and the camera bridge ------------
+  useEffect(() => {
+    const engine = engineRef.current
+    if (engine) applyStudio(engine, studio)
+  }, [studio])
+
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    engine.camera.fov = fov
+    engine.camera.updateProjectionMatrix()
+  }, [fov])
+
+  // Presentation mode hides the chrome, which changes the canvas size; the
+  // ResizeObserver handles the renderer. Selection is cleared so no frame or
+  // tag lingers in a presented image.
+  useEffect(() => {
+    if (presenting) setSelected(null)
+  }, [presenting])
+
+  useEffect(() => {
+    viewBridge.api = {
+      showPreset: (name) => showView(name),
+      applyView: (saved) => {
+        const engine = engineRef.current
+        if (!engine?.roomDims) return
+        useUiStore.getState().setFov(saved.fov)
+        engine.camera.fov = saved.fov
+        engine.camera.updateProjectionMatrix()
+        applySavedView(engine, saved, useRoomStore.getState().shape())
+        setView(`saved:${saved.id}`)
+      },
+      captureView: () => {
+        const engine = engineRef.current
+        if (!engine?.roomDims) return null
+        const r = (n) => Math.round(n * 1000) / 1000
+        return {
+          mode: engine.mode,
+          position: engine.camera.position.toArray().map(r),
+          target: engine.controls.target.toArray().map(r),
+          fov: engine.camera.fov,
+        }
+      },
+      thumbnail: () => {
+        const engine = engineRef.current
+        if (!engine?.roomDims) return null
+        return snapshot(engine, { position: engine.camera.position, target: engine.controls.target, fov: engine.camera.fov }, 256, 144)
+      },
+    }
+    return () => { viewBridge.api = null }
+  })
 
   // ---- home overview: hover + click a room to focus it --------------------
   useEffect(() => {
@@ -754,6 +823,7 @@ export default function RoomCanvas() {
   }, [items, layoutRev, floorplan, customShape, customDims, scope, home, focusedRoom])
 
   const store = useRoomStore()
+  const viewMode = view.startsWith('saved:') ? savedViews.find((v) => `saved:${v.id}` === view)?.mode : view
   const activeItems = store.activeItems()
   const activeRoom = store.activeRoom()
   const inOverview = scope === 'home' && home && !focusedRoom
@@ -899,8 +969,16 @@ export default function RoomCanvas() {
   }
 
   return (
-    <div className="canvas-root">
+    <div className={`canvas-root ${presenting ? 'is-presenting' : ''}`}>
       <div ref={mountRef} className="canvas-mount" />
+
+      {presenting && (
+        <div className="present-pill" role="group" aria-label="Presentation">
+          <button className="tool-btn" onClick={exportImage}><Icon name="camera" size={15} />Export image</button>
+          <button className="tool-btn" onClick={() => useUiStore.getState().setPresenting(false)}><Icon name="close" size={15} />Exit presentation</button>
+          {imageStatus && <span role="status" className="present-status">{imageStatus}</span>}
+        </div>
+      )}
 
       <PieceMenu menu={menu} onAction={runMenuAction} onClose={() => setMenu(null)} />
 
@@ -934,14 +1012,6 @@ export default function RoomCanvas() {
         {hasCustom && <span className="room-chip-note">Custom layout</span>}
       </div>
 
-      <div className="view-switch" role="group" aria-label="Camera view">
-        {VIEWS.map(([id, label]) => (
-          <button key={id} className={`view-seg ${view === id ? 'on' : ''}`} aria-pressed={view === id} onClick={() => showView(id)}>
-            {label}
-          </button>
-        ))}
-      </div>
-
       <div className="canvas-tools">
         <div className="tool-group">
           <button
@@ -957,14 +1027,23 @@ export default function RoomCanvas() {
           <button
             className="tool-btn"
             onClick={() => store.clearPlacements()}
+            aria-label="Auto-arrange"
             title="Re-run the layout solver on every piece"
           >
             <Icon name="arrange" size={15} />
-            Auto-arrange
+            <span className="tool-label">Auto-arrange</span>
           </button>
-          <button className="tool-btn" onClick={exportImage} title="Save a PNG of this view">
+          <button className="tool-btn" onClick={exportImage} aria-label="Export image" title="Save a PNG of this view">
             <Icon name="camera" size={15} />
-            Export image
+            <span className="tool-label">Export image</span>
+          </button>
+          <span className="tool-sep" aria-hidden="true" />
+          <button className="tool-icon" onClick={() => showView('eye')} aria-label="Reset camera" title="Back to the eye-level view">
+            <Icon name="focus" />
+          </button>
+          <button className="tool-btn" onClick={() => useUiStore.getState().setPresenting(true)} aria-label="Present" title="Show only the room (P, or Esc to exit)">
+            <Icon name="present" size={15} />
+            <span className="tool-label">Present</span>
           </button>
         </div>
         {imageStatus && (
@@ -1015,7 +1094,7 @@ export default function RoomCanvas() {
         ) : (
           count > 0 && (
             <span className="hud-hint">
-              {view === 'eye'
+              {viewMode === 'eye'
                 ? 'Click a piece to move it · drag empty space to look around · scroll to walk'
                 : 'Click a piece to move it · drag empty space to orbit'}
             </span>
@@ -1023,7 +1102,7 @@ export default function RoomCanvas() {
         )}
       </div>
 
-      {selected && <PieceInspector selected={selected} onAction={(action) => runMenuAction(action, selected)} />}
+      {selected && !presenting && <PieceInspector selected={selected} onAction={(action) => runMenuAction(action, selected)} />}
     </div>
   )
 }
@@ -1048,6 +1127,7 @@ function PieceInspector({ selected, onAction }) {
       <p className="piece-size">
         W {cm(w)} × D {cm(d)} × H {cm(h)} cm
         <span>{imported ? 'Placed size of your model' : 'Concept model · real product size unknown'}</span>
+        {item?.materialSet === 'pilot' && <span>Concept finish · generic photographic material, not a retailer’s</span>}
       </p>
       <div className="piece-actions">
         <button className="piece-btn" onClick={() => onAction('rotate')}>
@@ -1093,19 +1173,15 @@ function orbitControls(controls) {
 // Distance from the eye to the point it turns around. Small enough that
 // dragging turns your head rather than walking you around something.
 const LOOK_RADIUS = 0.05
+const DEFAULT_FOV = 52
 
-/** Moves the camera to a named view and sets up the controls for it. */
-function applyView(engine, name, shape) {
-  const { camera, controls, roomDims } = engine
-  const view = viewFor(name, roomDims, camera)
-  engine.mode = name
+/** Sets the controls up for a view mode. Positions are placed separately. */
+function configureControls(engine, mode) {
+  const { controls } = engine
+  engine.mode = mode
   // Inside the room (eye level, corner) AO covers every pixel; see setAoDivisor.
-  engine.setAoDivisor?.(name === 'overview' ? 2 : 4)
-  if (name === 'eye') {
-    const at = insideFloor(roomDims, shape, view.position.x, view.position.z)
-    camera.position.set(at.x, view.position.y, at.z)
-    const dir = view.target.clone().sub(camera.position).normalize()
-    controls.target.copy(camera.position).addScaledVector(dir, LOOK_RADIUS)
+  engine.setAoDivisor?.(mode === 'overview' ? 2 : 4)
+  if (mode === 'eye') {
     controls.enableZoom = false
     controls.enablePan = false
     // Negative: dragging moves the room with the pointer, as in a panorama
@@ -1117,11 +1193,125 @@ function applyView(engine, name, shape) {
     controls.maxPolarAngle = Math.PI * 0.8
   } else {
     orbitControls(controls)
+  }
+}
+
+/** Moves the camera to a named preset view and sets up the controls for it. */
+function applyView(engine, name, shape) {
+  const { camera, controls, roomDims } = engine
+  const view = viewFor(name, roomDims, camera)
+  configureControls(engine, name)
+  if (name === 'eye') {
+    const at = insideFloor(roomDims, shape, view.position.x, view.position.z)
+    camera.position.set(at.x, view.position.y, at.z)
+    const dir = view.target.clone().sub(camera.position).normalize()
+    controls.target.copy(camera.position).addScaledVector(dir, LOOK_RADIUS)
+  } else {
     camera.position.copy(view.position)
     controls.target.copy(view.target)
   }
   controls.update()
   engine.noteInput?.()
+}
+
+/** A saved view: exactly the recorded camera, in the mode it was taken in. */
+function applySavedView(engine, saved, shape) {
+  const { camera, controls, roomDims } = engine
+  configureControls(engine, saved.mode)
+  const [x, y, z] = saved.position
+  if (saved.mode === 'eye') {
+    // Rooms can be resized after a view was saved; stay standing on the floor.
+    const at = insideFloor(roomDims, shape, x, z)
+    camera.position.set(at.x, y, at.z)
+    const dir = new THREE.Vector3(...saved.target).sub(new THREE.Vector3(x, y, z))
+    if (dir.lengthSq() < 1e-9) dir.set(0, 0, -1)
+    controls.target.copy(camera.position).addScaledVector(dir.normalize(), LOOK_RADIUS)
+  } else {
+    camera.position.set(x, y, z)
+    controls.target.set(...saved.target)
+  }
+  controls.update()
+  engine.noteInput?.()
+}
+
+const vec = (v) => (v.toArray ? v.toArray() : v)
+
+/**
+ * Renders the live scene from `cam` at a small size and returns a JPEG. The
+ * renderer is resized for the shot and put back afterwards; nothing is drawn to
+ * the screen because the next animation frame repaints at the real size.
+ */
+function snapshot(engine, cam, w, h) {
+  const { renderer, composer, camera, outline, ghost, room } = engine
+  const size = renderer.getSize(new THREE.Vector2())
+  const ratio = renderer.getPixelRatio()
+  const saved = { p: camera.position.clone(), q: camera.quaternion.clone(), fov: camera.fov, aspect: camera.aspect }
+  const visible = [outline.visible, ghost.visible]
+  try {
+    outline.visible = false
+    ghost.visible = false
+    renderer.setPixelRatio(1)
+    composer.setPixelRatio(1)
+    renderer.setSize(w, h, false)
+    composer.setSize(w, h)
+    camera.aspect = w / h
+    camera.fov = cam.fov
+    camera.updateProjectionMatrix()
+    camera.position.set(...vec(cam.position))
+    camera.lookAt(...vec(cam.target))
+    updateCutaways(room, camera.position)
+    composer.render()
+    return renderer.domElement.toDataURL('image/jpeg', 0.72)
+  } finally {
+    outline.visible = visible[0]
+    ghost.visible = visible[1]
+    camera.position.copy(saved.p)
+    camera.quaternion.copy(saved.q)
+    camera.fov = saved.fov
+    camera.aspect = saved.aspect
+    camera.updateProjectionMatrix()
+    renderer.setPixelRatio(ratio)
+    composer.setPixelRatio(ratio)
+    renderer.setSize(size.x, size.y, false)
+    composer.setSize(size.x, size.y)
+    updateCutaways(room, camera.position)
+  }
+}
+
+/** The three built-in views as cameras, for the filmstrip previews. */
+function presetCamera(engine, name, shape) {
+  const view = viewFor(name, engine.roomDims, engine.camera)
+  const position = view.position.clone()
+  if (name === 'eye') {
+    const at = insideFloor(engine.roomDims, shape, position.x, position.z)
+    position.set(at.x, position.y, at.z)
+  }
+  return { position, target: view.target, fov: DEFAULT_FOV }
+}
+
+/**
+ * Applies the project's lighting controls to the live scene without rebuilding
+ * it: exposure, sun height, accent lamps. Then queues fresh filmstrip previews.
+ */
+function applyStudio(engine, studio) {
+  const { renderer, room } = engine
+  renderer.toneMappingExposure = 1.1 * (studio.brightness / 100)
+  room?.setSun?.(studio.sun)
+  room?.setAccent?.(studio.accent)
+  if (room?.sunDefaultElevation != null) useUiStore.getState().setSunDefault(Math.round(room.sunDefaultElevation))
+  renderer.shadowMap.needsUpdate = true
+  clearTimeout(engine.thumbTimer)
+  if (!engine.roomDims || !room?.setSun) return
+  // Debounced: a slider drag fires this every frame, and a preview needs the
+  // scene settled and its photographic maps decoded.
+  engine.thumbTimer = setTimeout(async () => {
+    await materialsReady()
+    if (viewBridge.api == null || engine.room !== room) return
+    const shape = useRoomStore.getState().shape()
+    const thumbs = {}
+    for (const name of ['overview', 'eye', 'corner']) thumbs[name] = snapshot(engine, presetCamera(engine, name, shape), 256, 144)
+    useUiStore.getState().setPresetThumbs(thumbs)
+  }, 700)
 }
 
 /** Keeps a standing position on the floor, at least 35 cm from any wall. */
@@ -1134,7 +1324,6 @@ function insideFloor(room, shape, x, z) {
 
 const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)))
 
-const VIEWS = [['overview', 'Overview'], ['eye', 'Eye level'], ['corner', 'Corner']]
 
 /** Repeatable camera positions, so views can be compared between designs. */
 function viewFor(name, room, camera) {

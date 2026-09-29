@@ -1,4 +1,5 @@
 .desktop-shell { height: 100dvh; display: flex; flex-direction: column; background: var(--ground); }
+.desktop-shell.is-presenting .appbar { display: none; }
 .desktop-editor { flex: 1; min-height: 0; position: relative; overflow: auto; }
 .desktop-editor .workspace { height: 100%; }
 

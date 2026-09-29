@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { getPalette, getShape, shapeBounds } from '../data/presets'
 
-import { ROOM_DEFAULTS } from '../../shared/project.mjs'
+import { ROOM_DEFAULTS, MAX_VIEWS } from '../../shared/project.mjs'
 import { placedDimensions } from '../../shared/assets.mjs'
 
 const initial = ROOM_DEFAULTS
@@ -190,6 +190,21 @@ export const useRoomStore = create(
       const record = get().assets[id]
       if (record) get().addSynthetic(assetItem(record))
     },
+
+    // --- room studio: lighting controls and saved camera views ---------------
+    setStudio: (patch) => set((s) => ({ studio: { ...s.studio, ...patch } })),
+
+    /** Saved views belong to a room: coordinates only make sense inside it. */
+    viewRoomKey: () => (get().scope === 'home' && get().focusedRoom ? get().focusedRoom : 'room'),
+
+    addView: (view) => {
+      if (get().views.length >= MAX_VIEWS) return false
+      set((s) => ({ views: [...s.views, view] }))
+      return true
+    },
+    renameView: (id, name) =>
+      set((s) => ({ views: s.views.map((v) => (v.id === id ? { ...v, name: name.trim().slice(0, 80) || v.name } : v)) })),
+    removeView: (id) => set((s) => ({ views: s.views.filter((v) => v.id !== id) })),
 
     clearAll: () => {
       get().pushHistory()
