@@ -5,6 +5,7 @@ const GROUPS = [
     title: 'Moving a piece',
     rows: [
       ['Click a piece', ['Click']],
+      ['Select the next or previous piece (no pointer needed)', [']', '[']],
       ['Drag it anywhere on the floor', ['Drag']],
       ['Nudge a small step', ['←', '→', '↑', '↓']],
       ['Nudge a big step', ['Shift', '+ arrow']],
@@ -18,6 +19,7 @@ const GROUPS = [
       ['Orbit the camera', ['Drag empty space']],
       ['Zoom in and out', ['Scroll']],
       ['Undo the last change', ['Ctrl', 'Z']],
+      ['Redo it', ['Ctrl', 'Y']],
       ['Re-run the layout solver', ['Auto-arrange']],
       ['Present the room only', ['P']],
       ['Leave presentation', ['Esc']],

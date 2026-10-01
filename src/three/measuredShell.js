@@ -3,6 +3,9 @@ import { applySurface } from './textures.js'
 
 const FLOOR_SURFACE={oak:'plank','dark-wood':'plank',tile:'tile',stone:'stone',concrete:'concrete',carpet:'fabric'}
 const WALL_SURFACE={plaster:'plaster',limewash:'plaster',brick:'brick',concrete:'concrete','wood-panel':'shiplap'}
+// Metres covered by one texture tile in an ordinary room (see buildRoom.js and WALL_MATERIALS).
+const NATURAL_FLOOR_TILE={oak:2.4,'dark-wood':2.4}
+const NATURAL_WALL_TILE={plaster:1.5,limewash:1.5,brick:1.2,concrete:1.2,'wood-panel':1.54}
 const ROUGHNESS={matte:.9,satin:.55,gloss:.22}
 function material(color,texture,finish){const m=new THREE.MeshStandardMaterial({color,roughness:ROUGHNESS[finish]??.9,metalness:0,envMapIntensity:.3});return applySurface(m,texture,1)}
 // Geometry UVs are meters / selected tile size. The same map scale is used on
@@ -29,11 +32,14 @@ function ceilingGeometry(footprint,thickness){
 // uses the dynamic cutaways in `userData.cutaways` instead (see updateCutaways
 // in buildRoom.js): walls and ceiling hide only while the camera is outside.
 export function buildMeasuredShell({shape,colors,cutaway=false,overview=false}){
-  const g=new THREE.Group(),s=shape.surfaces,scale=s.textureScale,t=.10,cutaways=[]
+  const g=new THREE.Group(),s=shape.surfaces,t=.10,cutaways=[]
+  // `textureScale` is relative to each material's natural tile, so 1 means the same physical size as an
+  // ordinary room: plank floors repeat every 2.4 m (fifteen 160 mm boards), plaster 1.5 m, brick 1.2 m.
+  const floorScale=s.textureScale*(NATURAL_FLOOR_TILE[s.floor]??1),wallScale=s.textureScale*(NATURAL_WALL_TILE[s.wall]??1),ceilScale=s.textureScale*1.5
   const floorMat=material(colors?.floor||s.floorColor,FLOOR_SURFACE[s.floor],s.floorFinish)
   const wallMat=material(colors?.wall||s.wallColor,WALL_SURFACE[s.wall],s.wallFinish)
   const trimMat=material(colors?.trim||s.trimColor,'plaster','satin')
-  const floor=new THREE.Mesh(meterUV(footprintGeometry(shape.footprint),scale),floorMat);floor.receiveShadow=true;floor.userData.measuredFloor=true;floor.userData.noCast=true;g.add(floor)
+  const floor=new THREE.Mesh(meterUV(footprintGeometry(shape.footprint),floorScale),floorMat);floor.receiveShadow=true;floor.userData.measuredFloor=true;floor.userData.noCast=true;g.add(floor)
   const h=overview?Math.min(.6,shape.h):shape.h
   // Clear glass without a transmission pass, which would cost a second render
   // of the room every frame; it also never casts a shadow, so sun still enters.
@@ -41,7 +47,7 @@ export function buildMeasuredShell({shape,colors,cutaway=false,overview=false}){
   const signed=shape.footprint.reduce((a,p,i)=>{const q=shape.footprint[(i+1)%shape.footprint.length];return a+p.x*q.z-q.x*p.z},0),inward=signed>0?1:-1
   if(!overview){
     const ceilMat=material(colors?.trim||s.trimColor,'plaster','matte')
-    const ceiling=new THREE.Mesh(meterUV(ceilingGeometry(shape.footprint,t),scale,{x:0,y:shape.h,z:0}),ceilMat);ceiling.position.y=shape.h;ceiling.receiveShadow=true
+    const ceiling=new THREE.Mesh(meterUV(ceilingGeometry(shape.footprint,t),ceilScale,{x:0,y:shape.h,z:0}),ceilMat);ceiling.position.y=shape.h;ceiling.receiveShadow=true
     g.add(ceiling);cutaways.push({axis:'y',at:shape.h,inward:-1,parts:[ceiling],hidden:false})
   }
   for(let edge=0;edge<shape.footprint.length;edge++){
@@ -59,7 +65,7 @@ export function buildMeasuredShell({shape,colors,cutaway=false,overview=false}){
     function piece(start,end,bottom,top,mat=wallMat,thickness=t,centerZ=-inward*t/2){
       if(end-start<1e-6||top-bottom<1e-6)return
       const pos={x:(start+end)/2,y:(bottom+top)/2,z:centerZ}
-      const mesh=new THREE.Mesh(meterUV(new THREE.BoxGeometry(end-start,top-bottom,thickness),scale,pos),mat)
+      const mesh=new THREE.Mesh(meterUV(new THREE.BoxGeometry(end-start,top-bottom,thickness),wallScale,pos),mat)
       mesh.position.set(pos.x,pos.y,pos.z);mesh.castShadow=!nearWall&&mat!==glassMat;mesh.receiveShadow=true;if(nearWall||mat===glassMat)mesh.userData.noCast=true;wall.add(mesh)
     }
     const openings=shape.openings.filter(o=>o.edge===edge).sort((x,y)=>x.offset-y.offset)

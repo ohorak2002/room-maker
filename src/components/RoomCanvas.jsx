@@ -7,9 +7,10 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js'
 import { useRoomStore } from '../store/roomStore'
 import { useUiStore } from '../store/uiStore'
-import { starterForRoom, ROOM_PACKS, resolveItem, footprintArea, formatUSD } from '../data/catalog'
+import { starterForRoom, hasKindPack, ROOM_PACKS, resolveItem, footprintArea, formatUSD } from '../data/catalog'
 import { getWallMaterial } from '../data/presets'
 import { buildRoom, updateCutaways } from '../three/buildRoom'
 import { buildHome, buildHomeLights } from '../three/buildHome'
@@ -61,23 +62,23 @@ export default function RoomCanvas() {
     setView(name)
   }
   const [hasExport, setHasExport] = useState(false)
+  const exportSize = useUiStore((s) => s.exportSize)
+  const setExportSize = useUiStore((s) => s.setExportSize)
+  const exportBusy = useRef(false)
   const exportImage = async () => {
     const engine = engineRef.current
-    if (!engine) return
+    if (!engine || exportBusy.current) return
+    exportBusy.current = true
+    setImageStatus('Preparing image…')
     try {
-      const { outline, ghost, composer, renderer } = engine
-      const visible = [outline.visible, ghost.visible]
-      let png
-      try {
-        outline.visible = false; ghost.visible = false
-        composer.render()
-        png = renderer.domElement.toDataURL('image/png')
-      } finally { outline.visible = visible[0]; ghost.visible = visible[1] }
+      await materialsReady().catch(() => {})
+      const png = await renderStill(engine, exportSize)
       const result = await window.nestedDesktop.exportImage(png)
       if (!result.ok) throw new Error(result.error)
-      if (!result.value) return
+      if (!result.value) { setImageStatus(''); return }
       setImageStatus('Room image saved'); setHasExport(true)
     } catch (err) { setImageStatus(`Image export failed: ${err.message}`) }
+    finally { exportBusy.current = false }
   }
 
   const palette = useRoomStore((s) => s.palette)
@@ -134,6 +135,8 @@ export default function RoomCanvas() {
     // Bloom on emissive geometry only (lamps, LED strips, screens, the window
     // pane). Threshold is high and strength is low on purpose — this is meant
     // to read as "that lamp is genuinely lit," not a hazy glow over everything.
+    // 0.55/0.4/0.82 swallowed the lampshade in a large halo (artifacts/material/lamp-base);
+    // 0.25/0.2/1.0 keeps shade detail (artifacts/material/lamp-restrained).
     const composer = new EffectComposer(renderer)
     composer.addPass(new RenderPass(scene, camera))
 
@@ -188,9 +191,13 @@ export default function RoomCanvas() {
     }
     composer.addPass(gtao)
 
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.82)
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.25, 0.2, 1.0)
     composer.addPass(bloom)
     composer.addPass(new OutputPass())
+    // The composer renders into its own targets, which bypass the canvas's hardware
+    // multisampling (measured: stair-stepped leg, rug and board edges at 1x). SMAA runs
+    // last, on the display-ready image. If it cannot be created the scene still renders.
+    try { composer.addPass(new SMAAPass(1, 1)) } catch { /* keep the aliased but working render */ }
 
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -741,7 +748,26 @@ export default function RoomCanvas() {
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
-        store.undo()
+        if (e.shiftKey) store.redo(); else store.undo()
+        return
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        store.redo()
+        return
+      }
+
+      // Select a placed piece without the pointer: [ and ] step through the room's pieces.
+      if ((e.key === '[' || e.key === ']') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const pieces = (engineRef.current?.room?.handles || []).filter((h) => h.userData.key)
+        if (!pieces.length) return
+        e.preventDefault()
+        const at = pieces.indexOf(outlineTarget)
+        const next = pieces[(at + (e.key === ']' ? 1 : -1) + pieces.length) % pieces.length]
+        outlineTarget = next
+        outline.setFromObject(next)
+        outline.visible = true
+        setSelected(next)
         return
       }
 
@@ -886,7 +912,9 @@ export default function RoomCanvas() {
   // A fixture room gets a pack matched to what it is; everything else falls
   // back to the mood-based pack. Its copy differs too — a bathroom isn't
   // furnished to a vibe, it's furnished to what has to be plumbed in.
-  const pack = starterForRoom(activeRoom?.kind, store.mood)
+  // A single room is its own kind (the floorplan id is the room type).
+  const roomKind = activeRoom?.kind ?? (store.scope === 'home' ? null : store.floorplan)
+  const pack = starterForRoom(roomKind, store.mood)
   const packName = pack.name
   const isFixtureRoom = Boolean(activeRoom?.kind && ROOM_PACKS[activeRoom.kind])
   const saved = activeItems.reduce((n, i) => n + i.qty, 0)
@@ -1025,6 +1053,15 @@ export default function RoomCanvas() {
           >
             <Icon name="undo" />
           </button>
+          <button
+            className="tool-icon"
+            onClick={() => store.redo()}
+            disabled={store._future.length === 0}
+            aria-label="Redo"
+            title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
+          >
+            <Icon name="redo" />
+          </button>
           <span className="tool-sep" aria-hidden="true" />
           <button
             className="tool-btn"
@@ -1035,10 +1072,13 @@ export default function RoomCanvas() {
             <Icon name="arrange" size={15} />
             <span className="tool-label">Auto-arrange</span>
           </button>
-          <button className="tool-btn" onClick={exportImage} aria-label="Export image" title="Save a PNG of this view">
+          <button className="tool-btn" onClick={exportImage} aria-label="Export image" title="Save a PNG of this view" disabled={imageStatus === 'Preparing image…'}>
             <Icon name="camera" size={15} />
             <span className="tool-label">Export image</span>
           </button>
+          <select className="export-size" aria-label="Export size" title="Size of the exported image. Match view keeps this view's shape, 2560 px on the long edge; fixed sizes keep the view's height and may show more or less at the sides." value={exportSize} onChange={(e) => setExportSize(e.target.value)}>
+            {EXPORT_SIZES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
           <span className="tool-sep" aria-hidden="true" />
           <button className="tool-icon" onClick={() => showView('eye')} aria-label="Reset camera" title="Back to the eye-level view">
             <Icon name="focus" />
@@ -1089,6 +1129,8 @@ export default function RoomCanvas() {
                 <p className="empty-sub">
                   {isFixtureRoom
                     ? "Start with the fixtures this room needs, then swap out whatever you don't want."
+                    : hasKindPack(roomKind)
+                    ? "Start with the pieces this kind of room usually has, then swap out whatever you don't want."
                     : `Start with a set picked for your ${store.mood} vibe, then swap out whatever you don't want.`}
                 </p>
                 <button
@@ -1105,7 +1147,7 @@ export default function RoomCanvas() {
 
       <div className="canvas-hud">
         {selected ? (
-          <span className="hud-hint">Drag to move · arrows nudge · R rotates · Delete removes</span>
+          <span className="hud-hint">Drag to move · [ ] switch piece · arrows nudge · R rotates · Delete removes</span>
         ) : (
           count > 0 && (
             <span className="hud-hint">
@@ -1253,6 +1295,62 @@ function applySavedView(engine, saved, shape) {
 }
 
 const vec = (v) => (v.toArray ? v.toArray() : v)
+
+// Exported images do not depend on window size or display scaling: the view's
+// own aspect ratio is kept (so the framing is what the designer sees) and the
+// long edge is fixed.
+export const EXPORT_SIZES = [
+  { id: 'view', label: 'Match view' },
+  { id: '1920x1080', label: '1920 × 1080' },
+  { id: '2560x1440', label: '2560 × 1440' },
+  { id: '3840x2160', label: '3840 × 2160' },
+]
+const EXPORT_LONG_EDGE = 2560
+
+/**
+ * Renders the current view at a fixed size for export and returns a PNG data
+ * URL. 'view' keeps the view's own aspect ratio; 'WxH' is exact, with the
+ * camera's vertical field of view unchanged (a different aspect shows more or
+ * less at the sides). Camera, view size, pixel ratio and AO resolution are
+ * restored on every exit, including errors.
+ */
+async function renderStill(engine, spec) {
+  const { renderer, composer, camera, outline, ghost, room } = engine
+  const size = renderer.getSize(new THREE.Vector2())
+  const ratio = renderer.getPixelRatio()
+  const exact = /^(\d+)x(\d+)$/.exec(spec)
+  const aspect = size.x > 0 && size.y > 0 ? size.x / size.y : 16 / 9 // a hidden canvas reports 0 x 0
+  const w = exact ? +exact[1] : aspect >= 1 ? EXPORT_LONG_EDGE : Math.round(EXPORT_LONG_EDGE * aspect)
+  const h = exact ? +exact[2] : aspect >= 1 ? Math.round(EXPORT_LONG_EDGE / aspect) : EXPORT_LONG_EDGE
+  const visible = [outline.visible, ghost.visible]
+  const saved = { aspect: camera.aspect }
+  try {
+    outline.visible = false
+    ghost.visible = false
+    renderer.setPixelRatio(1)
+    composer.setPixelRatio(1)
+    renderer.setSize(w, h, false)
+    composer.setSize(w, h)
+    engine.setAoDivisor?.(2)
+    camera.aspect = w / h
+    camera.updateProjectionMatrix()
+    updateCutaways(room, camera.position)
+    renderer.shadowMap.needsUpdate = true
+    composer.render()
+    return renderer.domElement.toDataURL('image/png')
+  } finally {
+    outline.visible = visible[0]
+    ghost.visible = visible[1]
+    camera.aspect = saved.aspect
+    camera.updateProjectionMatrix()
+    renderer.setPixelRatio(ratio)
+    composer.setPixelRatio(ratio)
+    renderer.setSize(size.x, size.y, false)
+    composer.setSize(size.x, size.y)
+    engine.setAoDivisor?.(engine.mode === 'overview' ? 2 : 4)
+    renderer.shadowMap.needsUpdate = true
+  }
+}
 
 /**
  * Renders the live scene from `cam` at a small size and returns a JPEG. The

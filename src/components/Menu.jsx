@@ -12,7 +12,8 @@ export default function Menu({ label, trigger, items, align = 'end', disabled, c
   useEffect(() => {
     if (!open) return
     const onDown = (e) => { if (!root.current?.contains(e.target)) setOpen(false) }
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    // Escape closes and puts focus back on the trigger that opened the menu.
+    const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); root.current?.querySelector('.menu-trigger')?.focus() } }
     window.addEventListener('pointerdown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {

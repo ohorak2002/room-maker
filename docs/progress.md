@@ -1,3 +1,15 @@
+# Progress — 2026-09-30 (quality Goal active, incomplete)
+
+Claude continuation prepared at the user's request: `docs/goals/nested-quality/claude-code-master-prompt.md`. It references the live encompassing `plan.md`, preserves the uncommitted diff and evidence, and explicitly maps the Studio Designer PDF's style/furniture/layout/surface/light/accessory/presentation ideas into existing work packages. All 11 pages read; key examples visually reviewed. Codex remains paused to avoid concurrent edits. No application code changed for this handoff.
+
+Working in `C:/dev/nested-desktop` on existing main (baseline 8ca29e2); untouched OneDrive prototype remains unchanged. Full 27-package/40-case notebook: `docs/goals/nested-quality/`. No publishing or pilot expansion.
+
+First confirmed fix: project bar no longer loses saved-file identity after edits or claims later edits were included in an earlier save. Main-process persistence status distinguishes dirty/file/recovery state; staging ignores nonpersisted notifications; replacement suppresses intermediate state; actions have a synchronous busy guard. `scripts/project-reliability.mjs before` reproduced the false “not saved” status. Normal build and `... after` passed metadata, cancellation, write failure/retry, delayed-save edit and open/poll checks; actual Electron images inspected under `artifacts/quality/persistence-{before,after}`.
+
+Second fix: delayed Brief replies from a discarded project no longer populate the next project. Successful project replacement now resets transient editor state and invalidates abandoned async chat/review/attachment operations. `scripts/brief-isolation.mjs before` reproduced the cross-project reply; `after` passes. Failed-chat messages are kept for retry, with bounded conversation context.
+
+Fresh baseline: 8 offline files/build and real Electron desktop smoke passed. Brief smoke passed after each reliability batch (local mock service only). Remaining packages/acceptance cases are not marked complete; continuing controlled rendering and export work. No package/installer checks yet in this Goal.
+
 # Progress — 2026-09-29 (skip the Brief)
 
 Added "Skip the Brief — go straight to a room" on the start screen (and "Skip the Brief" inside the editor, which discards the draft). It opens the ordinary approximate room (living-room grid), no Brief, no measurements: for trying Nested without filling a Brief. Covered by `npm run test:brief` step 10.
@@ -189,3 +201,30 @@ The desktop smoke sample (120 frames, imported model present, run under automati
 - Other known limitations: some UI still follows the consumer quiz; catalog prices/dimensions/models are conceptual; catalog search links blocked in desktop; project files capped at 32 MB; 500 ms autosave debounce; four development-tool dependency audit findings.
 
 No custom asset-intake or visual-review skill yet. `scripts/scene-debug.mjs` and the smoke test are the current review workflow; encode a skill once the workflow is stable.
+
+## 2026-09-30 usage pause
+User requested stopping when five-hour usage exhausts, until it resets to 100% remaining. Confirmed 100% used; goal paused incomplete. Reliability fixes and before/after evidence preserved. Renderer diagnostics exposed inward tabletop normals; no renderer fix yet. Normal production build restored and debug hooks absent. Resume from docs/goals/nested-quality/state.md only after allowance resets.
+
+# Progress — 2026-09-30 (Claude Code continuation)
+
+R03: the pilot coffee table's top was built with reversed lathe winding (top normals -Y), so rooms showed its underside/inner rim as a dished top. Profile now reversed; verified by normals check and matched before/after images (`artifacts/material/quality-table-fix/`). `npm test` and normal build pass, debug hooks absent. Desktop/Brief smoke not re-run for this change. Next: lamp bloom, wool metadata, owner review of pilot, export, remaining cases. See `docs/goals/nested-quality/state.md`.
+
+2026-09-30 (Claude Code): bloom made restrained (lamp shade visible; images in `artifacts/material/lamp-*`); wool texture metadata corrected to decoded 2048 x 2091. `npm test` and `test:desktop` pass.
+
+2026-09-30 (Claude Code): image export is now a fixed 2560 px long edge at the view's aspect ratio, waits for material maps, and restores the live view on every exit (smoke-tested). Not yet visually inspected.
+
+2026-09-30 (Claude Code): empty living/bedroom/office rooms now offer a pack for that room kind instead of the mood pack (`KIND_PACKS`; test + real-Electron check). Logged three new visual defects (wall seam, window dot, Shop ranking) in state.md.
+
+2026-09-30 (Claude Code): U01 replace/close, U02 chat retry checked with new real-Electron scripts (no app changes needed); Shop ranks a room's own pieces first; rail/inspector mismatch after replacing a Brief project reproduced and fixed; pilot owner-review pack at `artifacts/quality/pilot-review/index.html` awaiting decision.
+
+2026-09-30 (Claude Code, later): Export image has a size choice (match view, 1920x1080, 2560x1440, 3840x2160), a busy state and clean cancel; imported models can be removed from a project when no copies are placed; keyboard selection of placed pieces (`[` `]`); menu Escape returns focus; minimum 24 px targets for the project-name fields and link buttons; one contrast fix. New real-Electron checks: `export-checks`, `import-checks`, `a11y-audit`, `keyboard-audit`, `replace-close`, `brief-retry`, `rail-inspector`, `empty-state`. Details and limits in `docs/goals/nested-quality/state.md`.
+
+2026-09-30 (Claude Code, evening): fixed a GPU leak (shadow maps of replaced lights were never released: 2 textures per room rebuild; textures now flat across 30 lighting changes). New offline geometry test for an L-shaped room and a diagonal wall (`test/measuredGeometry.test.mjs`), window-size/long-text layout check, resource-growth scripts. See `docs/goals/nested-quality/state.md`.
+
+2026-09-30 (Claude Code, night): Redo and "update saved view" added; presentation, motion preference and view restore checked; every catalog piece measured (`scripts/catalog-bounds.mjs`): small plants no longer balloon or sink, sofa height corrected to its modelled 94 cm, wall pieces cannot overhang wall ends. Open: declared heights of beds, vanities, bathtub and sink understate the models. See state.md.
+
+2026-09-30 (Claude Code, packaging): rebuilt installer (262 MB, unsigned) and ran a full journey in the packaged ARM64 and x64 builds (fonts, bundled maps, GLB import, save, export, no network, no debug hooks) with `scripts/packaged-journey.mjs`; all passed. Installer install/uninstall, clean machine, signing remain unverified.
+
+2026-09-30 (Claude Code, late): triangle budget cut (sofa 105k -> 44k, palm 64k -> 1.8k, bookshelf 26k -> 5k, catalog 366k -> ~222k) with matched-image comparisons showing no visible change; sun-height shadow/contact check clean; dashed ceiling-edge light sliver diagnosed as shadow-dependent, not fixed (P3). Details in state.md.
+
+2026-09-30/10-01 (Claude Code, wrap-up): added SMAA edge smoothing, fixed in-session relink of a missing imported model, wrote `inventory.md`, re-ran every check on the final code (`history-views.mjs` failed once in six runs, cause unknown), rebuilt the installer (262 MB, unsigned) and re-ran the packaged journey on ARM64 and x64. Final plain-language report: `docs/goals/nested-quality/final-report.md`; case status 14 pass / 24 partial / 1 blocked (QA37, needs owner pilot decision) / 1 not done (QA40 = the report). Nothing committed or pushed.

@@ -1,21 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRoomStore } from '../store/roomStore'
 import { useUiStore } from '../store/uiStore'
-import { createProject, ROOM_DEFAULTS } from '../../shared/project.mjs'
+import { createProject, projectIdentity, ROOM_DEFAULTS } from '../../shared/project.mjs'
 import { formatUSD } from '../data/catalog'
 import { exportShoppingList, projectTotals } from '../data/shoppingList'
 import Icon from './Icons'
 import Menu from './Menu'
 import './DesktopProjects.css'
-
-// The bar has room for a file name, not a full path; the path stays in the
-// status element's title.
-function shortStatus(status) {
-  const done = /^(Saved|Opened) (.+)$/.exec(status)
-  if (done) return `${done[1]} · ${done[2].split(/[\\/]/).pop()}`
-  if (status.startsWith('Local recovery enabled')) return 'Not saved to a file yet · recovery copy on'
-  return status
-}
 
 const api = window.nestedDesktop
 async function unwrap(promise) {
@@ -30,6 +21,11 @@ export default function DesktopProjects() {
   const [status, setStatus] = useState('Opening local workspace…')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [persistence, setPersistence] = useState(null)
+  const busyRef = useRef(false)
+  const replacing = useRef(false)
+  const lastStaged = useRef(null)
+  const statusRequest = useRef(0)
   const onboarded = useRoomStore((s) => s.onboarded)
   const total = useRoomStore((s) => projectTotals(s).total)
   const count = useRoomStore((s) => projectTotals(s).count)
@@ -39,6 +35,19 @@ export default function DesktopProjects() {
   const detailsRef = useRef(details)
   detailsRef.current = details
   const document = () => createProject(useRoomStore.getState(), detailsRef.current)
+  const acceptStatus = result => {
+    setPersistence(result)
+    if (result.recoveryError) setError(`Recovery failed: ${result.recoveryError}`)
+    setStatus(result.path
+      ? `${result.dirty ? 'Unsaved changes' : 'Saved'} · ${result.path.split(/[\\/]/).pop()}`
+      : result.recovered ? 'Recovered project · Save to keep a project file' : 'Not saved to a file yet · local recovery enabled')
+  }
+  const updateStatus = async promise => {
+    const request = ++statusRequest.current
+    const result = await unwrap(promise)
+    if (request === statusRequest.current && result) acceptStatus(result)
+    return result
+  }
   useEffect(() => {
     let live = true
     unwrap(api.initialize()).then(result => {
@@ -46,50 +55,70 @@ export default function DesktopProjects() {
       setRecovery(result.recoveryAvailable)
       setReady(!result.recoveryAvailable)
       setError(result.recoveryError || '')
-      setStatus('Local workspace')
+      acceptStatus(result)
     }).catch(err => setError(err.message))
     return () => { live = false }
   }, [])
   useEffect(() => {
     if (!ready) return
-    const timer = setInterval(() => unwrap(api.status()).then(result => {
-      if (result.recoveryError) setError(`Recovery failed: ${result.recoveryError}`)
-    }).catch(err => setError(err.message)), 2000)
+    const timer = setInterval(() => updateStatus(api.status()).catch(err => setError(err.message)), 2000)
     return () => clearInterval(timer)
   }, [ready])
   useEffect(() => {
     if (!ready) return
     const stage = () => {
+      if (replacing.current) return
       try {
-        unwrap(api.stage(document())).then(result => {
-          if (result.recoveryError) setError(`Recovery failed: ${result.recoveryError}`)
-        }).catch(err => setError(err.message))
-        setStatus('Local recovery enabled • Save to create a project file')
+        const doc = document()
+        const identity = projectIdentity(doc)
+        if (identity === lastStaged.current) return
+        lastStaged.current = identity
+        updateStatus(api.stage(doc)).catch(err => { lastStaged.current = null; setError(err.message) })
       } catch (err) { setError(err.message) }
     }
     stage()
     return useRoomStore.subscribe(stage)
   }, [ready, details])
   const run = async fn => {
-    if (busy) return
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true); setError('')
-    try { await fn() } catch (err) { setError(err.message) } finally { setBusy(false) }
+    try {
+      // Flush the latest input before native replacement decisions.
+      if (ready) await updateStatus(api.stage(document()))
+      await fn()
+    } catch (err) { setError(err.message) } finally {
+      busyRef.current = false; setBusy(false)
+    }
   }
   const load = result => {
     if (!result) return
     detailsRef.current = { name: result.doc.name, client: result.doc.client }
+    replacing.current = true
+    useUiStore.getState().resetProjectUi()
     setDetails(detailsRef.current)
-    useRoomStore.setState({ ...structuredClone(ROOM_DEFAULTS), ...result.doc.state, _past: [] })
+    useRoomStore.setState({ ...structuredClone(ROOM_DEFAULTS), ...result.doc.state, _past: [], _future: [] })
+    replacing.current = false
+    lastStaged.current = null
     setReady(true); setRecovery(false)
-    setStatus(result.path ? `Opened ${result.path}` : 'Recovered project — save a project file to keep it')
+    acceptStatus(result)
   }
   const locked = !ready || busy
-  const saveTo = (asNew) => run(async () => { const r = await unwrap(api.save(document(), asNew)); if (r) setStatus(`Saved ${r.path}`) })
+  const saveTo = (asNew) => run(async () => {
+    await unwrap(api.save(document(), asNew))
+    // Read after the write; edits made during a dialog/write remain dirty.
+    await updateStatus(api.status())
+  })
   const newProject = () => run(async () => {
     if (await unwrap(api.newProject())) {
       detailsRef.current = { name: 'Untitled project', client: '' }
+      replacing.current = true
+      useUiStore.getState().resetProjectUi()
       setDetails(detailsRef.current)
       useRoomStore.getState().reset()
+      replacing.current = false
+      lastStaged.current = null
+      await updateStatus(api.stage(document()))
     }
   })
   // "Upload another Brief" elsewhere in the app asks for the same thing as New
@@ -101,7 +130,8 @@ export default function DesktopProjects() {
     newRequestSeen.current = newRequests
     newProject()
   })
-  const saved = /^(Saved|Opened) /.test(status)
+  const saved = Boolean(persistence?.path && !persistence.dirty)
+  const statusTitle = [status, persistence?.path, persistence?.savedAt && `Last file save: ${new Date(persistence.savedAt).toLocaleString()}`, persistence?.recoverySavedAt ? `Local recovery updated: ${new Date(persistence.recoverySavedAt).toLocaleString()}` : 'Local recovery pending'].filter(Boolean).join('\n')
   return <>
     <header className="appbar" aria-label="Project">
       <div className="appbar-brand">
@@ -115,9 +145,9 @@ export default function DesktopProjects() {
           <span className="appbar-for" aria-hidden="true">for</span>
           <input className="appbar-client" aria-label="Client name" placeholder="Add client" value={details.client} maxLength={200} disabled={locked} onChange={e => setDetails({ ...details, client: e.target.value })} />
         </div>
-        <div className={`appbar-status ${error ? 'is-error' : saved ? 'is-saved' : ''}`} role={error ? 'alert' : 'status'} title={error || status}>
+        <div className={`appbar-status ${error ? 'is-error' : saved ? 'is-saved' : ''}`} role={error ? 'alert' : 'status'} title={error || statusTitle}>
           {!error && <span className="appbar-dot" aria-hidden="true" />}
-          {error || shortStatus(status)}
+          {error || status}
         </div>
       </div>
       <div className="appbar-spacer" />

@@ -15,6 +15,7 @@ export default function ViewsPanel() {
   const roomKey = useRoomStore((s) => (s.scope === 'home' && s.focusedRoom ? s.focusedRoom : 'room'))
   const renameView = useRoomStore((s) => s.renameView)
   const removeView = useRoomStore((s) => s.removeView)
+  const updateView = useRoomStore((s) => s.updateView)
   const [name, setName] = useState('')
   const [message, setMessage] = useState('')
   const here = views.filter((v) => v.roomKey === roomKey)
@@ -27,6 +28,14 @@ export default function ViewsPanel() {
     setMessage(`Saved “${result.name}” with this camera and field of view.`)
   }
 
+  const update = (v) => {
+    const bridge = viewBridge.api
+    const camera = bridge?.captureView()
+    if (!camera) return setMessage('The room is not ready yet.')
+    updateView(v.id, { ...camera, thumb: bridge.thumbnail() })
+    setMessage(`Updated “${v.name}” to the current camera and field of view.`)
+  }
+
   return (
     <div className="studio-section">
       <span className="studio-label" id="view-presets">Camera</span>
@@ -37,7 +46,7 @@ export default function ViewsPanel() {
       </div>
 
       <label className="studio-label studio-spread studio-space" htmlFor="view-fov">
-        Field of view <output>{Math.round(fov)}°</output>
+        Field of view (vertical) <output>{Math.round(fov)}°</output>
       </label>
       <input id="view-fov" type="range" min="30" max="65" step="1" value={fov} onChange={(e) => setFov(Number(e.target.value))} />
 
@@ -60,6 +69,7 @@ export default function ViewsPanel() {
               {v.thumb ? <img src={v.thumb} alt="" width="64" height="36" /> : <span className="view-noimg" />}
             </button>
             <input className="view-name" aria-label={`Name of saved view ${v.name}`} defaultValue={v.name} maxLength={80} onBlur={(e) => e.target.value.trim() ? renameView(v.id, e.target.value) : (e.target.value = v.name)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+            <button className="icon-btn" aria-label={`Update ${v.name} to the current camera`} title="Replace this saved view with the camera as it is now" onClick={() => update(v)}><Icon name="focus" size={15} /></button>
             <button className="icon-btn" aria-label={`Delete ${v.name}`} title="Delete this saved view" onClick={() => removeView(v.id)}><Icon name="trash" size={15} /></button>
           </li>
         ))}

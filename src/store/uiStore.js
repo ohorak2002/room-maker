@@ -4,6 +4,14 @@ import { create } from 'zustand'
 // the filmstrip and the room. Kept out of roomStore on purpose: none of it
 // belongs in a saved project (saved views and lighting live in roomStore).
 export const useUiStore = create((set) => ({
+  // Ephemeral work belongs to one open project, including pending Brief replies.
+  projectSession: 0,
+  resetProjectUi: () => set(s => ({ projectSession: s.projectSession + 1,
+    briefChat: [], activePanel: 'pieces', selectedItemId: null, activeView: 'eye', fov: 52,
+    presetThumbs: {}, presenting: false, shortcutsOpen: false })),
+  // Export image size: 'view' (view's own aspect, 2560 px long edge) or an exact 'WxH'.
+  exportSize: 'view',
+  setExportSize: (exportSize) => set({ exportSize }),
   panelOpen: true,
   // Which inspector panel the rail shows: room | pieces | finishes | light | views.
   activePanel: 'pieces',

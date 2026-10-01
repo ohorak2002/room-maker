@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRoomStore } from '../store/roomStore'
+import { useUiStore } from '../store/uiStore'
 import { validateBrief, compileBrief, briefFingerprint } from '../../shared/brief.mjs'
 import BriefEditor from './BriefEditor'
 import MeasuredPlan from './MeasuredPlan'
@@ -18,19 +19,29 @@ export default function BriefGate() {
   const [reviewing, setReviewing] = useState(null)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState('')
+  const reviewPending = useRef(false)
 
   async function review() {
+    if (reviewPending.current) return
+    reviewPending.current = true
+    const session = useUiStore.getState().projectSession
     setError('')
     try {
       const { errors, warnings } = validateBrief(draft)
       if (errors.length) throw new Error(errors[0])
       setConfirmed(false)
-      setReviewing({ doc: draft, warnings, home: compileBrief(draft), fingerprint: await briefFingerprint(draft) })
-    } catch (e) { setError(e.message) }
+      const home = compileBrief(draft)
+      const fingerprint = await briefFingerprint(draft)
+      if (session !== useUiStore.getState().projectSession || draft !== useRoomStore.getState().briefDraft) return
+      setReviewing({ doc: draft, warnings, home, fingerprint })
+    } catch (e) { setError(e.message) } finally { reviewPending.current = false }
   }
   function create() {
     setError('')
-    try { useRoomStore.getState().importOfficialBrief({ source: reviewing.doc, fingerprint: reviewing.fingerprint }) } catch (e) { setError(e.message) }
+    try {
+      if (reviewing.doc !== useRoomStore.getState().briefDraft) throw new Error('The Brief changed. Go back and review the current measurements.')
+      useRoomStore.getState().importOfficialBrief({ source: reviewing.doc, fingerprint: reviewing.fingerprint })
+    } catch (e) { setError(e.message) }
   }
 
   if (!draft) {

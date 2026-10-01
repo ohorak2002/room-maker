@@ -15,6 +15,6 @@ for(const mesh of north.children){
   assert.equal(box.containsPoint(new THREE.Vector3(1.6,1,-.05)),false,'Door opening must remain empty')
 }
 const uv=floor.geometry.attributes.uv,pos=floor.geometry.attributes.position
-for(let i=0;i<pos.count;i++){assert.ok(Math.abs(uv.getX(i)-pos.getX(i)/shape.surfaces.textureScale)<1e-6);assert.ok(Math.abs(uv.getY(i)-pos.getZ(i)/shape.surfaces.textureScale)<1e-6)}
+for(let i=0;i<pos.count;i++){assert.ok(Math.abs(uv.getX(i)-pos.getX(i)/(shape.surfaces.textureScale*2.4))<1e-6);assert.ok(Math.abs(uv.getY(i)-pos.getZ(i)/(shape.surfaces.textureScale*2.4))<1e-6)}
 const triangle=footprintGeometry([{x:0,z:0},{x:3,z:0},{x:0,z:4}]);assert.equal(triangle.attributes.position.count,3)
-console.log('Measured mesh dimensions, true door cutout, polygon triangulation and meter-scale UV checks passed.')
+console.log('Measured mesh dimensions, true door cutout, polygon triangulation and natural-scale UV checks passed.')

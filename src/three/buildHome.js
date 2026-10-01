@@ -216,5 +216,6 @@ export function buildHomeLights(scene, { span }) {
   key.shadow.camera.bottom = -span
   add(key)
 
-  return () => added.forEach((l) => scene.remove(l))
+  // Release the key light's shadow map too; removing the light alone leaks it.
+  return () => added.forEach((l) => { scene.remove(l); l.shadow?.dispose(); l.dispose?.() })
 }

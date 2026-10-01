@@ -68,8 +68,8 @@ function BriefFinishes() {
     <section className="studio-section">
       <span className="studio-label">{room.name} · from the Brief</span>
       <ul className="finish-list">
-        <li><span>Floor</span><strong>{swatch(s.floorColor)}{s.floor} · {s.floorFinish}</strong><small>Procedural preview at a {s.textureScale} m tile</small></li>
-        <li><span>Walls</span><strong>{swatch(s.wallColor)}{s.wall} · {s.wallFinish}</strong><small>Procedural preview at a {s.textureScale} m tile</small></li>
+        <li><span>Floor</span><strong>{swatch(s.floorColor)}{s.floor} · {s.floorFinish}</strong><small>Procedural preview at {s.textureScale}× natural size</small></li>
+        <li><span>Walls</span><strong>{swatch(s.wallColor)}{s.wall} · {s.wallFinish}</strong><small>Procedural preview at {s.textureScale}× natural size</small></li>
         <li><span>Trim</span><strong>{swatch(s.trimColor)}{s.trimColor}</strong></li>
         <li><span>Accent</span><strong>{swatch(s.accentColor)}{s.accentColor}</strong><small>Recorded for the designer; not painted onto a surface</small></li>
       </ul>

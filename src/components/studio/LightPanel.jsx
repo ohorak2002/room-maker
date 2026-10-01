@@ -1,6 +1,7 @@
 import { useRoomStore } from '../../store/roomStore'
 import { useUiStore } from '../../store/uiStore'
 import { LIGHTING } from '../../data/presets'
+import { ROOM_DEFAULTS } from '../../../shared/project.mjs'
 import Icon from '../Icons'
 
 // The three headline presets map onto the room's existing lighting rigs. The
@@ -19,6 +20,12 @@ export default function LightPanel() {
   const sunDefault = useUiStore((s) => s.sunDefault)
   const others = LIGHTING.filter((l) => !HEADLINE.some((h) => h.id === l.id))
   const sun = studio.sun ?? sunDefault
+  // A room measured in a Brief records its own lighting; reset returns to that,
+  // otherwise to the app's default. Brightness, sun height and accent lights return to their defaults.
+  const defaultLighting = useRoomStore((s) => s.activeRoom()?.lighting) ?? ROOM_DEFAULTS.lighting
+  const D = ROOM_DEFAULTS.studio
+  const atDefault = lighting === defaultLighting && studio.brightness === D.brightness && studio.sun === D.sun && studio.accent === D.accent
+  const reset = () => { set('lighting', defaultLighting); setStudio({ ...D }) }
 
   return (
     <div className="studio-section">
@@ -68,6 +75,8 @@ export default function LightPanel() {
         </span>
         <input type="checkbox" checked={studio.accent} onChange={(e) => setStudio({ accent: e.target.checked })} />
       </label>
+
+      <button className="studio-btn" disabled={atDefault} onClick={reset} title="Back to this room's recorded lighting, 100% brightness, the room's sun height and accent lights on">Reset lighting</button>
 
       <p className="studio-note">
         <Icon name="info" size={14} />

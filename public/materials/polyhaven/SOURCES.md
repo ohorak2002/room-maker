@@ -12,7 +12,7 @@ These texture sets are bundled so Nested loads them offline. Nothing is fetched 
 | License | CC0 1.0 (https://polyhaven.com/license) | CC0 1.0 |
 | Published real-world size of one tile | 27.0 × 27.6 cm | 183 × 183 cm |
 | Maps bundled | `diff` (sRGB base colour), `nor_gl` (OpenGL normal, linear), `rough` (linear) | same |
-| Resolution / format | 2048 × 2048 JPG ("2k") | 2048 × 2048 JPG ("2k") |
+| Resolution / format | 2048 × 2091 JPG ("2k", decoded from the files) | 2048 × 2048 JPG ("2k") |
 | Fetched | 2026-09-29 | 2026-09-29 |
 
 Files were downloaded once from the URLs returned by `https://api.polyhaven.com/files/<id>` (the documented API, identified with a User-Agent; no scraping) and checked against the MD5 values the API publishes. The same checksums are recorded in `src/data/materialSources.js`, and `test/materials.test.mjs` verifies the files on disk.

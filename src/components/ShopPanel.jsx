@@ -3,9 +3,10 @@ import ItemThumb from './ItemThumb'
 import Icon from './Icons'
 import { useRoomStore } from '../store/roomStore'
 import { useUiStore } from '../store/uiStore'
-import { CATALOG, CATEGORIES, byId, formatUSD, recommend, cheapestSubstitute, resolveItem } from '../data/catalog'
+import { CATALOG, CATEGORIES, byId, formatUSD, recommend, cheapestSubstitute, resolveItem, hasKindPack } from '../data/catalog'
 import './ShopPanel.css'
 
+const KIND_LABEL = { living: 'living room', bedroom: 'bedroom', primary: 'bedroom', office: 'home office', bath: 'bathroom', primaryBath: 'bathroom', kitchen: 'kitchen', dining: 'dining room', laundry: 'laundry' }
 const CATEGORY_NAME = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name]))
 
 export default function ShopPanel() {
@@ -19,13 +20,18 @@ export default function ShopPanel() {
   const photoPalette = store.photo?.palette || []
   // The focused room's kind steers the feed, so a bathroom recommends fixtures
   // rather than whatever the home's overall mood would have suggested.
-  const recs = recommend(store.mood, photoPalette, 40, store.activeRoom()?.kind || null)
+  // A single room is its own kind (the floorplan id is the room type).
+  const kind = store.activeRoom()?.kind || null
+  const typicalFor = kind ?? (store.scope === 'home' ? null : store.floorplan)
+  const recs = recommend(store.mood, photoPalette, 40, kind, typicalFor)
 
   const q = query.trim().toLowerCase()
   const base = cat === 'for-you' ? recs : CATALOG.filter((i) => cat === 'all' || i.cat === cat)
-  const visible = base.filter(
-    (i) => !q || i.name.toLowerCase().includes(q) || i.retailerName.toLowerCase().includes(q)
-  )
+  const matches = (i) => !q || i.name.toLowerCase().includes(q) || i.retailerName.toLowerCase().includes(q)
+  const visible = base.filter(matches)
+  // The search only looks inside the chosen list; say so, and offer the wider search when it would find something.
+  const elsewhere = visible.length === 0 && q && cat !== 'all' ? CATALOG.filter(matches).length : 0
+  const scopeName = cat === 'for-you' ? 'your recommended pieces' : (CATEGORY_NAME[cat] || 'this category')
 
   const total = activeItems.reduce(
     (sum, i) => sum + (resolveItem(i.id, store.synthetics)?.price || 0) * i.qty,
@@ -74,7 +80,7 @@ export default function ShopPanel() {
           {visible.length} concept {visible.length === 1 ? 'piece' : 'pieces'}
           {cat === 'for-you' && (
             <>
-              {' '}ranked for your <strong>{store.mood}</strong> room
+              {' '}ranked for your <strong>{store.mood}</strong> room{hasKindPack(typicalFor) && <>, starting with what a {KIND_LABEL[typicalFor] || 'room like this'} usually has</>}
               {photoPalette.length > 0 && <> and photo colours</>}
             </>
           )}
@@ -139,7 +145,13 @@ export default function ShopPanel() {
             </article>
           )
         })}
-        {visible.length === 0 && <p className="empty">Nothing matches "{query}".</p>}
+        {visible.length === 0 && (
+          <div className="empty" role="status">
+            <p>Nothing matches “{query}”{cat !== 'all' ? ` in ${scopeName}` : ''}.</p>
+            {elsewhere > 0 && <button className="link-btn" onClick={() => setCat('all')}>Search all categories ({elsewhere} {elsewhere === 1 ? 'match' : 'matches'})</button>}
+            {q && <button className="link-btn" onClick={() => setQuery('')}>Clear search</button>}
+          </div>
+        )}
       </div>
 
       {activeItems.length > 0 && (

@@ -76,7 +76,7 @@ export default function Workspace() {
 
       <nav className="rail" aria-label="Room tools">
         {panels.map((p) => (
-          <button key={p.id} className="rail-btn" aria-pressed={panelOpen && activePanel === p.id} aria-label={p.label} title={p.title} onClick={() => choosePanel(p.id)}>
+          <button key={p.id} className="rail-btn" aria-pressed={panelOpen && active.id === p.id} aria-label={p.label} title={p.title} onClick={() => choosePanel(p.id)}>
             <Icon name={p.icon} size={20} />
             <span>{p.label}</span>
             {p.id === 'pieces' && count > 0 && <span className="rail-badge" aria-label={`${count} pieces`}>{count}</span>}

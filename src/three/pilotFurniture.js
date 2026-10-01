@@ -37,7 +37,7 @@ const brass = () =>
  * face has vertices, positions are merged so normals are smooth across the
  * round-over, and `bulge` swells each face between its seams.
  */
-function softBox(w, h, d, r, { bulge = 0, crease = 0, seed = 0, step = 0.018 } = {}) {
+function softBox(w, h, d, r, { bulge = 0, crease = 0, seed = 0, step = 0.03 } = {}) {
   const rr = Math.min(r, w / 2.05, h / 2.05, d / 2.05)
   const seg = (len) => Math.max(4, Math.round(len / step))
   let geo = new THREE.BoxGeometry(w, h, d, seg(w), seg(h), seg(d))
@@ -240,7 +240,8 @@ export function pilotTable(it) {
   profile.push([R - bev - 0.004, h - thick])
   for (const f of [0.9, 0.75, 0.5, 0.25]) profile.push([R * f, h - thick])
   profile.push([0, h - thick])
-  const lathe = new THREE.LatheGeometry(profile.map(([x, y]) => new THREE.Vector2(Math.max(x, 1e-4), y)), 128)
+  // Lathe faces are outward only when the profile runs bottom to top (verified: reversed order gave top normals of -Y).
+  const lathe = new THREE.LatheGeometry(profile.slice().reverse().map(([x, y]) => new THREE.Vector2(Math.max(x, 1e-4), y)), 128)
   lathe.computeVertexNormals()
   // Board grain runs along Z on top; long-grain edges follow it, end grain is darkened.
   boxUV(lathe, WOOD_TILE, { top: 'z', sides: 'h', offset: [0.21, 0.37] })

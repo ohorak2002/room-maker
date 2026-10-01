@@ -46,15 +46,15 @@ const raw = [
   { id: 'leaf-bouquet', name: 'Faux Leaf Bouquet', cat: 'greenery', retailer: 'homedepot', price: 18, color: '#5C8A4F', model: 'vase', h: 0.5, fp: 0.2, group: 'small-green', vibes: ['natural', 'warm', 'cozy'] },
   { id: 'succulent-trio', name: 'Succulent Trio, Potted', cat: 'greenery', retailer: 'ikea', price: 24, color: '#7FA06B', model: 'smallplant', h: 0.22, fp: 0.18, group: 'small-green', vibes: ['natural', 'modern', 'cool'] },
   { id: 'herb-planter', name: 'Windowsill Herb Planter', cat: 'greenery', retailer: 'lowes', price: 32, color: '#6B9E5F', model: 'smallplant', h: 0.25, fp: 0.2, group: 'small-green', vibes: ['natural', 'warm'] },
-  { id: 'hanging-pothos', name: 'Hanging Pothos, Artificial', cat: 'greenery', retailer: 'amazon', price: 26, color: '#4E8C3F', model: 'hanging', h: 0.7, fp: 0.25, group: 'hanging-green', vibes: ['natural', 'cozy', 'bold'] },
-  { id: 'moss-wall', name: 'Preserved Moss Wall Panel', cat: 'greenery', retailer: 'amazon', price: 74, color: '#4F7A44', model: 'wallpanel', h: 0.6, fp: 0.3, group: 'wall-green', vibes: ['natural', 'bold'] },
+  { id: 'hanging-pothos', name: 'Hanging Pothos, Artificial', cat: 'greenery', retailer: 'amazon', price: 26, color: '#4E8C3F', model: 'hanging', h: 0.7, fp: 0.38, group: 'hanging-green', vibes: ['natural', 'cozy', 'bold'] },
+  { id: 'moss-wall', name: 'Preserved Moss Wall Panel', cat: 'greenery', retailer: 'amazon', price: 74, color: '#4F7A44', model: 'wallpanel', h: 0.6, fp: 0.5, group: 'wall-green', vibes: ['natural', 'bold'] },
 
   // ---- Seating ----------------------------------------------------------
   { id: 'desk-chair', name: 'Ergonomic Mesh Desk Chair', cat: 'seating', retailer: 'amazon', price: 189, color: '#2B2D31', model: 'chair', h: 1.1, fp: 0.42, group: 'task-chair', vibes: ['modern', 'cool'] },
   { id: 'chair-budget', name: 'Mesh Task Chair (Value)', cat: 'seating', retailer: 'walmart', price: 79, color: '#33353A', model: 'chair', h: 1.05, fp: 0.4, group: 'task-chair', vibes: ['modern', 'cool'] },
   { id: 'lounge-chair', name: 'Upholstered Lounge Chair', cat: 'seating', retailer: 'westelm', price: 799, color: '#8A6F5C', model: 'armchair', h: 0.85, fp: 0.55, group: 'accent-chair', vibes: ['cozy', 'warm', 'bold'] },
   { id: 'accent-budget', name: 'Accent Armchair (Value)', cat: 'seating', retailer: 'wayfair', price: 249, color: '#8F7A66', model: 'armchair', h: 0.82, fp: 0.53, group: 'accent-chair', vibes: ['cozy', 'warm'] },
-  { id: 'sofa', name: '3-Seat Fabric Sofa', cat: 'seating', retailer: 'ikea', price: 649, color: '#6E7A72', model: 'sofa', materialSet: 'pilot', h: 0.8, fp: 1.15, group: 'sofa', vibes: ['cozy', 'modern', 'cool'] },
+  { id: 'sofa', name: '3-Seat Fabric Sofa', cat: 'seating', retailer: 'ikea', price: 649, color: '#6E7A72', model: 'sofa', materialSet: 'pilot', h: 0.94, fp: 1.15, group: 'sofa', vibes: ['cozy', 'modern', 'cool'] },
   { id: 'beanbag', name: 'Oversized Bean Bag', cat: 'seating', retailer: 'target', price: 129, color: '#9A5B4A', model: 'beanbag', h: 0.65, fp: 0.5, group: 'floor-seat', vibes: ['cozy', 'bold'] },
   { id: 'pouf', name: 'Knit Floor Pouf', cat: 'seating', retailer: 'wayfair', price: 79, color: '#C4B49A', model: 'pouf', h: 0.4, fp: 0.34, group: 'floor-seat', vibes: ['cozy', 'warm', 'natural'] },
 
@@ -72,16 +72,16 @@ const raw = [
   { id: 'rug-budget', name: 'Area Rug, 8x10 (Value)', cat: 'surfaces', retailer: 'walmart', price: 89, color: '#AE9C86', model: 'rug', h: 0.02, fp: 1.6, group: 'rug', vibes: ['cozy', 'warm'] },
 
   // ---- Lighting ---------------------------------------------------------
-  { id: 'led-strip', name: 'Smart LED Strip, 32 ft', cat: 'lighting', retailer: 'amazon', price: 34, color: '#8A5CFF', model: 'ledstrip', h: 0.05, fp: 0.3, emissive: true, group: 'led', vibes: ['bold', 'modern', 'cool'] },
+  { id: 'led-strip', name: 'Smart LED Strip, 32 ft', cat: 'lighting', retailer: 'amazon', price: 34, color: '#8A5CFF', model: 'ledstrip', h: 0.05, fp: 1.2, emissive: true, group: 'led', vibes: ['bold', 'modern', 'cool'] },
   { id: 'floor-lamp', name: 'Arc Floor Lamp', cat: 'lighting', retailer: 'westelm', price: 299, color: '#C8B48A', model: 'floorlamp', h: 1.7, fp: 0.32, emissive: true, group: 'floor-lamp', vibes: ['warm', 'cozy', 'modern'] },
   { id: 'lamp-budget', name: 'Floor Lamp, Standing (Value)', cat: 'lighting', retailer: 'ikea', price: 39, color: '#C2B092', model: 'floorlamp', h: 1.6, fp: 0.3, emissive: true, group: 'floor-lamp', vibes: ['warm', 'cozy'] },
   { id: 'desk-lamp', name: 'Adjustable Desk Lamp', cat: 'lighting', retailer: 'ikea', price: 49, color: '#3A3D42', model: 'desklamp', h: 0.45, fp: 0.18, emissive: true, group: 'desk-lamp', vibes: ['modern', 'cool', 'warm'] },
   { id: 'pendant', name: 'Rattan Pendant Light', cat: 'lighting', retailer: 'homedepot', price: 89, color: '#C9A46B', model: 'pendant', h: 0.4, fp: 0.3, emissive: true, group: 'pendant', vibes: ['natural', 'warm', 'cozy'] },
-  { id: 'neon-sign', name: 'Custom Neon Wall Sign', cat: 'lighting', retailer: 'amazon', price: 69, color: '#FF4FA3', model: 'wallpanel', h: 0.35, fp: 0.3, emissive: true, group: 'wall-light', vibes: ['bold', 'modern'] },
+  { id: 'neon-sign', name: 'Custom Neon Wall Sign', cat: 'lighting', retailer: 'amazon', price: 69, color: '#FF4FA3', model: 'wallpanel', h: 0.35, fp: 0.5, emissive: true, group: 'wall-light', vibes: ['bold', 'modern'] },
 
   // ---- Decor ------------------------------------------------------------
-  { id: 'canvas-art', name: 'Large Canvas Wall Art', cat: 'decor', retailer: 'wayfair', price: 139, color: '#5C6B7A', model: 'painting', h: 0.9, fp: 0.4, group: 'wall-art', vibes: ['modern', 'bold', 'cool'] },
-  { id: 'gallery-set', name: 'Gallery Frame Set of 6', cat: 'decor', retailer: 'target', price: 59, color: '#2B2D31', model: 'painting', h: 0.7, fp: 0.4, group: 'wall-art', vibes: ['cozy', 'modern', 'warm'] },
+  { id: 'canvas-art', name: 'Large Canvas Wall Art', cat: 'decor', retailer: 'wayfair', price: 139, color: '#5C6B7A', model: 'painting', h: 0.9, fp: 0.55, group: 'wall-art', vibes: ['modern', 'bold', 'cool'] },
+  { id: 'gallery-set', name: 'Gallery Frame Set of 6', cat: 'decor', retailer: 'target', price: 59, color: '#2B2D31', model: 'painting', h: 0.7, fp: 0.55, group: 'wall-art', vibes: ['cozy', 'modern', 'warm'] },
   { id: 'floor-mirror', name: 'Full-Length Floor Mirror', cat: 'decor', retailer: 'homedepot', price: 179, color: '#C9D2D8', model: 'mirror', h: 1.6, fp: 0.3, group: 'mirror', vibes: ['modern', 'cool', 'bold'] },
   { id: 'mirror-budget', name: 'Full-Length Mirror (Value)', cat: 'decor', retailer: 'walmart', price: 48, color: '#C4CDD3', model: 'mirror', h: 1.5, fp: 0.28, group: 'mirror', vibes: ['modern', 'cool'] },
   { id: 'curtains', name: 'Blackout Curtain Panels', cat: 'decor', retailer: 'ikea', price: 45, color: '#6B6257', model: 'curtain', h: 2.2, fp: 0.3, group: 'curtain', vibes: ['cozy', 'warm', 'cool'] },
@@ -200,12 +200,15 @@ function suitsRoom(item, roomKind) {
  * standing bonus there, because a toilet has to appear in a bathroom whether or
  * not its vibes happen to match the mood the user picked for the whole home.
  */
-export function recommend(mood, paletteHexes = [], limit = 12, roomKind = null) {
+export function recommend(mood, paletteHexes = [], limit = 12, roomKind = null, typicalFor = null) {
+  // Pieces the room's own starter set contains rank first, so an empty living room leads with a sofa, not a plant.
+  const typical = new Set((ROOM_PACKS[typicalFor] || KIND_PACKS[typicalFor])?.items || [])
   const targets = paletteHexes.map(hexToRgb).filter(Boolean)
   return CATALOG.filter((item) => suitsRoom(item, roomKind))
     .map((item) => {
       let score = item.vibes?.includes(mood) ? 100 : 0
       if (roomKind && item.rooms?.includes(roomKind)) score += 80
+      if (typical.has(item.id)) score += 120
       if (targets.length) {
         const c = hexToRgb(item.color)
         const nearest = Math.min(...targets.map((t) => rgbDist(c, t)))
@@ -247,7 +250,20 @@ export const ROOM_PACKS = {
   laundry: { name: 'Laundry pair', items: ['washer', 'dryer', 'towel-rack'] },
 }
 
-export const starterForRoom = (kind, mood) => ROOM_PACKS[kind] || starterFor(mood)
+/**
+ * Ordinary rooms are furnished by what they are, too: a living room was being
+ * offered the "Cozy bedroom" pack because the default mood is cozy. Rooms with
+ * no entry here (studio, dorm, custom...) still fall back to the mood pack.
+ */
+export const KIND_PACKS = {
+  living: { name: 'Living room set', items: STARTER_PACKS.warm.items },
+  bedroom: { name: 'Bedroom set', items: STARTER_PACKS.cozy.items },
+  primary: { name: 'Bedroom set', items: STARTER_PACKS.cozy.items },
+  office: { name: 'Home office set', items: STARTER_PACKS.modern.items },
+}
+
+export const starterForRoom = (kind, mood) => ROOM_PACKS[kind] || KIND_PACKS[kind] || starterFor(mood)
+export const hasKindPack = (kind) => Boolean(ROOM_PACKS[kind] || KIND_PACKS[kind])
 
 function hexToRgb(hex) {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '')

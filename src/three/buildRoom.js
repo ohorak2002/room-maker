@@ -97,7 +97,8 @@ const glow = (color, intensity = 1.2) => {
  */
 const box = (w, h, d, material, radius = 0.018) => {
   const r = Math.min(radius, w / 2.2, h / 2.2, d / 2.2)
-  if (r <= 0.002) return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material)
+  // Under ~4 mm the round-over cannot be seen but costs ~500 triangles a box (the palm's 108 leaflets were 64k).
+  if (r <= 0.004) return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material)
   return new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, r), material)
 }
 
@@ -224,7 +225,11 @@ const leaf = (len, wid, material, curl = 0.25) => {
   }
   geo.computeVertexNormals()
   const m = new THREE.Mesh(geo, material)
-  m.scale.set(wid, len, 1)
+  // The curl and fold are in unscaled geometry units, which is right for a leaf
+  // of about 30 cm or more (the look these were tuned for) but bowed a 10 cm
+  // succulent leaf 30 cm deep, so small plants measured 57 cm tall. Shorter
+  // leaves scale their depth with their length.
+  m.scale.set(wid, len, Math.min(1, len / 0.3))
   return m
 }
 const sphere = (r, material, seg = 24) => new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), material)
@@ -486,7 +491,7 @@ export const builders = {
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2
       const lean = 0.18 + (i % 3) * 0.09
-      const len = 0.26 + (i % 4) * 0.05
+      const len = 0.11 + (i % 4) * 0.025 // catalog height is 50 cm overall
 
       const stem = cyl(0.005, 0.007, len, m, 6)
       stem.position.set(Math.cos(a) * 0.03, 0.24 + len / 2, Math.sin(a) * 0.03)
@@ -1938,7 +1943,9 @@ function buildLights(scene, { shape, h, lighting, windows }) {
     const el = (Math.min(85, Math.max(5, degrees)) * Math.PI) / 180
     sun.position.set((sunBase.x / sunHoriz) * sunDist * Math.cos(el), sunDist * Math.sin(el), (sunBase.z / sunHoriz) * sunDist * Math.cos(el))
   }
-  return { dispose: () => added.forEach((l) => scene.remove(l)), setSun, sunDefaultElevation }
+  // Each shadow-casting light owns a 2048 x 2048 shadow map; removing the light
+  // from the scene does not release it (measured: two textures leaked per rebuild).
+  return { dispose: () => added.forEach((l) => { scene.remove(l); l.shadow?.dispose(); l.dispose?.() }), setSun, sunDefaultElevation }
 }
 
 // ---------------------------------------------------------------------------

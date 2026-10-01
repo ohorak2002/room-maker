@@ -9,7 +9,8 @@ import './App.css'
 export default function App() {
   const onboarded = useRoomStore((s) => s.onboarded)
   const presenting = useUiStore((s) => s.presenting)
-  const editor = onboarded ? <Workspace /> : <BriefGate />
+  const projectSession = useUiStore((s) => s.projectSession)
+  const editor = onboarded ? <Workspace key={projectSession} /> : <BriefGate key={projectSession} />
   // Nested is a desktop application. Without the Electron bridge there is no
   // project storage, so the editor is not offered at all.
   if (!window.nestedDesktop) {

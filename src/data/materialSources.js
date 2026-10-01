@@ -25,7 +25,7 @@ export const MATERIAL_SETS = {
     license: 'CC0 1.0',
     authors: 'colormass (photography), Rico Cilliers (processing)',
     published: '2025-09-05',
-    resolution: '2048 x 2048 (2k JPG)',
+    resolution: '2048 x 2091 (2k JPG, decoded)',
     tile: [0.27008, 0.2757],
     dir: 'poly_wool_herringbone',
     maps: {

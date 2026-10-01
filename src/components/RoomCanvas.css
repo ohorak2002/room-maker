@@ -82,7 +82,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  max-width: calc(50% - 200px);
+  /* Leave room for the toolbar on the right (about 420 px with Undo, Redo, Export and size); the chip truncates instead of overlapping it. */
+  max-width: calc(100% - 432px);
+  min-width: 120px;
 }
 
 .room-chip {
@@ -94,6 +96,8 @@
   border-radius: var(--radius-m);
   font-size: 12.5px;
   white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .room-chip:has(.chip-back) {
@@ -106,7 +110,12 @@
   color: var(--ink);
 }
 
+.room-chip-name { flex-shrink: 0; }
+
 .room-chip-dims {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -621,4 +630,20 @@
 @media (max-width: 1300px) {
   .tool-label { display: none; }
   .tool-btn { padding: 0 9px; }
+}
+
+.export-size {
+  height: 30px;
+  max-width: 118px;
+  border: 1px solid var(--line, transparent);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+@media (max-width: 1300px) {
+  .export-size { max-width: 104px; }
 }

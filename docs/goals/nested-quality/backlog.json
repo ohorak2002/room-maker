@@ -1,0 +1,650 @@
+{
+  "schemaVersion": 1,
+  "kind": "live_goal_backlog",
+  "prepared": "2026-09-30",
+  "historicalAuditCommit": "8ca29e268b75ed5b30b35bdbdef1e01bca484f7a",
+  "currentRevision": "8ca29e2 + working tree",
+  "currentWorkspace": "C:/dev/nested-desktop",
+  "goalState": "active",
+  "severityDefinitions": {
+    "P0": "data loss, corruption, crash or boundary failure",
+    "P1": "blocked core journey or major regression",
+    "P2": "material usability, visual or accessibility defect",
+    "P3": "minor polish outside mandatory failures"
+  },
+  "requirements": [
+    {
+      "id": "F01",
+      "title": "Current-state inventory and baseline",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "in-progress",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA01"
+      ],
+      "dependencies": [],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U01",
+      "title": "Project identity and persistence",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "in-progress",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA02",
+        "QA03",
+        "QA04"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U02",
+      "title": "Welcome and Brief",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "in-progress",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA05",
+        "QA06"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U03",
+      "title": "Measured room editing",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA07",
+        "QA08"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U04",
+      "title": "Workspace hierarchy and navigation",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA09"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U05",
+      "title": "Furniture discovery and catalog clarity",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA10"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U06",
+      "title": "Private model import and library",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA11",
+        "QA12",
+        "QA13"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U07",
+      "title": "Selection manipulation and undo",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA14",
+        "QA15"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U08",
+      "title": "Finishes and lighting controls",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA16"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U09",
+      "title": "Views and presentation",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA17",
+        "QA32"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U10",
+      "title": "Keyboard focus and accessibility",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA18",
+        "QA19"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U11",
+      "title": "Loading empty error and success states",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA06",
+        "QA12",
+        "QA20",
+        "QA34"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "U12",
+      "title": "Window sizes scaling and motion",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA09",
+        "QA21",
+        "QA22"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R01",
+      "title": "Architectural geometry and enclosure",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA07",
+        "QA23"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R02",
+      "title": "Dimensional asset contract",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA11",
+        "QA24"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R03",
+      "title": "Sofa and table pilot",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA25",
+        "QA26"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R04",
+      "title": "PBR UVs and texture scale",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA16",
+        "QA26",
+        "QA27"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R05",
+      "title": "Room surfaces and rug",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA28"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R06",
+      "title": "Lighting shadows and AO",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA23",
+        "QA29"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R07",
+      "title": "Environment reflections and color",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA30"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R08",
+      "title": "Bloom AA and camera",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA31",
+        "QA32"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R09",
+      "title": "Deterministic image export",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA33",
+        "QA34"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R10",
+      "title": "LOD resources and performance",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA13",
+        "QA35",
+        "QA36"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "R11",
+      "title": "Existing asset coverage and dressing",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA24",
+        "QA36",
+        "QA37"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "X01",
+      "title": "Regression and migration",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "in-progress",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA03",
+        "QA04",
+        "QA15",
+        "QA38"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "X02",
+      "title": "Packaged runtime and offline assets",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA39"
+      ],
+      "dependencies": [
+        "F01"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    },
+    {
+      "id": "X03",
+      "title": "Final integrated acceptance",
+      "required": true,
+      "observationClass": "requirement",
+      "severity": null,
+      "status": "unassessed",
+      "sourcePaths": [],
+      "reproduction": null,
+      "acceptanceCases": [
+        "QA40"
+      ],
+      "dependencies": [
+        "F01",
+        "U01",
+        "U02",
+        "U03",
+        "U04",
+        "U05",
+        "U06",
+        "U07",
+        "U08",
+        "U09",
+        "U10",
+        "U11",
+        "U12",
+        "R01",
+        "R02",
+        "R03",
+        "R04",
+        "R05",
+        "R06",
+        "R07",
+        "R08",
+        "R09",
+        "R10",
+        "R11",
+        "X01",
+        "X02"
+      ],
+      "evidence": [],
+      "testedRevision": null,
+      "blocker": null
+    }
+  ],
+  "defects": [
+    {
+      "id": "D001",
+      "required": true,
+      "workPackage": "U01",
+      "severity": "P2",
+      "observationClass": "confirmed",
+      "userImpact": "Saved file identity falsely disappears after edits; edits during save can be reported saved.",
+      "status": "verified",
+      "reproduction": "Save approximate project; edit client; inspect status. Save As with delayed dialog; edit lighting before resolving.",
+      "sourcePaths": [
+        "src/components/DesktopProjects.jsx",
+        "desktop/main.mjs"
+      ],
+      "acceptanceCases": [
+        "QA02",
+        "QA03"
+      ],
+      "evidence": [
+        "artifacts/quality/persistence-before/failure.txt",
+        "artifacts/quality/persistence-before/dirty-project.png",
+        "artifacts/quality/persistence-after/result.json",
+        "artifacts/quality/persistence-after/dirty-project.png"
+      ],
+      "testedRevision": "8ca29e2 + working tree",
+      "blocker": null
+    },
+    {
+      "id": "D002",
+      "required": true,
+      "workPackage": "U02",
+      "severity": "P1",
+      "observationClass": "confirmed",
+      "userImpact": "A pending Brief reply and previous conversation appear in a new project and can supply proposals for reused room IDs.",
+      "status": "verified",
+      "reproduction": "Send to delayed local assistant; New project; start another Brief; resolve first response.",
+      "sourcePaths": [
+        "src/components/BriefChat.jsx",
+        "src/components/BriefGate.jsx",
+        "src/components/BriefEditor.jsx",
+        "src/components/DesktopProjects.jsx",
+        "src/store/uiStore.js",
+        "src/App.jsx"
+      ],
+      "acceptanceCases": [
+        "QA06"
+      ],
+      "evidence": [
+        "artifacts/quality/brief-isolation-before/failure.txt",
+        "artifacts/quality/brief-isolation-before/new-project-chat.png",
+        "artifacts/quality/brief-isolation-after/result.json"
+      ],
+      "testedRevision": "8ca29e2 + working tree",
+      "blocker": null
+    }
+  ],
+  "optional": [
+    {
+      "id": "O01",
+      "title": "Optional offline final renderer",
+      "status": "not_authorized_in_core_goal"
+    },
+    {
+      "id": "O02",
+      "title": "Optional future product expansion",
+      "status": "not_authorized_in_core_goal"
+    }
+  ]
+}

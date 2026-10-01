@@ -104,12 +104,20 @@ try {
   assert.equal(await page.getByLabel('Project name', { exact: true }).inputValue(), 'Edited alternative')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await page.getByRole('status').filter({ hasText: /^Saved/ }).waitFor()
+  const canvasSize = () => page.evaluate(() => { const c = document.querySelector('.canvas-mount canvas'); return [c.width, c.height] })
+  const canvasBefore = await canvasSize()
   await page.getByRole('button', { name: 'Export image', exact: true }).click()
   await page.getByText('Room image saved', { exact: true }).waitFor()
   assert.equal((await readFile(imagePath)).subarray(1, 4).toString(), 'PNG')
   {
     const png = await readFile(imagePath)
     assert.ok(png.readUInt32BE(16) >= 600 && png.readUInt32BE(20) >= 400, 'exported image is a real render, not a stub')
+    // Export size is fixed (long edge 2560) whatever the window, with the view's aspect ratio.
+    const [ew, eh] = [png.readUInt32BE(16), png.readUInt32BE(20)]
+    assert.equal(Math.max(ew, eh), 2560)
+    assert.ok(Math.abs(ew / eh - canvasBefore[0] / canvasBefore[1]) < 0.01, 'export keeps the view framing')
+    await page.waitForTimeout(300)
+    assert.deepEqual(await canvasSize(), canvasBefore, 'canvas size restored after export')
   }
   // Production builds carry no development hooks.
   assert.equal(await page.evaluate(() => [typeof window.__nestedEngine, typeof window.__nestedMaterials, typeof window.__nestedLegacyPieces].join()), 'undefined,undefined,undefined')

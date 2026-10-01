@@ -43,18 +43,28 @@ export const useRoomStore = create(
     // Session-only: a reopened project starts with a clean history rather
     // than offering to undo something you did yesterday.
     _past: [],
+    // Undone states, newest last. A new edit (pushHistory) discards them.
+    _future: [],
 
     pushHistory: () =>
-      set((s) => ({ _past: [...s._past.slice(-24), snapshot(s)] })),
+      set((s) => ({ _past: [...s._past.slice(-24), snapshot(s)], _future: [] })),
 
     undo: () =>
       set((s) => {
         if (!s._past.length) return s
         const prev = s._past[s._past.length - 1]
-        return { ...prev, _past: s._past.slice(0, -1), layoutRev: s.layoutRev + 1 }
+        return { ...prev, _past: s._past.slice(0, -1), _future: [...s._future.slice(-24), snapshot(s)], layoutRev: s.layoutRev + 1 }
+      }),
+
+    redo: () =>
+      set((s) => {
+        if (!s._future.length) return s
+        const next = s._future[s._future.length - 1]
+        return { ...next, _future: s._future.slice(0, -1), _past: [...s._past.slice(-24), snapshot(s)], layoutRev: s.layoutRev + 1 }
       }),
 
     canUndo: () => get()._past.length > 0,
+    canRedo: () => get()._future.length > 0,
 
     set: (key, value) => set({ [key]: value }),
     /**
@@ -86,6 +96,7 @@ export const useRoomStore = create(
         brief: { fingerprint, source },
         layoutRev: get().layoutRev + 1,
         _past: [],
+        _future: [],
       })
     },
 
@@ -217,6 +228,31 @@ export const useRoomStore = create(
       }))
     },
 
+    /** Placed copies of an imported model in every room of the project. */
+    assetPlacedCount: (id) => {
+      const itemId = assetItemId(id)
+      const s = get()
+      const count = (items) => (items || []).reduce((n, i) => n + (i.id === itemId ? i.qty : 0), 0)
+      return count(s.items) + (s.home?.rooms || []).reduce((n, r) => n + count(r.items), 0)
+    },
+
+    /**
+     * Forget an imported model in this project. Refused while any copy is still
+     * placed (in any room), so no placement is ever orphaned. The file stays in
+     * the private library, where other projects may use it.
+     */
+    removeAsset: (id) => {
+      if (!get().assets[id] || get().assetPlacedCount(id) > 0) return false
+      get().pushHistory()
+      const itemId = assetItemId(id)
+      set((s) => {
+        const { [id]: _a, ...assets } = s.assets
+        const { [itemId]: _s, ...synthetics } = s.synthetics
+        return { assets, synthetics, layoutRev: s.layoutRev + 1 }
+      })
+      return true
+    },
+
     placeAsset: (id) => {
       const record = get().assets[id]
       if (record) get().addSynthetic(assetItem(record))
@@ -235,6 +271,9 @@ export const useRoomStore = create(
     },
     renameView: (id, name) =>
       set((s) => ({ views: s.views.map((v) => (v.id === id ? { ...v, name: name.trim().slice(0, 80) || v.name } : v)) })),
+    /** Re-record a saved view from the camera as it is now (keeps its id and name). */
+    updateView: (id, camera) =>
+      set((s) => ({ views: s.views.map((v) => (v.id === id ? { ...v, ...camera } : v)) })),
     removeView: (id) => set((s) => ({ views: s.views.filter((v) => v.id !== id) })),
 
     clearAll: () => {
@@ -377,6 +416,6 @@ export const useRoomStore = create(
       return area > 0 ? used / area : 0
     },
 
-    reset: () => set({ ...initial, _past: [] }),
+    reset: () => set({ ...initial, _past: [], _future: [] }),
   })
 )

@@ -29,6 +29,12 @@ const placements = {
 const VIEWS = {
   'room-eye': { p: [1.0, 1.6, 2.45], t: [-0.1, 0.8, -1.8], fov: 52 },
   'room-high': { p: [3.0, 2.2, 2.5], t: [0, 0.5, -1.2], fov: 52 },
+  'wall-corner': { p: [0.5, 1.6, 2.3], t: [-2.6, 1.7, -2.7], fov: 60 },
+  'room-wide': { p: [0, 1.7, 2.6], t: [0, 1.3, -2.7], fov: 75 },
+  'window-frame': { p: [-0.6, 1.5, -0.8], t: [0.4, 1.5, -2.7], fov: 50 },
+  'near-wall': { p: [0.4, 1.6, -2.4], t: [0.4, 1.5, -3.2], fov: 65 },
+  'level-wide': { p: [0, 1.6, 2.5], t: [0, 1.6, -3], fov: 65 },
+  'lamp-room': { p: [2.2, 1.5, 1.2], t: [-1.7, 1.2, -2.3], fov: 50 },
   'sofa-arm-seam': { p: [-0.2, 0.78, -0.85], t: [-0.8, 0.42, -1.75], fov: 45 },
   'sofa-fabric-leg': { p: [-0.6, 0.32, -0.95], t: [-0.9, 0.12, -1.81], fov: 45 },
   'table-top-edge': { p: [0.55, 0.78, -0.1], t: [0.15, 0.4, -0.75], fov: 45 },
@@ -41,7 +47,9 @@ for (const [lightName, lighting] of LIGHTS) {
   const state = structuredClone(ROOM_DEFAULTS)
   Object.assign(state, {
     onboarded: true, floorplan: 'living', lighting,
-    items: ['sofa', 'coffee-table', 'floor-lamp', 'rug'].map((id) => ({ id, qty: 1 })), placements,
+    // NESTED_ITEMS=a,b,c replaces the pinned pilot set (placements then come from the app's own layout).
+    items: (process.env.NESTED_ITEMS ? process.env.NESTED_ITEMS.split(',') : ['sofa', 'coffee-table', 'floor-lamp', 'rug']).map((id) => ({ id, qty: 1 })),
+    placements: process.env.NESTED_ITEMS ? {} : placements,
   })
   await writeProject(join(userData, 'recovery.nested'), createProject(state, { name: 'Material pilot' }))
   const env = { ...process.env, NESTED_TEST_USER_DATA: userData }
@@ -99,6 +107,39 @@ for (const [lightName, lighting] of LIGHTS) {
         return renderer.domElement.toDataURL('image/png')
       }, v)
       await writeFile(join(out, `${lightName}-${name}.png`), Buffer.from(data.split(',')[1], 'base64'))
+      if (process.env.NESTED_DIAGNOSTICS && name === 'table-top-edge') {
+        const diagnostics = await page.evaluate(() => {
+          const e = window.__nestedEngine
+          const table = e.room.handles.find(n => n.userData.itemId === 'coffee-table')
+          const top = table.getObjectByName('top')
+          const material = top.material
+          const p = top.geometry.attributes.position, n = top.geometry.attributes.normal
+          let maxY = -Infinity
+          for (let i = 0; i < p.count; i++) maxY = Math.max(maxY, p.getY(i))
+          const normals = []
+          for (let i = 0; i < p.count; i++) if (Math.abs(p.getY(i) - maxY) < 1e-5 && Math.hypot(p.getX(i), p.getZ(i)) < 0.45) normals.push(n.getY(i))
+          const facts = { topY: maxY, flatTopNormalsY: [Math.min(...normals), Math.max(...normals)], frontSide: material.side, vertices: p.count, maps: window.__nestedMaterials.stats() }
+          const images = {}
+          const capture = name => { e.renderer.shadowMap.needsUpdate = true; e.composer.render(); images[name] = e.renderer.domElement.toDataURL('image/png') }
+          for (const mode of ['normal-off', 'roughness-constant', 'neutral', 'shadows-off']) {
+            const trial = material.clone()
+            const lights = []
+            top.material = trial
+            try {
+              if (mode === 'normal-off') trial.normalScale.set(0, 0)
+              if (mode === 'roughness-constant') { trial.roughnessMap = null; trial.roughness = 0.55 }
+              if (mode === 'neutral') { trial.map = null; trial.normalMap = null; trial.roughnessMap = null; trial.color.setHex(0x888888); trial.vertexColors = false; trial.roughness = 0.6 }
+              if (mode === 'shadows-off') e.scene.traverse(o => { if (o.isLight && o.castShadow) { lights.push(o); o.castShadow = false } })
+              trial.needsUpdate = true
+              capture(mode)
+            } finally { top.material = material; lights.forEach(l => { l.castShadow = true }); trial.dispose() }
+          }
+          capture('restored')
+          return { facts, images }
+        })
+        await writeFile(join(out, `${lightName}-diagnostics.json`), JSON.stringify(diagnostics.facts, null, 2))
+        for (const [mode, data] of Object.entries(diagnostics.images)) await writeFile(join(out, `${lightName}-table-${mode}.png`), Buffer.from(data.split(',')[1], 'base64'))
+      }
     }
   } finally { await app.evaluate(({ app }) => app.exit(0)).catch(() => {}) }
 }

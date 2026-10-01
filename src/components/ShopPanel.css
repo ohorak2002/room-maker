@@ -301,7 +301,8 @@
 
 .cheaper-line {
   display: block;
-  padding: 0;
+  min-height: 24px;
+  padding: 4px 0;
   border: none;
   background: none;
   text-align: left;
@@ -437,3 +438,5 @@
 @media (min-width: 1800px) {
   .card-photo { height: 150px; }
 }
+
+.empty .link-btn { display: block; margin: 6px auto 0; }

@@ -27,7 +27,7 @@ PDF attachments are retained, but there is no PDF renderer, OCR or live LLM conn
 
 No software can establish correct real-world dimensions from an uncalibrated image alone. The importer reproduces the verified structured coordinates; it cannot independently certify a designer's measurements or resolve discrepancies between a scanned plan and its entered values. Keep this distinction visible.
 
-The renderer is a design preview. It uses existing procedural PBR surfaces, not brand-specific scanned materials. The selected texture tile size controls meter-scale tiling; written plank-direction or product references are retained notes. Ceilings are flat-height cutaways; slopes, beams, fireplaces, columns, built-ins, complex trim, real solar orientation and photometric fixture layouts are not generated from prose. The import review and Brief panel disclose these boundaries. Walls have a 10 cm visualization thickness outside the measured interior footprint. Enter real inter-room offsets/wall gaps from the plan; wall-construction layers are not modeled.
+The renderer is a design preview. It uses existing procedural PBR surfaces, not brand-specific scanned materials. The texture scale (1 = the natural size used in ordinary rooms) controls tiling; written plank-direction or product references are retained notes. Ceilings are flat-height cutaways; slopes, beams, fireplaces, columns, built-ins, complex trim, real solar orientation and photometric fixture layouts are not generated from prose. The import review and Brief panel disclose these boundaries. Walls have a 10 cm visualization thickness outside the measured interior footprint. Enter real inter-room offsets/wall gaps from the plan; wall-construction layers are not modeled.
 
 ## Format details
 

@@ -15,6 +15,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'nested', privileges: { standard
 if (process.env.NESTED_TEST_USER_DATA && !app.isPackaged) app.setPath('userData', process.env.NESTED_TEST_USER_DATA)
 if (!app.requestSingleInstanceLock()) app.exit(0)
 let win, currentPath = null, currentDoc = null, savedIdentity = null, exportedPath = null
+let savedAt = null, recovered = false, recoverySavedAt = null
 let recovery, recoveryTimer, recoveryError = null, busy = false, closing = false, allowClose = false
 let writeQueue = Promise.resolve()
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus() } })
@@ -23,10 +24,11 @@ const recoveryPath = () => join(app.getPath('userData'), 'recovery.nested')
 // and a project can reference an asset without embedding it.
 const assetDir = () => join(app.getPath('userData'), 'assets')
 const assetPath = (id) => join(assetDir(), `${id}.glb`)
-const dirty = () => currentDoc && projectIdentity(currentDoc) !== savedIdentity
+const dirty = () => Boolean(currentDoc && projectIdentity(currentDoc) !== savedIdentity)
+const projectStatus = () => ({ path: currentPath, dirty: dirty(), savedAt, recovered, recoverySavedAt, recoveryError })
 const queueRecovery = (doc) => {
   writeQueue = writeQueue.catch(() => {}).then(() => writeProject(recoveryPath(), doc))
-  writeQueue.then(() => { recoveryError = null }, err => { recoveryError = err.message })
+  writeQueue.then(() => { recoveryError = null; recoverySavedAt = new Date().toISOString() }, err => { recoveryError = err.message })
   return writeQueue
 }
 async function flushRecovery() {
@@ -46,7 +48,8 @@ async function save(doc, saveAs = false) {
   await writeProject(path, doc)
   currentPath = path
   savedIdentity = projectIdentity(doc)
-  return { path }
+  savedAt = doc.savedAt; recovered = false
+  return projectStatus()
 }
 async function confirmReplace() {
   await flushRecovery()
@@ -93,16 +96,18 @@ try { recovery = await readProject(recoveryPath()) } catch (err) {
     try { recovery = await readProject(`${recoveryPath()}.bak`) } catch { /* Preserve damaged file for inspection. */ }
   }
 }
-handle('project:initialize', () => ({ recoveryAvailable: Boolean(recovery), recoveryError }))
-handle('project:status', () => ({ recoveryError }))
-handle('project:stage', doc => {
+handle('project:initialize', () => ({ recoveryAvailable: Boolean(recovery), ...projectStatus() }))
+handle('project:status', projectStatus)
+const stageProject = doc => {
   stringifyProject(doc)
+  if (currentDoc && projectIdentity(currentDoc) === projectIdentity(doc)) return projectStatus()
   currentDoc = doc
   clearTimeout(recoveryTimer)
   recoveryTimer = setTimeout(() => queueRecovery(doc), 500)
-  return { recoveryError }
-})
-handle('project:save', (doc, saveAs) => exclusive(() => save(doc, saveAs === true)))
+  return projectStatus()
+}
+handle('project:stage', stageProject)
+handle('project:save', (doc, saveAs) => exclusive(() => { stageProject(doc); return save(doc, saveAs === true) }))
 handle('project:open', () => exclusive(async () => {
   const result = await dialog.showOpenDialog(win, { title: 'Open Nested project', filters, properties: ['openFile'] })
   if (result.canceled) return null
@@ -110,16 +115,19 @@ handle('project:open', () => exclusive(async () => {
   const doc = await readProject(path) // Validate before touching the active project.
   if (!await confirmReplace()) return null
   currentPath = path; currentDoc = doc; savedIdentity = projectIdentity(doc)
-  return { doc, path }
+  savedAt = doc.savedAt; recovered = false
+  return { doc, ...projectStatus() }
 }))
 handle('project:recover', () => exclusive(async () => {
   if (!recovery || !await confirmReplace()) return null
   currentDoc = recovery; currentPath = null; savedIdentity = null
-  return { doc: recovery, path: null }
+  savedAt = null; recovered = true
+  return { doc: recovery, ...projectStatus() }
 }))
 handle('project:new', () => exclusive(async () => {
   if (!await confirmReplace()) return false
   currentPath = null; currentDoc = null; savedIdentity = null
+  savedAt = null; recovered = false
   return true
 }))
 handle('image:export', dataUrl => exclusive(async () => {

@@ -26,20 +26,35 @@ export default function BriefChat({ doc, roomId, edit }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const end = useRef(null)
-  useEffect(() => { api.aiStatus().then((r) => setConnected(r.ok && r.value.configured), () => setConnected(false)) }, [])
+  const live = useRef(true)
+  const sending = useRef(false)
+  useEffect(() => {
+    live.current = true
+    api.aiStatus().then((r) => { if (live.current) setConnected(r.ok && r.value.configured) }, () => { if (live.current) setConnected(false) })
+    return () => { live.current = false }
+  }, [])
   useEffect(() => { end.current?.scrollIntoView?.({ block: 'end' }) }, [messages, busy])
 
   async function send(content) {
     const body = content.trim()
-    if (!body || busy) return
+    if (!body || sending.current) return
+    sending.current = true
+    const session = useUiStore.getState().projectSession
+    const isCurrent = () => live.current && session === useUiStore.getState().projectSession
     const next = [...messages, { role: 'user', content: body }]
     setMessages(next); setText(''); setBusy(true); setError('')
     try {
-      const r = await api.aiChat(next.map(({ role, content }) => ({ role, content })), doc, roomId)
+      const r = await api.aiChat(next.slice(-24).map(({ role, content }) => ({ role, content })), doc, roomId)
+      if (!isCurrent()) return
       if (!r.ok) throw new Error(r.error)
       const { reply, proposals, dropped } = r.value
       setMessages([...next, { role: 'assistant', content: reply || (proposals.length ? 'Here are some suggestions.' : 'I have nothing to change there.'), proposals, dropped, applied: [] }])
-    } catch (e) { setError(e.message) } finally { setBusy(false) }
+    } catch (e) {
+      if (!isCurrent()) return
+      setError(`${e.message} Your message is kept below; you can send it again.`)
+      setMessages(messages)
+      setText(current => current || body)
+    } finally { if (isCurrent()) { sending.current = false; setBusy(false) } }
   }
   const markApplied = (at, index) => setMessages(useUiStore.getState().briefChat.map((m, i) => (i === at ? { ...m, applied: [...m.applied, index] } : m)))
   function apply(at, index) {

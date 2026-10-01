@@ -42,7 +42,17 @@ export default function ModelsPanel() {
     try {
       const result = await unwrap(api.importAsset())
       if (!result) return
-      if (assets[result.id]) { setMessage(`${result.fileName} is already in this project.`); return }
+      if (assets[result.id]) {
+        // Re-importing the same bytes relinks a model whose file went missing: the checksum matches, so
+        // placements keep their identity. Mark the file present and rebuild so the loader tries again.
+        const wasMissing = files[result.id] === false || ['missing', 'error'].includes(assetStatus(result.id)?.state)
+        if (wasMissing) {
+          setFiles((f) => ({ ...f, [result.id]: true }))
+          useRoomStore.setState((s) => ({ layoutRev: s.layoutRev + 1 }))
+          setMessage(`Restored ${result.fileName}. Its placements are unchanged.`)
+        } else setMessage(`${result.fileName} is already in this project.`)
+        return
+      }
       const record = createAssetRecord(result)
       addAsset(record)
       setFiles((f) => ({ ...f, [record.id]: true }))
@@ -72,6 +82,8 @@ function AssetCard({ record, fileState }) {
   const updateAsset = useRoomStore((s) => s.updateAsset)
   const placeAsset = useRoomStore((s) => s.placeAsset)
   const qty = useRoomStore((s) => s.activeItems().find((i) => i.id === assetItemId(record.id))?.qty || 0)
+  const removeAsset = useRoomStore((s) => s.removeAsset)
+  const placedEverywhere = useRoomStore((s) => s.assetPlacedCount(record.id))
   const runtime = assetStatus(record.id)
   const placed = placedDimensions(record.size, record.units, record.rotateY)
   const check = compareDimensions(placed, record.spec)
@@ -156,6 +168,11 @@ function AssetCard({ record, fileState }) {
       <button className="btn-quiet asset-place" onClick={() => placeAsset(record.id)}>
         Place in room{qty > 0 ? ` (${qty} placed)` : ''}
       </button>
+      <button className="btn-quiet asset-remove" disabled={placedEverywhere > 0} onClick={() => removeAsset(record.id)}
+        title={placedEverywhere > 0 ? 'Remove its placed copies first' : 'Forget this model in this project. The file stays in your private library.'}>
+        Remove from project
+      </button>
+      {placedEverywhere > 0 && <p className="models-note">{placedEverywhere} placed. Remove {placedEverywhere === 1 ? 'it' : 'them'} from the room{placedEverywhere === 1 ? '' : 's'} first to take this model out.</p>}
     </section>
   )
 }
