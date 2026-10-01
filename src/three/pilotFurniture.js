@@ -95,7 +95,7 @@ function cord(points3, radius, closed, tile) {
 // Sofa
 // ---------------------------------------------------------------------------
 
-export function pilotSofa() {
+export function pilotSofa(options = {}) {
   const g = new THREE.Group()
   g.userData.materialSet = 'pilot'
   const U = upholstery()
@@ -104,7 +104,7 @@ export function pilotSofa() {
   const H = brass()
   g.userData.materials = { upholstery: U, piping: P, legs: legMat, hardware: H }
 
-  const W = 2.1, D = 0.92, legH = 0.13
+  const W = 2.1, D = 0.92, legH = options.lowFeet ? 0.055 : 0.13
   const fabricUV = (geo, offset = [0, 0]) => boxUV(geo, FABRIC_TILE, { top: 'z', sides: 'y', offset })
 
   // Frame the cushions sit in.

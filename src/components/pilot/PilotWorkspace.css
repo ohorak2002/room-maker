@@ -1,0 +1,138 @@
+.pilot-shell {
+  --font-display: Georgia, 'Times New Roman', serif;
+  --ground: #f7f5ef; --surface: #fcfaf6; --surface-sunk: #eeebe4; --surface-soft: #f6f3ed;
+  --ink: #202a26; --ink-soft: #4b514b; --ink-muted: #70746d; --accent: #204b3f; --line: #dedcd4;
+  background: var(--ground); color: var(--ink);
+}
+.pilot-shell .appbar { height: 58px; min-height: 58px; padding: 0 22px; gap: 12px; background: #fcfaf6; border-bottom: 1px solid var(--line); }
+.pilot-shell .appbar-brand { gap: 0; }
+.pilot-shell .appbar-wordmark { font-family: var(--font-display); font-size: 37px; font-weight: 400; letter-spacing: -1px; }
+.pilot-shell .appbar-project { flex: initial; min-width: 160px; max-width: 220px; }
+.pilot-shell .appbar-name { font-size: 14px; width: 100%; }
+.pilot-shell .appbar-for, .pilot-shell .appbar-client { display: none; }
+.pilot-shell .appbar-status { font-size: 9px; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pilot-shell .appbar-spacer { order: 1; }
+.pilot-shell .appbar > .bar-btn, .pilot-shell .appbar-menu, .pilot-render-button { order: 2; }
+.pilot-header-caption { font-size: 11px; color: #72766e; white-space: nowrap; }
+.pilot-shell .appbar > .bar-btn.primary { color: var(--accent); background: transparent; border: 1px solid var(--line); }
+.pilot-render-button { height: 35px; border: 0; border-radius: 7px; display: inline-flex; align-items: center; gap: 9px; padding: 0 15px; background: #204b3f; color: #fff; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.pilot-render-button:disabled { opacity: .55; cursor: wait; }
+.pilot-workspace { display: grid; grid-template-columns: minmax(270px,21%) minmax(0,1fr) minmax(320px,24.4%); height: 100%; min-height: 0; background: var(--ground); }
+.pilot-workspace button { cursor: pointer; }
+.pilot-workspace button:disabled { opacity: .4; cursor: default; }
+.pilot-catalog { padding: 23px 20px 20px; border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
+.pilot-catalog-heading { display: flex; justify-content: space-between; align-items: center; }
+.pilot-catalog h1 { font-size: 34px; margin-bottom: 20px; color: var(--ink); }
+.pilot-search { display: flex; align-items: center; gap: 12px; border: 1px solid #d6d7d0; border-radius: 10px; padding: 0 13px; height: 46px; flex-shrink: 0; }
+.pilot-search input { min-width: 0; width: 100%; border: 0; outline: none; font-size: 13px; background: transparent; }
+.pilot-search:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pilot-tabs { display: flex; gap: 24px; align-items: center; border-bottom: 1px solid var(--line); min-height: 47px; flex-shrink: 0; }
+.pilot-catalog > .pilot-tabs { margin-top: 9px; margin-bottom: 16px; }
+.pilot-tabs button { align-self: stretch; border: 0; background: transparent; border-bottom: 2px solid transparent; padding: 0 2px; font-size: 13px; color: #72766e; }
+.pilot-tabs button[aria-selected=true] { border-color: var(--accent); color: var(--accent); }
+.pilot-tabs small { font-size: 10px; color: var(--ink-muted); margin-left: auto; }
+.pilot-product-list { display: flex; flex-direction: column; gap: 16px; }
+.pilot-card { display: flex; align-items: center; min-height: 111px; border: 1px solid #e2dfd7; border-radius: 7px; background: #f8f6f1; position: relative; }
+.pilot-card.is-selected { border-color: var(--accent); }
+.pilot-card-main { flex: 1; display: flex; align-items: center; min-width: 0; text-align: left; background: none; border: 0; padding: 6px 2px; gap: 8px; min-height: 109px; }
+.pilot-card-main .pilot-product-image { width: 43%; flex-shrink: 0; aspect-ratio: 1.2; }
+.pilot-card-main strong { display: block; font-family: var(--font-display); font-size: 14px; font-weight: 400; line-height: 1.3; }
+.pilot-card-main small { font-size: 11px; color: var(--ink-muted); display: block; margin-top: 6px; }
+.pilot-add { border: 0; background: var(--accent); color: white; width: 29px; height: 29px; min-width: 29px; border-radius: 50%; display: grid; place-items: center; margin-right: 12px; }
+.pilot-product-image { display: grid; place-items: center; width: 100%; height: 100%; }
+.pilot-product-image img { width: 100%; height: 100%; object-fit: contain; }
+.pilot-image-loading { font-size: 10px; color: var(--ink-muted); }
+.pilot-catalog-foot { display: flex; flex-direction: column; gap: 9px; padding-top: 24px; margin-top: auto; font-size: 12px; color: var(--ink-muted); }
+.pilot-catalog-foot > span { font-family: var(--font-display); font-size: 14px; }
+.pilot-catalog-foot button { display: flex; align-items: center; gap: 7px; background: transparent; border: 0; padding: 6px 0; font-size: 12px; color: var(--accent); }
+.pilot-catalog-foot small { font-size: 10px; }
+.pilot-room { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #e5ded0; }
+.pilot-room .canvas-root { height: 100%; }
+.pilot-room .room-chip-stack, .pilot-room .canvas-tools .tool-group, .pilot-room .canvas-hud, .pilot-room .piece-frame, .pilot-room .crowding-warning { display: none; }
+.pilot-room .canvas-tools { top: 105px; right: 16px; }
+.pilot-room .piece-tag { background: #204b3f; border: 1px solid white; border-radius: 50%; width: 29px; height: 29px; padding: 0; display: grid; place-items: center; font-family: var(--font-display); font-size: 19px; color: white; box-shadow: 0 2px 7px #0002; }
+.pilot-room-label { position: absolute; left: 24px; top: 24px; display: flex; align-items: center; gap: 9px; background: #fcfaf6ed; padding: 9px 12px; border-radius: 8px; font-size: 12px; z-index: 3; }
+.pilot-edit-tools { position: absolute; right: 16px; top: 24px; display: flex; gap: 3px; z-index: 3; }
+.pilot-edit-tools button { width: 31px; height: 34px; border: 0; background: #fcfaf6ed; display: grid; place-items: center; border-radius: 5px; }
+.pilot-view-toolbar { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid #fff; border-radius: 11px; background: #fcfaf6f2; box-shadow: 0 5px 18px #241c1615; z-index: 5; white-space: nowrap; }
+.pilot-view-toolbar button { background: transparent; border: 0; padding: 11px 12px; display: flex; gap: 8px; align-items: center; border-radius: 7px; font-size: 12px; }
+.pilot-view-toolbar button[aria-pressed=true] { background: #e4e9e0; color: #204b3f; }
+.pilot-view-toolbar label { display: flex; align-items: center; padding: 0 9px 0 12px; gap: 6px; border-left: 1px solid var(--line); }
+.pilot-view-toolbar select { border: 0; background: transparent; font-size: 12px; padding: 8px 0; max-width: 100px; }
+.pilot-inspector { padding: 24px 24px 16px; overflow-y: auto; min-height: 0; border-left: 1px solid var(--line); background: #fcfaf6; }
+.pilot-inspector-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pilot-inspector-title h2 { font-family: var(--font-display); font-size: 27px; font-weight: 400; }
+.pilot-inspector-title .icon-btn { color: var(--ink-soft); }
+.pilot-subtitle { font-size: 13px; color: var(--ink-muted); margin: 5px 0 19px; }
+.pilot-main-product { background: #f1eee7; border-radius: 7px; overflow: hidden; width: 100%; aspect-ratio: 1.64; }
+.pilot-interactive-preview { width: 100%; height: 100%; cursor: grab; }
+.pilot-interactive-preview canvas { display: block; }
+.pilot-inspector > .pilot-tabs { margin-top: 7px; }
+.pilot-angle-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; padding: 15px 0 19px; }
+.pilot-angle-strip button { border: 1px solid var(--line); border-radius: 6px; background: #f1eee7; aspect-ratio: 1.04; overflow: hidden; }
+.pilot-angle-strip button[aria-pressed=true] { border-color: var(--accent); }
+.pilot-finish p { font-size: 12px; margin-bottom: 12px; }
+.pilot-finish p span { margin: 0 8px; }
+.pilot-finish > div { display: flex; gap: 13px; }
+.pilot-finish button { background-color: var(--swatch); width: 43px; height: 43px; border-radius: 50%; border: 0; position: relative; }
+.pilot-finish button::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: url('/materials/polyhaven/poly_wool_herringbone/poly_wool_herringbone_diff_2k.jpg') center / 105px; opacity: .2; mix-blend-mode: multiply; }
+.pilot-finish button[aria-pressed=true]::after { content: ''; position: absolute; inset: -4px; border: 1px solid var(--accent); border-radius: 50%; }
+.pilot-fixed-finish { font-size: 12px; min-height: 50px; }
+.pilot-dimensions { display: flex; gap: 10px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 15px; margin: 22px 0 18px; font-size: 11px; }
+.pilot-dimensions span:last-child { color: var(--ink-muted); }
+.pilot-material-detail { margin: 0; }
+.pilot-material-detail > .pilot-product-image { height: clamp(90px,15vh,175px); background: #eee8dc; border-radius: 6px; overflow: hidden; }
+.pilot-material-detail > .pilot-product-image img { object-fit: cover; }
+.pilot-material-detail > img, .pilot-metal-sample { width: 100%; height: clamp(90px,15vh,175px); object-fit: cover; border-radius: 6px; display: block; }
+.pilot-material-detail > img { object-position: center; }
+.pilot-metal-sample { background: #7c6746; }
+.pilot-material-detail figcaption { margin-top: 6px; font-size: 10px; color: var(--ink-muted); }
+.pilot-item-actions { border-top: 1px solid var(--line); margin-top: 17px; padding-top: 14px; }
+.pilot-item-actions p { font-size: 12px; margin-bottom: 12px; }
+.pilot-item-actions > div { display: flex; gap: 8px; }
+.pilot-item-actions button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; border: 1px solid #9aa59c; border-radius: 6px; background: transparent; padding: 12px 7px; flex: 1; font-size: 12px; }
+.pilot-item-actions button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.pilot-item-actions .pilot-secondary-actions { gap: 4px; margin-top: 8px; }
+.pilot-item-actions .pilot-secondary-actions button { padding: 9px 1px; border: 0; color: var(--ink-muted); font-size: 11px; }
+.pilot-footnote { font-size: 10px; text-align: right; color: var(--ink-muted); margin-top: 18px; line-height: 1.6; }
+.pilot-plan { position: absolute; inset: 0; background: #fcfaf6; z-index: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 90px 20px; }
+.pilot-plan svg { width: 100%; max-height: 70%; }
+.pilot-plan [role=button] { cursor: pointer; }
+.pilot-plan p, .pilot-plan-caption { font-size: 12px; color: var(--ink-muted); }
+.pilot-plan-caption { font-family: var(--font-display); font-size: 24px; }
+.pilot-notice { position: absolute; z-index: 6; bottom: 94px; left: 20px; right: 20px; background: #fcfaf6f2; font-size: 12px; padding: 10px 12px; border-radius: 5px; display: flex; justify-content: space-between; }
+.pilot-notice button { border: 0; background: none; }
+.pilot-reopen { position: absolute; top: 77px; right: 16px; border: 1px solid var(--line); padding: 10px; background: var(--surface); border-radius: 5px; }
+.pilot-inspector-closed { grid-template-columns: minmax(270px,21%) minmax(0,1fr); }
+.pilot-mobile-close, .pilot-view-toolbar .pilot-catalog-toggle { display: none; }
+.pilot-replace-note, .pilot-no-results { font-size: 12px; padding: 10px 0 15px; color: var(--ink-muted); }
+.pilot-replace-note button, .pilot-no-results button { display: block; border: 0; background: transparent; color: var(--accent); padding: 8px 0; text-decoration: underline; }
+@media (min-width:1800px) { .pilot-catalog { padding: 29px 26px; } .pilot-card { min-height: 135px; } .pilot-card-main { min-height: 133px; } .pilot-card-main strong { font-size: 21px; } }
+@media (max-width:1200px) {
+  .pilot-workspace { grid-template-columns: 245px minmax(0,1fr) 300px; }
+  .pilot-inspector { padding: 20px 17px; } .pilot-catalog { padding: 20px 14px; }
+  .pilot-card-main strong { font-size: 16px; } .pilot-add { margin-right: 8px; width: 26px; min-width: 26px; height: 26px; }
+  .pilot-room-label { left: 12px; top: 16px; font-size: 11px; gap: 5px; }
+  .pilot-edit-tools { top: 62px; }
+  .pilot-view-toolbar { bottom: 18px; gap: 0; } .pilot-view-toolbar button { padding: 10px 8px; font-size: 11px; }
+  .pilot-view-toolbar label { padding: 0 5px; }
+  .pilot-inspector-closed { grid-template-columns: 245px minmax(0,1fr); }
+}
+@media (max-width:1050px) {
+  .pilot-workspace { grid-template-columns: minmax(0,1fr) 305px; }
+  .pilot-catalog { display: none; }
+  .catalog-is-open .pilot-catalog { display: flex; position: absolute; top: 58px; bottom: 0; left: 0; width: 300px; background: var(--surface); z-index: 20; box-shadow: 8px 0 30px #0002; }
+  .pilot-mobile-close, .pilot-view-toolbar .pilot-catalog-toggle { display: flex; }
+  .pilot-inspector-closed { grid-template-columns: minmax(0,1fr); }
+  .pilot-header-caption { display: none; }
+  .pilot-shell .appbar { padding: 0 14px; gap: 9px; }
+  .pilot-catalog-foot { padding-top: 16px; }
+}
+@media (max-height:800px) {
+  .pilot-catalog h1 { margin-bottom: 12px; font-size: 30px; }
+  .pilot-product-list { gap: 10px; } .pilot-card { min-height: 88px; } .pilot-card-main { min-height: 86px; }
+  .pilot-catalog-foot > span { display: none; }
+  .pilot-main-product { aspect-ratio: 1.9; }
+  .pilot-subtitle { margin-bottom: 12px; }
+  .pilot-inspector-title h2 { font-size: 28px; }
+}

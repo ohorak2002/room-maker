@@ -6,8 +6,10 @@ import { create } from 'zustand'
 export const useUiStore = create((set) => ({
   // Ephemeral work belongs to one open project, including pending Brief replies.
   projectSession: 0,
+  pilotStudio: false,
+  setPilotStudio: (pilotStudio) => set({ pilotStudio }),
   resetProjectUi: () => set(s => ({ projectSession: s.projectSession + 1,
-    briefChat: [], activePanel: 'pieces', selectedItemId: null, activeView: 'eye', fov: 52,
+    briefChat: [], activePanel: 'pieces', selectedItemId: null, activeView: 'eye', fov: 52, pilotStudio: false,
     presetThumbs: {}, presenting: false, shortcutsOpen: false })),
   // Export image size: 'view' (view's own aspect, 2560 px long edge) or an exact 'WxH'.
   exportSize: 'view',

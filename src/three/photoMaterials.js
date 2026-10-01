@@ -47,7 +47,8 @@ function loadSet(setId) {
         })
     )
   )
-  const entry = { textures, ready, failed: false }
+  const entry = { textures, ready, failed: false, loaded: false }
+  ready.then(() => { entry.loaded = true }, () => {})
   ready.catch(() => { entry.failed = true })
   pending.add(ready)
   ready.finally(() => pending.delete(ready)).catch(() => {})
@@ -90,6 +91,21 @@ export function photoMaterial(setId, opts = {}) {
   })
   m.userData.materialSet = setId
   m.userData.concept = true
+  // Optional neutral weave/grain for authored demo finishes. Keep the measured
+  // relief and roughness, but remove the source sample's dye/stain. Verified
+  // imported products never use this material factory.
+  if (opts.neutralBase) {
+    m.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+        #ifdef USE_MAP
+          vec4 grainSample = texture2D(map, vMapUv);
+          float grain = dot(grainSample.rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb *= mix(1.0, clamp(grain / ${Number(opts.neutralBase).toFixed(3)}, 0.65, 1.15), ${Number(opts.grainContrast ?? 1).toFixed(3)});
+        #endif
+      `)
+    }
+    m.customProgramCacheKey = () => `neutral-demo-${opts.neutralBase}-${opts.grainContrast ?? 1}`
+  }
   if (opts.specular != null) m.specularIntensity = opts.specular
   if (opts.sheen) {
     m.sheen = opts.sheen
@@ -105,7 +121,8 @@ export function photoMaterial(setId, opts = {}) {
     m.normalScale = new THREE.Vector2(s, s)
     m.needsUpdate = true
   }
-  entry.ready.then(bind, () => {})
+  if (entry.loaded) bind()
+  else entry.ready.then(bind, () => {})
   m.userData.tile = set.tile
   return m
 }

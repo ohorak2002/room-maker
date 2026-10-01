@@ -7,6 +7,7 @@ import { exportShoppingList, projectTotals } from '../data/shoppingList'
 import Icon from './Icons'
 import Menu from './Menu'
 import './DesktopProjects.css'
+import { viewBridge } from '../three/viewBridge'
 
 const api = window.nestedDesktop
 async function unwrap(promise) {
@@ -27,6 +28,13 @@ export default function DesktopProjects() {
   const lastStaged = useRef(null)
   const statusRequest = useRef(0)
   const onboarded = useRoomStore((s) => s.onboarded)
+  const pilotProject = useRoomStore((s) => s.customShape?.pilot === true)
+  const pilotStudio = useUiStore((s) => s.pilotStudio)
+  const pilot = pilotProject && !pilotStudio
+  const [exporting, setExporting] = useState(false)
+  useEffect(() => {
+    if (pilotProject && detailsRef.current.name === 'Untitled project') setDetails(d => ({ ...d, name: 'My living room' }))
+  }, [pilotProject])
   const total = useRoomStore((s) => projectTotals(s).total)
   const count = useRoomStore((s) => projectTotals(s).count)
   const panelOpen = useUiStore((s) => s.panelOpen)
@@ -135,8 +143,8 @@ export default function DesktopProjects() {
   return <>
     <header className="appbar" aria-label="Project">
       <div className="appbar-brand">
-        <Icon name="home" size={22} />
-        <span className="appbar-wordmark">Nested</span>
+        {!pilot && <Icon name="home" size={22} />}
+        <span className="appbar-wordmark">{pilot ? 'nested' : 'Nested'}</span>
       </div>
       <span className="appbar-divider" aria-hidden="true" />
       <div className="appbar-project">
@@ -151,7 +159,9 @@ export default function DesktopProjects() {
         </div>
       </div>
       <div className="appbar-spacer" />
-      {onboarded && <>
+      {pilot && <span className="pilot-header-caption">Pilot concept</span>}
+      {pilotProject && pilotStudio && <button className="bar-btn" onClick={() => useUiStore.getState().setPilotStudio(false)}>Back to pilot</button>}
+      {onboarded && !pilot && <>
         <span className="appbar-total">
           <strong>{count}</strong> {count === 1 ? 'piece' : 'pieces'} <span aria-hidden="true">·</span> <strong>{formatUSD(total)}</strong> est.
         </span>
@@ -172,6 +182,10 @@ export default function DesktopProjects() {
         ]}
       />
       <button type="button" className="bar-btn primary" disabled={locked} onClick={() => saveTo(false)}>Save</button>
+      {pilot && <button type="button" className="pilot-render-button" disabled={locked || exporting} onClick={async () => {
+        setExporting(true)
+        try { await viewBridge.api?.exportImage() } finally { setExporting(false) }
+      }} title="Save a high-resolution PNG of the current 3D view"><Icon name="camera" size={16} />{exporting ? 'Preparing image…' : 'Create realistic image'}</button>}
     </header>
     {recovery && <div className="recovery-overlay"><section role="dialog" aria-modal="true" aria-labelledby="recovery-title">
       <h2 id="recovery-title">Continue your last project?</h2>

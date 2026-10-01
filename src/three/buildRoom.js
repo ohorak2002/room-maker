@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
 import { zoneOf } from './layout'
 import { floorRuns, wallRuns, windowWall } from './shapeGeom'
 import { buildMeasuredShell } from './measuredShell'
@@ -9,6 +10,9 @@ import { FIDDLE_FIG } from './meshes/fiddleFig'
 import { loadAsset, instantiate, placeholder } from './assetLoader'
 import { placedDimensions } from '../../shared/assets.mjs'
 import { pilotSofa, pilotTable } from './pilotFurniture'
+import { referenceSofa, referenceChair, referenceTable, referenceRug, referenceLamp, referenceDressing, referenceFloorMaterial } from './referenceFurniture'
+
+let areaLightTablesReady = false
 
 /**
  * Build a mesh that arrived as raw geometry rather than as code.
@@ -320,6 +324,7 @@ const usesPilot = (it) =>
   it.materialSet === 'pilot' && !(import.meta.env.VITE_NESTED_DEBUG === '1' && window.__nestedLegacyPieces)
 
 export const builders = {
+  referenceSofa, referenceChair, referenceTable, referenceRug, referenceLamp,
   /**
    * A snake plant: stiff blades rising from a pot, each one twisted and leaning
    * a different way. Real ones are never symmetrical, and the irregularity is
@@ -1881,7 +1886,15 @@ function buildLights(scene, { shape, h, lighting, windows }) {
     golden: { amb: 0.08, ambColor: 0xffd9a0, sun: 3.4, sunColor: 0xffb95e, top: 0.7 },
     overcast: { amb: 0.34, ambColor: 0xe8ebee, sun: 1.2, sunColor: 0xdfe6ec, top: 1.2 },
   }
-  const rig = rigs[lighting] || rigs.natural
+  const rig = { ...(rigs[lighting] || rigs.natural) }
+  if (shape.pilot) {
+    // Broad sky through the aperture gives upholstery a soft directional
+    // gradient; the sun remains shadowed. This is a realtime bounce proxy.
+    rig.top *= .65
+    if (!areaLightTablesReady) { RectAreaLightUniformsLib.init(); areaLightTablesReady = true }
+    const sky = new THREE.RectAreaLight(lighting === 'warm' ? 0xffdfb6 : 0xf1f4ff, lighting === 'warm' ? 1.2 : 2.1, 2.1, 2.3)
+    sky.position.set(-w/2+.10,1.4,-.43); sky.lookAt(.2,.7,-.8); add(sky)
+  }
 
   add(new THREE.AmbientLight(rig.ambColor, rig.amb))
   // The lower hemisphere stands in for light bounced off the floor. It was a
@@ -1891,6 +1904,8 @@ function buildLights(scene, { shape, h, lighting, windows }) {
   // Key light: through the window when there is one, from above when there isn't.
   const sun = new THREE.DirectionalLight(rig.sunColor, rig.sun)
   sun.position.set(windows ? -w * 0.2 : w * 0.4, h * 1.4, windows ? -d * 1.4 : d * 0.5)
+  // The approved pilot's aperture is on the left, not the rear wall.
+  if (shape.pilot) sun.position.set(-w * 1.4, h * 1.15, -d * .45)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)
   sun.shadow.radius = 3
@@ -2052,8 +2067,13 @@ export function buildRoom(scene, config) {
   // Rooms measured from an official Brief have exact polygon shells; every
   // other room keeps the half-metre cell shell.
   const shell = config.shape.footprint ? buildMeasuredShell(config) : buildShell(config)
+  if (config.shape.pilot) shell.traverse(o => {
+    if (o.userData.measuredFloor) { o.material.dispose(); o.material = referenceFloorMaterial() }
+    else if (o.material?.normalScale) o.material.normalScale.set(.18,.18)
+  })
   shadowed(shell)
   group.add(shell)
+  if (config.shape.pilot) group.add(shadowed(referenceDressing()))
 
   // Flipped by dispose(), and read by any model still being generated.
   const live = { ok: true }

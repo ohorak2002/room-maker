@@ -12,6 +12,8 @@
 import { clampToShape } from './shapeGeom'
 
 export const ZONES = {
+  referenceRug: 'center',
+  referenceTable: 'center',
   rug: 'center',
   table: 'center',
   painting: 'wall',

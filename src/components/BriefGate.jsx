@@ -5,6 +5,7 @@ import { validateBrief, compileBrief, briefFingerprint } from '../../shared/brie
 import BriefEditor from './BriefEditor'
 import MeasuredPlan from './MeasuredPlan'
 import './DesignBrief.css'
+import { pilotState } from '../data/referencePilot'
 
 /**
  * The start of every new project. The Brief is written inside Nested, in the
@@ -52,7 +53,11 @@ export default function BriefGate() {
           <h1>Start with a Brief.</h1>
           <p className="brief-lead">Capture the plan, the measurements and the vision.<br />We’ll prepare the space for you to design together.</p>
           <div className="brief-start-actions">
-            <button className="brief-primary" onClick={startBrief}>Start a new brief</button>
+            <button className="brief-primary" onClick={() => {
+              useRoomStore.setState(pilotState())
+              useUiStore.getState().setPilotStudio(false)
+            }}>Explore the living-room pilot</button>
+            <button onClick={startBrief}>Start a new brief</button>
             <button onClick={skipBrief}>Skip the Brief — go straight to a room</button>
           </div>
           <p className="brief-caption">Skipping gives you an ordinary, approximate room with no measurements or Brief, handy for trying things out. </p>

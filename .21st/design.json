@@ -1,0 +1,13 @@
+{
+  "decisions": [
+    {
+      "date": "2026-10-01",
+      "scope": "New living-room pilot workspace",
+      "source": "outputs/nested-pilot-reference.png",
+      "direction": "Owner-selected generated reference: ivory surfaces, forest-green actions, serif headings, furniture catalog left, live room center, product inspector right.",
+      "implementation": "Reuse the existing React components, Icon, RoomCanvas, project persistence, undo history, material library and export bridge. Preserve the full editor for existing projects.",
+      "validation": "Actual Electron captures at 1586x992 and 1000x700 plus interaction tests. Photographic asset fidelity remains a later milestone.",
+      "tooling": "21st CLI unavailable; init/search could not run. No 21st components were downloaded. Review used the approved image and actual app captures."
+    }
+  ]
+}

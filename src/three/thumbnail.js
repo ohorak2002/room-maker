@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { builders } from './buildRoom'
+import { referenceMaterialSample } from './referenceFurniture'
 
 /**
  * Renders a catalog item to a small PNG using the exact same geometry the room
@@ -45,15 +46,19 @@ function getContext() {
 }
 
 /** @returns {string|null} a data: URL, or null if the item has no builder */
-export function renderThumbnail(item) {
-  if (cache.has(item.id)) return cache.get(item.id)
+export function renderThumbnail(item, options = {}) {
+  const cacheKey = `${item.id}:${item.color}:${item.finish || ''}:${options.angle || 'perspective'}:${options.width || 256}:${options.height || 256}`
+  if (cache.has(cacheKey)) return cache.get(cacheKey)
 
-  const build = builders[item.model]
+  const build = options.angle === 'material' ? referenceMaterialSample : builders[item.model]
   if (!build) return null
 
   let url = null
   try {
     const { renderer, scene, camera } = getContext()
+    const width = options.width || 256, height = options.height || 256
+    renderer.setSize(width, height, false)
+    camera.aspect = width / height
     const node = build(item)
     scene.add(node)
 
@@ -61,10 +66,14 @@ export function renderThumbnail(item) {
     const bounds = new THREE.Box3().setFromObject(node)
     const size = bounds.getSize(new THREE.Vector3())
     const center = bounds.getCenter(new THREE.Vector3())
-    const reach = Math.max(size.x, size.y, size.z) || 1
+    const reach = Math.max(size.x / Math.min(camera.aspect, 1.8), size.y, size.z) || 1
     const dist = (reach / (2 * Math.tan((camera.fov * Math.PI) / 360))) * 1.3
 
     camera.position.set(center.x + dist * 0.62, center.y + dist * 0.45, center.z + dist * 0.72)
+    if (options.angle === 'front') camera.position.set(center.x, center.y + dist * .16, center.z + dist)
+    if (options.angle === 'side') camera.position.set(center.x + dist, center.y + dist * .22, center.z)
+    if (options.angle === 'back') camera.position.set(center.x, center.y + dist * .16, center.z - dist)
+    if (options.angle === 'material') camera.position.set(center.x, center.y, center.z + dist * .72)
     camera.lookAt(center)
     camera.updateProjectionMatrix()
 
@@ -89,7 +98,8 @@ export function renderThumbnail(item) {
     console.warn('thumbnail failed for', item.id, err)
   }
 
-  cache.set(item.id, url)
+  if (cache.size > 100) cache.delete(cache.keys().next().value)
+  cache.set(cacheKey, url)
   return url
 }
 

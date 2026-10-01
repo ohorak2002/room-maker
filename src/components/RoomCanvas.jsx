@@ -25,7 +25,7 @@ import MeasuredPlan from './MeasuredPlan'
 import Icon from './Icons'
 import './RoomCanvas.css'
 
-export default function RoomCanvas() {
+export default function RoomCanvas({ pilot = false }) {
   const mountRef = useRef(null)
   const engineRef = useRef(null)
   const tagRef = useRef(null)
@@ -55,8 +55,9 @@ export default function RoomCanvas() {
   const showView = (name) => {
     const engine = engineRef.current
     if (!engine?.roomDims) return
-    useUiStore.getState().setFov(DEFAULT_FOV)
-    engine.camera.fov = DEFAULT_FOV
+    const viewFov = useRoomStore.getState().shape().pilot && name === 'eye' ? 70 : DEFAULT_FOV
+    useUiStore.getState().setFov(viewFov)
+    engine.camera.fov = viewFov
     engine.camera.updateProjectionMatrix()
     applyView(engine, name, useRoomStore.getState().shape())
     setView(name)
@@ -300,7 +301,9 @@ export default function RoomCanvas() {
       frameEl.style.transform = `translate(${left - 6}px, ${top - 6}px)`
       frameEl.style.width = `${right - left + 12}px`
       frameEl.style.height = `${bottom - top + 12}px`
-      tag.style.transform = `translate(${(left + right) / 2}px, ${Math.max(top - 12, 34)}px) translate(-50%, -100%)`
+      tag.style.transform = pilot
+        ? `translate(${(left + right) / 2}px, ${(top + bottom) / 2}px) translate(-50%, -50%)`
+        : `translate(${(left + right) / 2}px, ${Math.max(top - 12, 34)}px) translate(-50%, -100%)`
     }
 
     let frame
@@ -330,6 +333,7 @@ export default function RoomCanvas() {
 
       controls.update()
       updateCutaways(engineRef.current?.room, camera.position)
+      if (pilot) outline.visible = false
       if (outline.visible) outline.update()
       placeTag()
       composer.render()
@@ -368,6 +372,7 @@ export default function RoomCanvas() {
     if (!engine) return
     const { scene, camera, controls, outline, ghost } = engine
 
+    const previousSelection = engine.selectedNode?.userData.key
     engine.room?.dispose()
     outline.visible = false
     ghost.visible = false
@@ -456,12 +461,14 @@ export default function RoomCanvas() {
     // away the angle the designer was looking from. Reframe only when the room
     // itself changed size (or we just left the whole-home overview).
     const prev = engine.roomDims
-    engine.roomDims = room
+    engine.roomDims = { ...room, pilot: shape.pilot === true }
     applyStudio(engine, store.studio)
+    if (previousSelection) setSelected(engine.room.handles.find(n => n.userData.key === previousSelection) || null)
+    else if (pilot && !prev) setSelected(engine.room.handles.find(n => n.userData.itemId === 'pilot-sofa') || null)
     if (prev && prev.w === room.w && prev.d === room.d && prev.h === room.h) return
     // A new room opens standing inside it, not looking into a box.
-    useUiStore.getState().setFov(DEFAULT_FOV)
-    engine.camera.fov = DEFAULT_FOV
+    useUiStore.getState().setFov(shape.pilot ? 70 : DEFAULT_FOV)
+    engine.camera.fov = shape.pilot ? 70 : DEFAULT_FOV
     engine.camera.updateProjectionMatrix()
     applyView(engine, 'eye', shape)
     setView('eye')
@@ -490,6 +497,20 @@ export default function RoomCanvas() {
 
   useEffect(() => {
     viewBridge.api = {
+      exportImage,
+      selectItem: (id) => {
+        const engine = engineRef.current
+        const node = engine?.room?.handles.find(n => n.userData.itemId === id)
+        if (!node) { setSelected(null); return false }
+        engine.outline.setFromObject(node)
+        engine.outline.visible = !pilot
+        setSelected(node)
+        return true
+      },
+      itemAction: (action) => {
+        const node = engineRef.current?.selectedNode
+        if (node) runMenuAction(action, { key: node.userData.key })
+      },
       showPreset: (name) => showView(name),
       applyView: (saved) => {
         const engine = engineRef.current
@@ -771,6 +792,7 @@ export default function RoomCanvas() {
         return
       }
 
+      outlineTarget = engineRef.current?.selectedNode || null
       if (!outlineTarget) return
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -1015,7 +1037,7 @@ export default function RoomCanvas() {
       {selected && <div className="piece-frame" ref={frameRef} aria-hidden="true" />}
       {selected && (
         <div className="piece-tag" ref={tagRef} aria-hidden="true">
-          {selected.name} · {Math.round(selected.size.w * 100)} cm
+          {pilot ? '1' : `${selected.name} · ${Math.round(selected.size.w * 100)} cm`}
         </div>
       )}
 
@@ -1159,7 +1181,7 @@ export default function RoomCanvas() {
         )}
       </div>
 
-      {selected && !presenting && <PieceInspector selected={selected} onAction={(action) => runMenuAction(action, selected)} />}
+      {selected && !presenting && !pilot && <PieceInspector selected={selected} onAction={(action) => runMenuAction(action, selected)} />}
     </div>
   )
 }
@@ -1443,6 +1465,10 @@ const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo
 
 /** Repeatable camera positions, so views can be compared between designs. */
 function viewFor(name, room, camera) {
+  if (room.pilot && name === 'eye') return {
+    position: new THREE.Vector3(.03, 1.18, 1.78),
+    target: new THREE.Vector3(-.20, .56, -1.15),
+  }
   if (name === 'eye') {
     // Standing with your back to the entrance wall, eyes at 1.6 m, looking
     // across the room toward the far wall and slightly down at the furniture.

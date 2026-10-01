@@ -1,0 +1,317 @@
+{
+  "format": "nested-project",
+  "version": 5,
+  "name": "My living room",
+  "client": "",
+  "savedAt": "2026-10-01T14:41:03.601Z",
+  "state": {
+    "onboarded": true,
+    "scope": "room",
+    "home": null,
+    "focusedRoom": null,
+    "activeFloor": 0,
+    "residence": "",
+    "prefurnished": [],
+    "palette": "clay",
+    "mood": "cozy",
+    "lighting": "natural",
+    "wallMaterial": "plaster",
+    "floorplan": "living",
+    "customShape": {
+      "pilot": true,
+      "cols": 9,
+      "rows": 8,
+      "h": 2.8,
+      "exactW": 4.5,
+      "exactD": 3.8,
+      "area": 17.1,
+      "cells": [
+        "0,0",
+        "1,0",
+        "2,0",
+        "3,0",
+        "4,0",
+        "5,0",
+        "6,0",
+        "7,0",
+        "8,0",
+        "0,1",
+        "1,1",
+        "2,1",
+        "3,1",
+        "4,1",
+        "5,1",
+        "6,1",
+        "7,1",
+        "8,1",
+        "0,2",
+        "1,2",
+        "2,2",
+        "3,2",
+        "4,2",
+        "5,2",
+        "6,2",
+        "7,2",
+        "8,2",
+        "0,3",
+        "1,3",
+        "2,3",
+        "3,3",
+        "4,3",
+        "5,3",
+        "6,3",
+        "7,3",
+        "8,3",
+        "0,4",
+        "1,4",
+        "2,4",
+        "3,4",
+        "4,4",
+        "5,4",
+        "6,4",
+        "7,4",
+        "8,4",
+        "0,5",
+        "1,5",
+        "2,5",
+        "3,5",
+        "4,5",
+        "5,5",
+        "6,5",
+        "7,5",
+        "8,5",
+        "0,6",
+        "1,6",
+        "2,6",
+        "3,6",
+        "4,6",
+        "5,6",
+        "6,6",
+        "7,6",
+        "8,6",
+        "0,7",
+        "1,7",
+        "2,7",
+        "3,7",
+        "4,7",
+        "5,7",
+        "6,7",
+        "7,7",
+        "8,7"
+      ],
+      "footprint": [
+        {
+          "x": -2.25,
+          "z": -1.9
+        },
+        {
+          "x": 2.25,
+          "z": -1.9
+        },
+        {
+          "x": 2.25,
+          "z": 1.9
+        },
+        {
+          "x": -2.25,
+          "z": 1.9
+        }
+      ],
+      "openings": [
+        {
+          "type": "window",
+          "edge": 3,
+          "offset": 1.2,
+          "width": 2.3,
+          "sill": 0.13,
+          "height": 2.48
+        }
+      ],
+      "surfaces": {
+        "floor": "oak",
+        "wall": "plaster",
+        "floorColor": "#c4a779",
+        "wallColor": "#ddd4c2",
+        "trimColor": "#e9e2d6",
+        "accentColor": "#c6b9a3",
+        "floorFinish": "matte",
+        "wallFinish": "matte",
+        "textureScale": 1
+      }
+    },
+    "customDims": null,
+    "planImage": null,
+    "windows": true,
+    "wallOverride": "#ddd4c2",
+    "floorOverride": "#c4a779",
+    "items": [
+      {
+        "id": "pilot-sofa",
+        "qty": 1
+      },
+      {
+        "id": "pilot-chair",
+        "qty": 1
+      },
+      {
+        "id": "pilot-table",
+        "qty": 1
+      },
+      {
+        "id": "pilot-rug",
+        "qty": 1
+      },
+      {
+        "id": "pilot-lamp",
+        "qty": 1
+      }
+    ],
+    "synthetics": {
+      "pilot-sofa": {
+        "price": null,
+        "retailerName": "Demo item",
+        "materialSet": "pilot",
+        "pilot": true,
+        "provenance": "Nested-authored concept geometry; bundled Poly Haven CC0 materials. Not a verified retail product.",
+        "id": "pilot-sofa",
+        "name": "Oatmeal sofa",
+        "model": "referenceSofa",
+        "cat": "seating",
+        "color": "#e4d6bb",
+        "finish": "oatmeal",
+        "w": 2.2,
+        "d": 0.95,
+        "h": 0.82,
+        "fp": 1.1,
+        "area": 2.09,
+        "detail": "Wool-blend upholstery",
+        "materialImage": "/materials/polyhaven/poly_wool_herringbone/poly_wool_herringbone_diff_2k.jpg"
+      },
+      "pilot-chair": {
+        "price": null,
+        "retailerName": "Demo item",
+        "materialSet": "pilot",
+        "pilot": true,
+        "provenance": "Nested-authored concept geometry; bundled Poly Haven CC0 materials. Not a verified retail product.",
+        "id": "pilot-chair",
+        "name": "Oak lounge chair",
+        "model": "referenceChair",
+        "cat": "seating",
+        "color": "#e4d6bb",
+        "finish": "oatmeal",
+        "w": 0.78,
+        "d": 0.82,
+        "h": 0.83,
+        "fp": 0.41,
+        "area": 0.64,
+        "detail": "Oak frame · upholstered cushions",
+        "materialImage": "/materials/polyhaven/oak_veneer_01/oak_veneer_01_diff_2k.jpg"
+      },
+      "pilot-table": {
+        "price": null,
+        "retailerName": "Demo item",
+        "materialSet": "pilot",
+        "pilot": true,
+        "provenance": "Nested-authored concept geometry; bundled Poly Haven CC0 materials. Not a verified retail product.",
+        "id": "pilot-table",
+        "name": "Round coffee table",
+        "model": "referenceTable",
+        "cat": "tables",
+        "color": "#d5b583",
+        "w": 1.05,
+        "d": 1.05,
+        "h": 0.38,
+        "fp": 0.525,
+        "area": 0.87,
+        "detail": "Natural oak concept finish",
+        "materialImage": "/materials/polyhaven/oak_veneer_01/oak_veneer_01_diff_2k.jpg"
+      },
+      "pilot-rug": {
+        "price": null,
+        "retailerName": "Demo item",
+        "materialSet": "pilot",
+        "pilot": true,
+        "provenance": "Nested-authored concept geometry; bundled Poly Haven CC0 materials. Not a verified retail product.",
+        "id": "pilot-rug",
+        "name": "Textured rug",
+        "model": "referenceRug",
+        "cat": "decor",
+        "color": "#e5ddc9",
+        "w": 2.8,
+        "d": 2.1,
+        "h": 0.018,
+        "fp": 1.4,
+        "area": 0,
+        "detail": "Woven wool concept finish",
+        "materialImage": "/materials/polyhaven/poly_wool_herringbone/poly_wool_herringbone_diff_2k.jpg"
+      },
+      "pilot-lamp": {
+        "price": null,
+        "retailerName": "Demo item",
+        "materialSet": "pilot",
+        "pilot": true,
+        "provenance": "Nested-authored concept geometry; bundled Poly Haven CC0 materials. Not a verified retail product.",
+        "id": "pilot-lamp",
+        "name": "Floor lamp",
+        "model": "referenceLamp",
+        "cat": "lighting",
+        "color": "#7c6746",
+        "w": 0.5,
+        "d": 0.4,
+        "h": 1.62,
+        "fp": 0.25,
+        "area": 0.2,
+        "detail": "Brushed bronze concept finish",
+        "materialImage": null
+      }
+    },
+    "placements": {
+      "pilot-sofa#0": {
+        "x": -0.2,
+        "y": 0,
+        "z": -1.23,
+        "ry": 0,
+        "zone": "floor"
+      },
+      "pilot-chair#0": {
+        "x": 1.24,
+        "y": 0,
+        "z": -0.3,
+        "ry": -0.62,
+        "zone": "floor"
+      },
+      "pilot-table#0": {
+        "x": -0.35,
+        "y": 0.018,
+        "z": -0.24,
+        "ry": 0,
+        "zone": "center"
+      },
+      "pilot-rug#0": {
+        "x": 0.05,
+        "y": 0,
+        "z": -0.2,
+        "ry": 0,
+        "zone": "center"
+      },
+      "pilot-lamp#0": {
+        "x": -1.67,
+        "y": 0,
+        "z": -1.27,
+        "ry": -0.25,
+        "zone": "floor"
+      }
+    },
+    "layoutRev": 0,
+    "photo": null,
+    "assets": {},
+    "studio": {
+      "brightness": 110,
+      "sun": 32,
+      "accent": true
+    },
+    "views": [],
+    "brief": null,
+    "briefDraft": null
+  }
+}
